@@ -133,7 +133,8 @@ def _traverse_pull_requests(output_path: str, since: Optional[str], max_num_pull
     run_filter, job_filter, extract_failed_tests_from = _create_workflow_handlers('spark')
 
     with open(f"{output_path}/github-logs.json", "w") as output:
-        for (pr_user, pr_repo), pullreqs in tqdm.tqdm(pullreqs_by_user.items(), desc=f"Pull Reqests ({params['GITHUB_OWNER']}/{params['GITHUB_REPO']})"):
+        pb_title = f"Pull Reqests ({params['GITHUB_OWNER']}/{params['GITHUB_REPO']})"
+        for (pr_user, pr_repo), pullreqs in tqdm.tqdm(pullreqs_by_user.items(), desc=pb_title):
             logging.info(f"pr_user:{pr_user}, pr_repo:{pr_repo}, #pullreqs:{len(pullreqs)}")
 
             # Fetches test results from workflow jobs
@@ -143,7 +144,8 @@ def _traverse_pull_requests(output_path: str, since: Optional[str], max_num_pull
 
             for pr_number, pr_created_at, pr_updated_at, pr_title, pr_body, pr_user, pr_repo, pr_branch in pullreqs:
                 if pr_repo != '':
-                    commits = github_apis.list_commits_for(pr_number, params['GITHUB_OWNER'], params['GITHUB_REPO'], params['GITHUB_TOKEN'])
+                    commits = github_apis.list_commits_for(pr_number, params['GITHUB_OWNER'], params['GITHUB_REPO'], params['GITHUB_TOKEN'],
+                                                           since=since)
                     logging.info(f"pullreq#{pr_number} has {len(commits)} commits")
 
                     for (commit, commit_date) in commits:

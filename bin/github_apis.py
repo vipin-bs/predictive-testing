@@ -120,8 +120,13 @@ def list_pullreqs(owner: str, repo: str, token, since: Optional[datetime] = None
 
 
 # https://docs.github.com/en/rest/reference/pulls#get-a-pull-request
-def list_commits_for(pr_number: str, owner: str, repo: str, token, nmax: int = 100000) -> List[Tuple[str, str]]:
+def list_commits_for(pr_number: str, owner: str, repo: str, token,
+                     since: Optional[datetime] = None, nmax: int = 100000) -> List[Tuple[str, str]]:
     commits: List[Tuple[str, str]] = []
+
+    check_date = _always_false
+    if since is not None:
+        check_date = _create_since_validator(since)
 
     rem_pages = nmax
     npage = 1
@@ -130,7 +135,11 @@ def list_commits_for(pr_number: str, owner: str, repo: str, token, nmax: int = 1
         params = { 'page': str(npage), 'per_page': str(per_page) }
         pr_commits = request_github_api(f"repos/{owner}/{repo}/pulls/{pr_number}/commits", token, params=params)
         for commit in pr_commits:
-            commits.append((commit['sha'], commit['commit']['author']['date']))
+            commit_date = commit['commit']['author']['date']
+            if check_date(commit_date):
+                return commits
+
+            commits.append((commit['sha'], commit_date))
 
         rem_pages -= per_page
         npage += 1
