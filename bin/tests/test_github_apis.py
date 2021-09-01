@@ -143,8 +143,9 @@ class GitHubApiTests(unittest.TestCase):
 
     def test_github_datetime(self):
         from datetime import datetime, timezone
+        import dateutil.parser as parser
         self.assertEqual(github_apis.from_github_datetime('2019-10-29T05:31:29Z'),
-                         datetime.strptime('2019-10-29 05:31:29', '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc))
+                         parser.parse('2019-10-29T05:31:29Z'))
         self.assertEqual(github_apis.format_github_datetime('2019-10-29T05:31:29Z', '%Y/%m/%d'), '2019/10/29')
         self.assertEqual(github_apis.to_github_datetime(datetime.strptime('2021-08-04', '%Y-%m-%d')),
                          '2021-08-04T00:00:00Z')

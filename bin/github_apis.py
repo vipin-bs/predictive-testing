@@ -22,7 +22,7 @@ import timeout_decorator
 import json
 import requests
 import retrying
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 
@@ -31,10 +31,8 @@ GITHUB_DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
 
 
 def from_github_datetime(d: str) -> datetime:
-    import dateutil.parser as parser
     # Parses GitHub timestamp string into timezone-aware datetime
-    # return datetime.strptime(d, GITHUB_DATETIME_FORMAT)
-    return parser.parse(d)
+    return datetime.strptime(d, GITHUB_DATETIME_FORMAT).replace(tzinfo=timezone.utc)
 
 
 def format_github_datetime(d: str, format: str) -> str:
