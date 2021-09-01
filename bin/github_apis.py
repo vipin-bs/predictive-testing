@@ -26,12 +26,15 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 
-# The GitHub time format
+# The GitHub time format (UTC)
 GITHUB_DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
 
 
 def from_github_datetime(d: str) -> datetime:
-    return datetime.strptime(d, GITHUB_DATETIME_FORMAT)
+    import dateutil.parser as parser
+    # Parses GitHub timestamp string into timezone-aware datetime
+    # return datetime.strptime(d, GITHUB_DATETIME_FORMAT)
+    return parser.parse(d)
 
 
 def format_github_datetime(d: str, format: str) -> str:

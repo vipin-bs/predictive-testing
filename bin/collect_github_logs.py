@@ -23,7 +23,7 @@ import os
 import tqdm
 import warnings
 from typing import Any, Dict, List, Optional, Set, Tuple
-from datetime import datetime
+from datetime import datetime, timezone
 
 import github_apis
 import github_features
@@ -110,7 +110,10 @@ def _traverse_pull_requests(output_path: str, since: Optional[str], max_num_pull
 
     # Parses a specified datetime string if possible
     import dateutil.parser as parser
-    since = parser.parse(since) if since is not None else None
+    if since is not None:
+        since = parser.parse(since)
+        logging.info(f"Target timestamp: since={github_apis.to_github_datetime(since)} "
+                     f"until={github_apis.to_github_datetime(datetime.now(timezone.utc))}")
 
     logging.info(f"Fetching all pull requests in {params['GITHUB_OWNER']}/{params['GITHUB_REPO']}...")
     pullreqs = github_apis.list_pullreqs(params['GITHUB_OWNER'], params['GITHUB_REPO'], params['GITHUB_TOKEN'], since=since, nmax=max_num_pullreqs)
