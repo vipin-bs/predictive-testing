@@ -161,6 +161,9 @@ def list_commits_for(pr_number: str, owner: str, repo: str, token,
         params = { 'page': str(npage), 'per_page': str(per_page) }
         pr_commits = request_github_api(f"repos/{owner}/{repo}/pulls/{pr_number}/commits", token, params=params)
         for commit in pr_commits:
+            if not _validate_dict_keys(commit, ['sha', 'commit']):
+                return commits
+
             commit_date = commit['commit']['author']['date']
             if check_date(commit_date):
                 return commits
@@ -197,6 +200,9 @@ def list_file_commits_for(path: str, owner: str, repo: str, token,
         params.update(extra_params)
         file_commits = request_github_api(f"repos/{owner}/{repo}/commits", token, params=params)
         for commit in file_commits:
+            if not _validate_dict_keys(commit, ['sha', 'commit']):
+                return commits
+
             commits.append((commit['sha'], commit['commit']['author']['date']))
 
         rem_pages -= per_page
@@ -220,6 +226,9 @@ def list_change_files(base: str, head: str, owner: str, repo: str, token, nmax: 
         compare = request_github_api(f"repos/{owner}/{repo}/compare/{base}...{head}", token, params=params)
         if 'files' in compare:
             for file in compare['files']:
+                if not _validate_dict_keys(file, ['filename', 'additions', 'deletions', 'changes']):
+                    return files
+
                 files.append((file['filename'], file['additions'], file['deletions'], file['changes']))
 
         rem_pages -= per_page
@@ -252,6 +261,9 @@ def list_workflow_runs(owner: str, repo: str, token: str, since: Optional[dateti
         params = { 'page': str(page), 'per_page': str(per_page) }
         wruns = request_github_api(api, token=token, params=params)
         for run in wruns['workflow_runs']:
+            if not _validate_dict_keys(run, ['id', 'name', 'event', 'updated_at', 'pull_requests']):
+                return runs
+
             if check_updated(run['updated_at']):
                 return runs
 
@@ -287,6 +299,9 @@ def list_workflow_jobs(run_id: str, owner: str, repo: str, token, nmax: int = 10
         params = { 'page': str(page), 'per_page': str(per_page) }
         wjobs = request_github_api(api, token=token, params=params)
         for job in wjobs['jobs']:
+            if not _validate_dict_keys(job, ['id', 'name', 'conclusion']):
+                return jobs
+
             jobs.append((str(job['id']), job['name'], job['conclusion']))
 
         rem_pages -= per_page
