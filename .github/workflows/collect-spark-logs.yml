@@ -12,9 +12,6 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix:
-        branch:
-          - master
     steps:
       - name: Checkout predictive-testing repository
         uses: actions/checkout@v2
