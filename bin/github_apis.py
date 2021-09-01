@@ -68,20 +68,26 @@ def request_github_api(api: str, token: str, params: Dict[str, str] = {}, pass_t
         return {} if not pass_thru else []
 
 
+
+def _always_false(d: str) -> bool:
+    return False
+
+
+def _create_since_validator(since: datetime) -> Any:
+    def validate_with_since(d: str) -> bool:
+        return not since < from_github_datetime(d)
+
+    return validate_with_since
+
+
 # https://docs.github.com/en/rest/reference/pulls#list-pull-requests
 @timeout_decorator.timeout(1800, timeout_exception=StopIteration)
 def list_pullreqs(owner: str, repo: str, token, since: Optional[datetime] = None, nmax: int = 100000) -> List[Tuple[str, str, str, str, str, str, str, str]]:
     pullreqs: List[Tuple[str, str, str, str, str, str, str, str]] = []
 
-    def always_false(d: str) -> bool:
-        return False
-
-    def validate_with_since(d: str) -> bool:
-        return not since < from_github_datetime(d)
-
-    check_updated = always_false
+    check_updated = _always_false
     if since is not None:
-        check_updated = validate_with_since
+        check_updated = _create_since_validator(since)
 
     rem_pages = nmax
     npage = 1
@@ -194,15 +200,9 @@ def list_change_files(base: str, head: str, owner: str, repo: str, token, nmax: 
 def list_workflow_runs(owner: str, repo: str, token: str, since: Optional[datetime] = None, nmax: int = 100000, testing: bool = False) -> List[Tuple[str, str, str, str, str, str]]:
     runs: List[Tuple[str, str, str, str, str, str]] = []
 
-    def always_false(d: str) -> bool:
-        return False
-
-    def validate_with_since(d: str) -> bool:
-        return not since < from_github_datetime(d)
-
-    check_updated = always_false
+    check_updated = _always_false
     if since is not None:
-        check_updated = validate_with_since
+        check_updated = _create_since_validator(since)
 
     api = f'repos/{owner}/{repo}/actions/runs'
     latest_run = request_github_api(api, token, params={ 'per_page': '1' })
