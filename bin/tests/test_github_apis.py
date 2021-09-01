@@ -110,7 +110,7 @@ class GitHubApiTests(unittest.TestCase):
         self.assertEqual(commit_date, '2012-03-17T20:51:29Z')
 
     def test_list_workflow_runs(self):
-        runs = github_apis.list_workflow_runs(self._github_owner, self._github_repo, self._github_token, nmax=1)
+        runs = github_apis.list_workflow_runs(self._github_owner, self._github_repo, self._github_token, nmax=1, testing=True)
         self.assertEqual(len(runs), 1)
         run_id, name, event, pr_number, pr_head, pr_base = runs[0]
         self.assertIsNotNone(run_id)
@@ -121,7 +121,7 @@ class GitHubApiTests(unittest.TestCase):
         self.assertIsNotNone(pr_base)
 
     def test_list_workflow_jobs(self):
-        runs = github_apis.list_workflow_runs(self._github_owner, self._github_repo, self._github_token, nmax=1)
+        runs = github_apis.list_workflow_runs(self._github_owner, self._github_repo, self._github_token, nmax=1, testing=True)
         self.assertEqual(len(runs), 1)
         run_id = runs[0][0]
         jobs = github_apis.list_workflow_jobs(run_id, self._github_owner, self._github_repo, self._github_token, nmax=1)
@@ -132,7 +132,7 @@ class GitHubApiTests(unittest.TestCase):
         self.assertIsNotNone(conclusion)
 
     def test_list_workflow_job_logs(self):
-        runs = github_apis.list_workflow_runs(self._github_owner, self._github_repo, self._github_token, nmax=1)
+        runs = github_apis.list_workflow_runs(self._github_owner, self._github_repo, self._github_token, nmax=1, testing=True)
         self.assertEqual(len(runs), 1)
         run_id = runs[0][0]
         jobs = github_apis.list_workflow_jobs(run_id, self._github_owner, self._github_repo, self._github_token, nmax=1)
@@ -142,9 +142,9 @@ class GitHubApiTests(unittest.TestCase):
         self.assertIsNotNone(logs)
 
     def test_github_datetime(self):
-        from datetime import datetime
+        from datetime import datetime, timezone
         self.assertEqual(github_apis.from_github_datetime('2019-10-29T05:31:29Z'),
-                         datetime.strptime('2019-10-29 05:31:29', '%Y-%m-%d %H:%M:%S'))
+                         datetime.strptime('2019-10-29 05:31:29', '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc))
         self.assertEqual(github_apis.format_github_datetime('2019-10-29T05:31:29Z', '%Y/%m/%d'), '2019/10/29')
         self.assertEqual(github_apis.to_github_datetime(datetime.strptime('2021-08-04', '%Y-%m-%d')),
                          '2021-08-04T00:00:00Z')

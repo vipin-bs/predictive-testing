@@ -192,7 +192,7 @@ def list_change_files(base: str, head: str, owner: str, repo: str, token, nmax: 
 
 
 # https://docs.github.com/en/rest/reference/actions#list-workflow-runs-for-a-repository
-def list_workflow_runs(owner: str, repo: str, token: str, since: Optional[datetime] = None, nmax: int = 100000) -> List[Tuple[str, str, str, str, str, str]]:
+def list_workflow_runs(owner: str, repo: str, token: str, since: Optional[datetime] = None, nmax: int = 100000, testing: bool = False) -> List[Tuple[str, str, str, str, str, str]]:
     runs: List[Tuple[str, str, str, str, str, str]] = []
 
     def always_false(d: str) -> bool:
@@ -224,6 +224,9 @@ def list_workflow_runs(owner: str, repo: str, token: str, since: Optional[dateti
             if run['event'] == 'push' and len(run['pull_requests']) > 0:
                 pr = run['pull_requests'][0]
                 runs.append((str(run['id']), run['name'], run['event'], pr['number'], pr['head']['sha'], pr['base']['sha']))
+            # TODO: Removes 'testing' in future
+            elif testing:
+                runs.append((str(run['id']), run['name'], run['event'], '', '', ''))
 
         rem_pages -= per_page
         if len(wruns) == 0 or rem_pages == 0:
