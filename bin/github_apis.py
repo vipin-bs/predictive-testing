@@ -43,19 +43,28 @@ def to_github_datetime(d: datetime) -> str:
     return d.strftime(GITHUB_DATETIME_FORMAT)
 
 
+def _to_debug_info(ret: Any) -> str:
+    if type(ret) == dict:
+        return f"top-level keys:{','.join(ret.keys())}"
+    elif type(ret) == list:
+        return f"list length:{len(ret)}"
+    else:
+        return "ret:<unknown>"
+
+
 @retrying.retry(stop_max_attempt_number=4, wait_exponential_multiplier=1000, wait_exponential_max=4000)
-def _request_github_api(api: str, token: str, params: Dict[str, str] = {}, pass_thru: bool = False) -> Union[str, Dict[str, Any]]:
+def _request_github_api(api: str, token: str, params: Dict[str, str] = {}, pass_thru: bool = False) -> Any:
     headers = { 'Accept': 'application/vnd.github.v3+json', 'Authorization': f'Token {token}' }
     ret = requests.get(f'https://api.github.com/{api}', timeout=10, headers=headers, params=params, verify=False)
     if not pass_thru:
-        ret_as_dict = json.loads(ret.text)
-        if 'message' in ret_as_dict and ret_as_dict['message'] == 'Not Found':
+        result = json.loads(ret.text)
+        if type(result) is dict and 'message' in result and result['message'] == 'Not Found':
             logging.warning(f"{api} request (params={params}) not found")
             return {}
         else:
-            logging.info(f"api:/{api}, params:{params}, keys:{','.join(ret_as_dict.keys())}")
-            logging.debug(f"ret:{json.dumps(ret_as_dict, indent=4)}")
-            return ret_as_dict
+            logging.info(f"api:/{api}, params:{params}, {_to_debug_info(result)}")
+            logging.debug(f"ret:{json.dumps(result, indent=4)}")
+            return result
     else:
         return ret.text
 
@@ -80,6 +89,20 @@ def _create_since_validator(since: datetime) -> Any:
     return validate_with_since
 
 
+def _validate_dict_keys(d: Any, expected_keys: List[str]) -> bool:
+    if type(d) is not dict:
+        logging.warning(f"Expected type is dict, but {type(d)} found")
+        return False
+    else:
+        nonexistent_keys = list(filter(lambda k: k not in d, expected_keys))
+        if len(nonexistent_keys) != 0:
+            logging.warning(f"Expected keys ({','.join(nonexistent_keys)}) are not found "
+                            f"in {','.join(d.keys())} ")
+            return False
+
+    return True
+
+
 # https://docs.github.com/en/rest/reference/pulls#list-pull-requests
 @timeout_decorator.timeout(1800, timeout_exception=StopIteration)
 def list_pullreqs(owner: str, repo: str, token, since: Optional[datetime] = None, nmax: int = 100000) -> List[Tuple[str, str, str, str, str, str, str, str]]:
@@ -96,6 +119,9 @@ def list_pullreqs(owner: str, repo: str, token, since: Optional[datetime] = None
         params = { 'page': str(npage), 'per_page': str(per_page), 'state': 'all', 'sort': 'updated', 'direction': 'desc' }
         prs = request_github_api(f"repos/{owner}/{repo}/pulls", token, params=params)
         for pullreq in prs:
+            if not _validate_dict_keys(pullreq, ['number', 'created_at', 'updated_at', 'title', 'body', 'user', 'head']):
+                return pullreqs
+
             if check_updated(pullreq['updated_at']):
                 return pullreqs
 
