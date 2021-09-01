@@ -43,7 +43,7 @@ def to_github_datetime(d: datetime) -> str:
     return d.strftime(GITHUB_DATETIME_FORMAT)
 
 
-@retrying.retry(stop_max_attempt_number=4)
+@retrying.retry(stop_max_attempt_number=4, wait_exponential_multiplier=1000, wait_exponential_max=4000)
 def _request_github_api(api: str, token: str, params: Dict[str, str] = {}, pass_thru: bool = False) -> Union[str, Dict[str, Any]]:
     headers = { 'Accept': 'application/vnd.github.v3+json', 'Authorization': f'Token {token}' }
     ret = requests.get(f'https://api.github.com/{api}', timeout=10, headers=headers, params=params, verify=False)
@@ -53,7 +53,8 @@ def _request_github_api(api: str, token: str, params: Dict[str, str] = {}, pass_
             logging.warning(f"{api} request (params={params}) not found")
             return {}
         else:
-            logging.debug(f"api:/{api}, params:{params}\nret:{json.dumps(ret_as_dict, indent=4)}")
+            logging.info(f"api:/{api}, params:{params}, keys:{','.join(ret_as_dict.keys())}")
+            logging.debug(f"ret:{json.dumps(ret_as_dict, indent=4)}")
             return ret_as_dict
     else:
         return ret.text
