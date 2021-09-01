@@ -1,0 +1,36 @@
+#!/usr/bin/env python3
+
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+import github_apis
+
+import datetime
+from typing import List
+
+
+def count_file_updates(path: str, base_date: str, days: List[int], owner: str, repo: str,
+                       token: str) -> List[int]:
+    update_counts: List[int] = []
+    base = github_apis.from_github_datetime(base_date)
+    for day in days:
+        since_date = github_apis.to_github_datetime(base - datetime.timedelta(day))
+        file_commits = github_apis.list_file_commits_for(
+            path, owner, repo, token, since=since_date, until=base_date)
+        update_counts.append(len(file_commits))
+
+    return update_counts

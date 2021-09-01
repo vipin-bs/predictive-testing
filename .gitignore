@@ -1,0 +1,6 @@
+*.iml
+*.pyc
+*.pkl
+.idea/
+.idea_modules/
+unit-tests.log
