@@ -45,7 +45,7 @@ def to_github_datetime(d: datetime) -> str:
 
 def _to_debug_info(ret: Any) -> str:
     if type(ret) == dict:
-        return f"top-level keys:{','.join(ret.keys())}"
+        return f"top-level keys:{','.join(sorted(ret.keys()))}"
     elif type(ret) == list:
         return f"list length:{len(ret)}"
     else:
@@ -91,7 +91,7 @@ def _create_since_validator(since: datetime) -> Any:
 
 def _validate_dict_keys(d: Any, expected_keys: List[str]) -> bool:
     if type(d) is not dict:
-        logging.warning(f"Expected type is dict, but {type(d)} found")
+        logging.warning(f"Expected type is 'dict', but '{type(d).__name__}' found")
         return False
     else:
         nonexistent_keys = list(filter(lambda k: k not in d, expected_keys))

@@ -53,6 +53,16 @@ class GitHubApiTests(unittest.TestCase):
         result = self._request_github_api('', pass_thru=True)
         self.assertTrue(type(result) is str)
 
+    def test_to_debug_info(self):
+        self.assertEqual(github_apis._to_debug_info([1, 3, 5]), 'list length:3')
+        self.assertEqual(github_apis._to_debug_info({ 'k1': 'v1', 'k2': 'v2' }), 'top-level keys:k1,k2')
+
+    def test_validate_dict_keys(self):
+        self.assertFalse(github_apis._validate_dict_keys([1, 3, 5], ['k1', 'k2']))
+        self.assertFalse(github_apis._validate_dict_keys({ 'k1': 'v1', 'k3': 'v3', 'k4': 'v4' }, ['k1', 'k2', 'k5']))
+        self.assertTrue(github_apis._validate_dict_keys({ 'k1': 'v1', 'k2': 'v2' }, ['k1', 'k2']))
+        self.assertTrue(github_apis._validate_dict_keys({ 'k1': 'v1', 'k2': 'v2', 'k3': 'v3' }, ['k1', 'k2']))
+
     def test_list_pullreqs(self):
         pullreqs = github_apis.list_pullreqs(self._github_owner, self._github_repo, self._github_token, nmax=1)
         self.assertEqual(len(pullreqs), 1)
