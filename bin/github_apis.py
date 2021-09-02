@@ -52,19 +52,16 @@ def _to_debug_info(ret: Any) -> str:
         return "ret:<unknown>"
 
 
-def _retry_if(exceptions: List[Any]) -> Any:
-    def _retry_check(caught: Any) -> bool:
-        ret = len(list(filter(lambda e: isinstance(caught, e), exceptions))) > 0
-        return ret
-
-    return _retry_check
-
-
+# For a list of requests's exceptions, see:
 # https://docs.python-requests.org/en/latest/user/quickstart/#errors-and-exceptions
+def _retry_if_timeout(caught: Any) -> Any:
+    return isinstance(caught, requests.exceptions.Timeout)
+
+
 @retrying.retry(stop_max_attempt_number=4, wait_exponential_multiplier=1000, wait_exponential_max=4000,
-                retry_on_exception=_retry_if([requests.exceptions.Timeout]),
+                retry_on_exception=_retry_if_timeout,
                 wrap_exception=True)
-def request_github_api(api: str, token: str, params: Dict[str, str] = {}, pass_thru: bool = False) -> Any:
+def _request_github_api(api: str, token: str, params: Dict[str, str] = {}, pass_thru: bool = False) -> Any:
     headers = { 'Accept': 'application/vnd.github.v3+json', 'Authorization': f'Token {token}' }
     ret = requests.get(f'https://api.github.com/{api}', timeout=10, headers=headers, params=params, verify=False)
     if not pass_thru:
@@ -78,6 +75,14 @@ def request_github_api(api: str, token: str, params: Dict[str, str] = {}, pass_t
             return result
     else:
         return ret.text
+
+
+def request_github_api(api: str, token: str, params: Dict[str, str] = {}, pass_thru: bool = False) -> Any:
+    ret = _request_github_api(api, token, params, pass_thru)
+    if type(ret) is dict and 'message' in ret and ret['message'] == 'Not Found':
+        raise Exception(f"{api} request (params={params}) not found")
+
+    return ret
 
 
 def _always_false(d: str) -> bool:
