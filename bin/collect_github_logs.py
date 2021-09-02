@@ -45,27 +45,27 @@ def _get_failed_tests(pr_user: str, pr_repo: str, job_name: str, job_id: str,
    return extract_failed_tests_from(logs)
 
 
-def _get_test_results_from(pr_user: str, pr_repo: str, params: Dict[str, str],
+def _get_test_results_from(owner: str, repo: str, params: Dict[str, str],
                            run_filter: Any, job_filter: Any, extract_failed_tests_from: Any,
                            since: Optional[datetime] = None) -> Dict[str, Any]:
     test_results: Dict[str, Tuple[List[str], List[str]]] = {}
 
-    runs = github_apis.list_workflow_runs(pr_user, pr_repo, params['GITHUB_TOKEN'], since=since)
-    for run_id, run_name, event, conclusion, pr_number, head, base in tqdm.tqdm(runs, desc=f"Workflow Runs ({pr_user}/{pr_repo})", leave=False):
+    runs = github_apis.list_workflow_runs(owner, repo, params['GITHUB_TOKEN'], since=since)
+    for run_id, run_name, event, conclusion, pr_number, head, base in tqdm.tqdm(runs, desc=f"Workflow Runs ({owner}/{repo})", leave=False):
         logging.info(f"run_id:{run_id}, pr_number:{pr_number}, run_name:{run_name}")
 
         if not run_filter(run_name) or conclusion not in ['success', 'failure']:
             logging.info(f"Run (run_id:{run_id}, run_name:'{run_name}', conclusion={conclusion}) skipped")
         else:
             # List up all the updated files between 'base' and 'head' as corresponding to this run
-            files = github_apis.list_change_files(base, f"{pr_user}:{head}", pr_user, pr_repo, params['GITHUB_TOKEN'])
+            files = github_apis.list_change_files(base, head, owner, repo, params['GITHUB_TOKEN'])
 
             if conclusion == 'success':
-                # jobs = github_apis.list_workflow_jobs(run_id, pr_user, pr_repo, params['GITHUB_TOKEN'])
+                # jobs = github_apis.list_workflow_jobs(run_id, owner, repo, params['GITHUB_TOKEN'])
                 # assert len(list(filter(lambda j: j[2] == 'failure', jobs))) == 0
                 test_results[head] = (files, [])
             else:  # failed case
-                jobs = github_apis.list_workflow_jobs(run_id, pr_user, pr_repo, params['GITHUB_TOKEN'])
+                jobs = github_apis.list_workflow_jobs(run_id, owner, repo, params['GITHUB_TOKEN'])
                 selected_jobs: List[Tuple[str, str, str]] = []
                 for job in jobs:
                     job_id, job_name, conclusion = job
@@ -78,7 +78,7 @@ def _get_test_results_from(pr_user: str, pr_repo: str, params: Dict[str, str],
                 for job_id, job_name, conclusion in selected_jobs:
                     logging.info(f"job_id:{job_id}, job_name:{job_name}, conclusion:{conclusion}")
                     if conclusion == 'failure':
-                        tests = _get_failed_tests(pr_user, pr_repo, job_name, job_id, extract_failed_tests_from, params)
+                        tests = _get_failed_tests(owner, repo, job_name, job_id, extract_failed_tests_from, params)
                         failed_tests.extend(tests)
 
                 # If we cannot detect any failed test in logs, just ignore it
@@ -87,6 +87,7 @@ def _get_test_results_from(pr_user: str, pr_repo: str, params: Dict[str, str],
                 else:
                     logging.warning(f"No test failure found: run_id={run_id} run_name='{run_name}'")
 
+    logging.info(f"{len(test_results)} test results found in workflows ({owner}/{repo})")
     return test_results
 
 
@@ -133,19 +134,26 @@ def _traverse_pull_requests(output_path: str, since: Optional[str], max_num_pull
     # Generates project-dependent run/job filters and log extractor
     run_filter, job_filter, extract_failed_tests_from = _create_workflow_handlers('spark')
 
+    # Fetches test results from mainstream-side workflow jobs
+    test_results = _get_test_results_from(params['GITHUB_OWNER'], params['GITHUB_REPO'], params,
+                                          run_filter, job_filter, extract_failed_tests_from,
+                                          since=since)
+
     with open(f"{output_path}/github-logs.json", "w") as output:
         pb_title = f"Pull Reqests ({params['GITHUB_OWNER']}/{params['GITHUB_REPO']})"
         for (pr_user, pr_repo), pullreqs in tqdm.tqdm(pullreqs_by_user.items(), desc=pb_title):
             logging.info(f"pr_user:{pr_user}, pr_repo:{pr_repo}, #pullreqs:{len(pullreqs)}")
 
-            # Fetches test results from workflow jobs
-            test_results = _get_test_results_from(pr_user, pr_repo, params,
-                                                  run_filter, job_filter, extract_failed_tests_from,
-                                                  since=since)
-            if len(test_results) == 0:
+            # Fetches test results from folk-side workflow jobs
+            user_test_results = _get_test_results_from(pr_user, pr_repo, params,
+                                                       run_filter, job_filter, extract_failed_tests_from,
+                                                       since=since)
+
+            # Merges the tests results with mainstream's ones
+            user_test_results.update(test_results)
+            if len(user_test_results) == 0:
                 logging.warning(f"No valid test result found in workflows ({pr_user}/{pr_repo})")
             else:
-                logging.info(f"{len(test_results)} test results found in workflows ({pr_user}/{pr_repo})")
                 for pr_number, pr_created_at, pr_updated_at, pr_title, pr_body, pr_user, pr_repo, pr_branch in pullreqs:
                     if pr_repo != '':
                         commits = github_apis.list_commits_for(pr_number, params['GITHUB_OWNER'], params['GITHUB_REPO'], params['GITHUB_TOKEN'],
@@ -154,14 +162,14 @@ def _traverse_pull_requests(output_path: str, since: Optional[str], max_num_pull
 
                         for (commit, commit_date) in commits:
                             logging.info(f"commit:{commit}, commit_date:{commit_date}")
-                            if commit in test_results:
+                            if commit in user_test_results:
                                 buf: Dict[str, Any] = {}
                                 buf['author'] = pr_user
                                 buf['commit_date'] = github_apis.format_github_datetime(commit_date, '%Y/%m/%d %H:%M:%S')
                                 buf['title'] = pr_title
                                 buf['body'] = pr_body
                                 buf['files'] = []
-                                (files, tests) = test_results[commit]
+                                files, tests = user_test_results[commit]
                                 for file in files:
                                     update_counts = github_features.count_file_updates(
                                         file, commit_date, [3, 14, 56],

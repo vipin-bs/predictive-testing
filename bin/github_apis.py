@@ -222,6 +222,9 @@ def list_change_files(base: str, head: str, owner: str, repo: str, token, nmax: 
         per_page = 100 if rem_pages >= 100 else rem_pages
         params = { 'page': str(npage), 'per_page': str(per_page) }
         compare = request_github_api(f"repos/{owner}/{repo}/compare/{base}...{head}", token, params=params)
+        if not _validate_dict_keys(compare, ['commits']):
+            return files
+
         if 'files' in compare:
             for file in compare['files']:
                 if not _validate_dict_keys(file, ['filename', 'additions', 'deletions', 'changes']):
