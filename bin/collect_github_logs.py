@@ -47,8 +47,8 @@ def _get_failed_tests(pr_user: str, pr_repo: str, job_name: str, job_id: str,
 
 def _get_test_results_from(owner: str, repo: str, params: Dict[str, str],
                            run_filter: Any, job_filter: Any, extract_failed_tests_from: Any,
-                           since: Optional[datetime] = None) -> Dict[str, Any]:
-    test_results: Dict[str, Tuple[List[str], List[str]]] = {}
+                           since: Optional[datetime] = None) -> Dict[str, Tuple[List[Dict[str, str]], List[str]]]:
+    test_results: Dict[str, Tuple[List[Dict[str, str]], List[str]]] = {}
 
     runs = github_apis.list_workflow_runs(owner, repo, params['GITHUB_TOKEN'], since=since)
     for run_id, run_name, event, conclusion, pr_number, head, base in tqdm.tqdm(runs, desc=f"Workflow Runs ({owner}/{repo})", leave=False):
@@ -58,7 +58,11 @@ def _get_test_results_from(owner: str, repo: str, params: Dict[str, str],
             logging.info(f"Run (run_id:{run_id}, run_name:'{run_name}', conclusion={conclusion}) skipped")
         else:
             # List up all the updated files between 'base' and 'head' as corresponding to this run
-            files = github_apis.list_change_files(base, head, owner, repo, params['GITHUB_TOKEN'])
+            changed_files = github_apis.list_change_files(base, head, owner, repo, params['GITHUB_TOKEN'])
+            files: List[Dict[str, str]] = []
+            for file in changed_files:
+                filename, additions, deletions, changes = file
+                files.append({'name': filename, 'additions': additions, 'deletions': deletions, 'changes': changes})
 
             if conclusion == 'success':
                 # jobs = github_apis.list_workflow_jobs(run_id, owner, repo, params['GITHUB_TOKEN'])
@@ -172,7 +176,7 @@ def _traverse_pull_requests(output_path: str, since: Optional[str], max_num_pull
                                 files, tests = user_test_results[commit]
                                 for file in files:
                                     update_counts = github_features.count_file_updates(
-                                        file, commit_date, [3, 14, 56],
+                                        file['name'], commit_date, [3, 14, 56],
                                         params['GITHUB_OWNER'], params['GITHUB_REPO'], params['GITHUB_TOKEN'])
                                     buf['files'].append({'file': file, 'updated': update_counts})
 
