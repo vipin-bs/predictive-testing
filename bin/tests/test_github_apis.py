@@ -163,6 +163,15 @@ class GitHubApiTests(unittest.TestCase):
         self.assertEqual(github_apis.to_github_datetime(datetime.strptime('2021-08-04', '%Y-%m-%d')),
                          '2021-08-04T00:00:00Z')
 
+    def test_list_contributors_stats(self):
+        contributors = github_apis.list_contributors_stats(self._github_owner, self._github_repo, self._github_token)
+        self.assertEqual(len(contributors), 100)
+        print(contributors[0:3])
+        self.assertEqual(contributors[0:3], [
+            ('rxin', '1179'),
+            ('cloud-fan', '923'),
+            ('HyukjinKwon', '839')])
+
 
 if __name__ == "__main__":
     try:

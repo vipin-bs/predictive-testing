@@ -310,3 +310,17 @@ def list_workflow_jobs(run_id: str, owner: str, repo: str, token, nmax: int = 10
 def get_workflow_job_logs(job_id: str, owner: str, repo: str, token) -> str:
     api = f'repos/{owner}/{repo}/actions/jobs/{job_id}/logs'
     return request_github_api(api, token, pass_thru=True)
+
+
+# https://docs.github.com/en/rest/reference/repos#get-all-contributor-commit-activity
+def list_contributors_stats(owner: str, repo: str, token) -> List[Tuple[str, str]]:
+    contributors: List[Tuple[str, str]] = []
+    stats = request_github_api(f"repos/{owner}/{repo}/stats/contributors", token)
+    for stat in stats:
+        if not _validate_dict_keys(stat, ['author', 'total']):
+            return []
+
+        contributors.append((stat['author']['login'], str(stat['total'])))
+
+    res = sorted(contributors, key=lambda c: int(c[1]), reverse=True)  # Sorted by 'total'
+    return res
