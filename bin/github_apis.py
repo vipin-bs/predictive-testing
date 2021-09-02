@@ -43,13 +43,21 @@ def to_github_datetime(d: datetime) -> str:
     return d.strftime(GITHUB_DATETIME_FORMAT)
 
 
-def _to_debug_info(ret: Any) -> str:
+def _to_debug_msg(ret: Any) -> str:
     if type(ret) == dict:
         return f"top-level keys:{','.join(sorted(ret.keys()))}"
     elif type(ret) == list:
         return f"list length:{len(ret)}"
     else:
         return "ret:<unknown>"
+
+
+def _to_error_msg(text_as_json: str) -> str:
+    try:
+        ret = json.loads(text_as_json)
+        return ret['message']
+    except:
+        return '<none>'
 
 
 # For a list of requests's exceptions, see:
@@ -60,28 +68,22 @@ def _retry_if_timeout(caught: Any) -> Any:
 
 @retrying.retry(stop_max_attempt_number=4, wait_exponential_multiplier=1000, wait_exponential_max=4000,
                 retry_on_exception=_retry_if_timeout,
-                wrap_exception=True)
-def _request_github_api(api: str, token: str, params: Dict[str, str] = {}, pass_thru: bool = False) -> Any:
-    headers = { 'Accept': 'application/vnd.github.v3+json', 'Authorization': f'Token {token}' }
+                wrap_exception=False)
+def request_github_api(api: str, token: str, params: Dict[str, str] = {}, pass_thru: bool = False) -> Any:
+    headers = { 'Accept': 'application/vnd.github.v3+json', 'Authorization': f'Token {token}', 'User-Agent': 'collect-github-logs' }
     ret = requests.get(f'https://api.github.com/{api}', timeout=10, headers=headers, params=params, verify=False)
     if ret.status_code != 200:
-        raise Exception(f"{api} request (params={params}) failed: status_code={ret.status_code}")
+        msg = _to_error_msg(ret.text)
+        except_msg = f"{api} request (params={params}) failed: status_code={ret.status_code}, msg='{msg}'"
+        raise Exception(except_msg)
 
     if not pass_thru:
         result = json.loads(ret.text)
-        logging.info(f"api:/{api}, params:{params}, {_to_debug_info(result)}")
+        logging.info(f"api:/{api}, params:{params}, {_to_debug_msg(result)}")
         logging.debug(f"ret:{json.dumps(result, indent=4)}")
         return result
     else:
         return ret.text
-
-
-def request_github_api(api: str, token: str, params: Dict[str, str] = {}, pass_thru: bool = False) -> Any:
-    ret = _request_github_api(api, token, params, pass_thru)
-    if type(ret) is dict and 'message' in ret and ret['message'] == 'Not Found':
-        raise Exception(f"{api} request (params={params}) not found")
-
-    return ret
 
 
 def _always_false(d: str) -> bool:
@@ -203,7 +205,12 @@ def list_file_commits_for(path: str, owner: str, repo: str, token,
         per_page = 100 if rem_pages >= 100 else rem_pages
         params = { 'page': str(npage), 'per_page': str(per_page), 'path': path }
         params.update(extra_params)
-        file_commits = request_github_api(f"repos/{owner}/{repo}/commits", token, params=params)
+        try:
+            file_commits = request_github_api(f"repos/{owner}/{repo}/commits", token, params=params)
+        except Exception:
+            logging.warning(f"Can not find any commit for {owner}/{repo}/{path}")
+            return commits
+
         for commit in file_commits:
             if not _validate_dict_keys(commit, ['sha', 'commit']):
                 return commits
