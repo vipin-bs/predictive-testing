@@ -64,15 +64,14 @@ def _retry_if_timeout(caught: Any) -> Any:
 def _request_github_api(api: str, token: str, params: Dict[str, str] = {}, pass_thru: bool = False) -> Any:
     headers = { 'Accept': 'application/vnd.github.v3+json', 'Authorization': f'Token {token}' }
     ret = requests.get(f'https://api.github.com/{api}', timeout=10, headers=headers, params=params, verify=False)
+    if ret.status_code != 200:
+        raise Exception(f"{api} request (params={params}) failed: status_code={ret.status_code}")
+
     if not pass_thru:
         result = json.loads(ret.text)
-        if type(result) is dict and 'message' in result and result['message'] == 'Not Found':
-            logging.warning(f"{api} request (params={params}) not found")
-            return {}
-        else:
-            logging.info(f"api:/{api}, params:{params}, {_to_debug_info(result)}")
-            logging.debug(f"ret:{json.dumps(result, indent=4)}")
-            return result
+        logging.info(f"api:/{api}, params:{params}, {_to_debug_info(result)}")
+        logging.debug(f"ret:{json.dumps(result, indent=4)}")
+        return result
     else:
         return ret.text
 
@@ -250,8 +249,14 @@ def list_change_files(base: str, head: str, owner: str, repo: str, token, nmax: 
 
 # https://docs.github.com/en/rest/reference/actions#list-workflow-runs-for-a-repository
 def list_workflow_runs(owner: str, repo: str, token: str, since: Optional[datetime] = None, nmax: int = 100000, testing: bool = False) -> List[Tuple[str, str, str, str, str, str, str]]:
-    api = f'repos/{owner}/{repo}/actions/runs'
-    latest_run = request_github_api(api, token, params={ 'per_page': '1' })
+    try:
+        # This request can fail if any workflow run does not exist
+        api = f'repos/{owner}/{repo}/actions/runs'
+        latest_run = request_github_api(api, token, params={ 'per_page': '1' })
+    except Exception:
+        logging.warning(f"Any workflow run does not exist in {owner}/{repo}")
+        return []
+
     if not _validate_dict_keys(latest_run, ['total_count', 'workflow_runs']):
         return []
 
