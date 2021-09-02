@@ -209,12 +209,7 @@ def list_file_commits_for(path: str, owner: str, repo: str, token: str,
         per_page = 100 if rem_pages >= 100 else rem_pages
         params = { 'page': str(npage), 'per_page': str(per_page), 'path': path }
         params.update(extra_params)
-        try:
-            file_commits = request_github_api(f"repos/{owner}/{repo}/commits", token, params=params)
-        except Exception:
-            logging.warning(f"Can not find any commit for {owner}/{repo}/{path}")
-            return commits
-
+        file_commits = request_github_api(f"repos/{owner}/{repo}/commits", token, params=params)
         for commit in file_commits:
             if not _validate_dict_keys(commit, ['sha', 'commit']):
                 return commits
