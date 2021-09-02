@@ -145,6 +145,7 @@ def _traverse_pull_requests(output_path: str, since: Optional[str], max_num_pull
 
     with open(f"{output_path}/github-logs.json", "w") as output:
         pb_title = f"Pull Reqests ({params['GITHUB_OWNER']}/{params['GITHUB_REPO']})"
+        # TODO: Could we parallelize crawling jobs by users?
         for (pr_user, pr_repo), pullreqs in tqdm.tqdm(pullreqs_by_user.items(), desc=pb_title):
             logging.info(f"pr_user:{pr_user}, pr_repo:{pr_repo}, #pullreqs:{len(pullreqs)}")
 
@@ -164,12 +165,13 @@ def _traverse_pull_requests(output_path: str, since: Optional[str], max_num_pull
                                                                since=None)
                         logging.info(f"pullreq#{pr_number} has {len(commits)} commits (created_at:{pr_created_at}, updated_at:{pr_updated_at})")
 
-                        for (commit, commit_date) in commits:
+                        for (commit, commit_date, commit_message) in commits:
                             logging.info(f"commit:{commit}, commit_date:{commit_date}")
                             if commit in user_test_results:
                                 buf: Dict[str, Any] = {}
                                 buf['author'] = pr_user
                                 buf['commit_date'] = github_apis.format_github_datetime(commit_date, '%Y/%m/%d %H:%M:%S')
+                                buf['commit_message'] = commit_message
                                 buf['title'] = pr_title
                                 buf['body'] = pr_body
                                 buf['files'] = []

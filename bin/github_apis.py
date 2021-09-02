@@ -149,10 +149,10 @@ def list_pullreqs(owner: str, repo: str, token, since: Optional[datetime] = None
     return []
 
 
-# https://docs.github.com/en/rest/reference/pulls#get-a-pull-request
+# https://docs.github.com/en/rest/reference/pulls#list-commits-on-a-pull-request
 def list_commits_for(pr_number: str, owner: str, repo: str, token,
-                     since: Optional[datetime] = None, nmax: int = 100000) -> List[Tuple[str, str]]:
-    commits: List[Tuple[str, str]] = []
+                     since: Optional[datetime] = None, nmax: int = 100000) -> List[Tuple[str, str, str]]:
+    commits: List[Tuple[str, str, str]] = []
     check_date = _create_date_filter(since)
     rem_pages = nmax
     npage = 1
@@ -168,7 +168,7 @@ def list_commits_for(pr_number: str, owner: str, repo: str, token,
             if check_date(commit_date):
                 return commits
 
-            commits.append((commit['sha'], commit_date))
+            commits.append((commit['sha'], commit_date, commit['commit']['message']))
 
         rem_pages -= per_page
         npage += 1

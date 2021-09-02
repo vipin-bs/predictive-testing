@@ -85,9 +85,10 @@ class GitHubApiTests(unittest.TestCase):
         pr_number = pullreqs[0][0]
         commits = github_apis.list_commits_for(pr_number, self._github_owner, self._github_repo, self._github_token, nmax=1)
         self.assertEqual(len(commits), 1)
-        sha, commit_date = commits[0]
+        sha, commit_date, commit_message = commits[0]
         self.assertTrue(len(sha) > 0)
         self._assertIsDateTime(commit_date)
+        self.assertTrue(len(commit_message) > 0)
 
     def test_list_file_commits_for(self):
         commits = github_apis.list_file_commits_for('README.md', self._github_owner, self._github_repo, self._github_token, nmax=1)
