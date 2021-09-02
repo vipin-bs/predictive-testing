@@ -52,8 +52,19 @@ def _to_debug_info(ret: Any) -> str:
         return "ret:<unknown>"
 
 
-@retrying.retry(stop_max_attempt_number=4, wait_exponential_multiplier=1000, wait_exponential_max=4000)
-def _request_github_api(api: str, token: str, params: Dict[str, str] = {}, pass_thru: bool = False) -> Any:
+def _retry_if(exceptions: List[Any]) -> Any:
+    def _retry_check(caught: Any) -> bool:
+        ret = len(list(filter(lambda e: isinstance(caught, e), exceptions))) > 0
+        return ret
+
+    return _retry_check
+
+
+# https://docs.python-requests.org/en/latest/user/quickstart/#errors-and-exceptions
+@retrying.retry(stop_max_attempt_number=4, wait_exponential_multiplier=1000, wait_exponential_max=4000,
+                retry_on_exception=_retry_if([requests.exceptions.Timeout]),
+                wrap_exception=True)
+def request_github_api(api: str, token: str, params: Dict[str, str] = {}, pass_thru: bool = False) -> Any:
     headers = { 'Accept': 'application/vnd.github.v3+json', 'Authorization': f'Token {token}' }
     ret = requests.get(f'https://api.github.com/{api}', timeout=10, headers=headers, params=params, verify=False)
     if not pass_thru:
@@ -67,15 +78,6 @@ def _request_github_api(api: str, token: str, params: Dict[str, str] = {}, pass_
             return result
     else:
         return ret.text
-
-
-def request_github_api(api: str, token: str, params: Dict[str, str] = {}, pass_thru: bool = False) -> Union[str, Dict[str, Any]]:
-    try:
-        return _request_github_api(api, token, params, pass_thru)
-    except:
-        logging.warning(f"{api} request (params={params}) failed")
-        return {} if not pass_thru else []
-
 
 
 def _always_false(d: str) -> bool:
