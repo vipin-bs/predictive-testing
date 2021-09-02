@@ -230,7 +230,7 @@ def list_change_files(base: str, head: str, owner: str, repo: str, token, nmax: 
                 if not _validate_dict_keys(file, ['filename', 'additions', 'deletions', 'changes']):
                     return files
 
-                files.append((file['filename'], file['additions'], file['deletions'], file['changes']))
+                files.append((file['filename'], str(file['additions']), str(file['deletions']), str(file['changes'])))
 
         rem_pages -= per_page
         npage += 1

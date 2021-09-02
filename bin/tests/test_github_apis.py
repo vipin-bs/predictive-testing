@@ -100,20 +100,18 @@ class GitHubApiTests(unittest.TestCase):
         base = '5a510cf578c84e3edb7fb58d16c332ca141be913'
         head = 'bc61b62a55c5c3ace181aef53e26a5ddcd6b85bf'
         files = github_apis.list_change_files(base, head, self._github_owner, self._github_repo, self._github_token)
-        self.assertEqual(len(files), 11)
-        filenames = set([ f[0] for f in files ])
-        self.assertEqual(filenames, set([
-            'external/avro/pom.xml',
-            'external/kafka-0-10-sql/pom.xml',
-            'sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/expressions/datetimeExpressions.scala',
-            'sql/core/src/test/resources/sql-tests/results/ansi/datetime.sql.out',
-            'sql/core/src/test/resources/sql-tests/results/ansi/interval.sql.out',
-            'sql/core/src/test/resources/sql-tests/results/datetime-legacy.sql.out',
-            'sql/core/src/test/resources/sql-tests/results/datetime.sql.out',
-            'sql/core/src/test/resources/sql-tests/results/interval.sql.out',
-            'sql/core/src/test/resources/sql-tests/results/typeCoercion/native/promoteStrings.sql.out',
-            'sql/core/src/test/scala/org/apache/spark/sql/ColumnExpressionSuite.scala',
-            'sql/hive-thriftserver/pom.xml']))
+        self.assertEqual(sorted(files), [
+            ('external/avro/pom.xml', '11', '0', '11'),
+            ('external/kafka-0-10-sql/pom.xml', '11', '1', '12'),
+            ('sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/expressions/datetimeExpressions.scala', '2', '2', '4'),
+            ('sql/core/src/test/resources/sql-tests/results/ansi/datetime.sql.out', '2', '2', '4'),
+            ('sql/core/src/test/resources/sql-tests/results/ansi/interval.sql.out', '2', '0', '2'),
+            ('sql/core/src/test/resources/sql-tests/results/datetime-legacy.sql.out', '2', '2', '4'),
+            ('sql/core/src/test/resources/sql-tests/results/datetime.sql.out', '2', '2', '4'),
+            ('sql/core/src/test/resources/sql-tests/results/interval.sql.out', '1', '0', '1'),
+            ('sql/core/src/test/resources/sql-tests/results/typeCoercion/native/promoteStrings.sql.out', '1', '1', '2'),
+            ('sql/core/src/test/scala/org/apache/spark/sql/ColumnExpressionSuite.scala', '4', '1', '5'),
+            ('sql/hive-thriftserver/pom.xml', '11', '0', '11')])
 
     def test_list_file_commits_with_period_specified(self):
         commits = github_apis.list_file_commits_for('README.md', self._github_owner, self._github_repo, self._github_token,
