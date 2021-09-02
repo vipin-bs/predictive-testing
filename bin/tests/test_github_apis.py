@@ -18,6 +18,7 @@
 import os
 import unittest
 import warnings
+from datetime import datetime, timezone
 
 import github_apis
 
@@ -63,18 +64,21 @@ class GitHubApiTests(unittest.TestCase):
         self.assertTrue(github_apis._validate_dict_keys({ 'k1': 'v1', 'k2': 'v2' }, ['k1', 'k2']))
         self.assertTrue(github_apis._validate_dict_keys({ 'k1': 'v1', 'k2': 'v2', 'k3': 'v3' }, ['k1', 'k2']))
 
+    def _assertIsDateTime(self, t: str) -> None:
+        self.assertTrue(type(github_apis.from_github_datetime(t)) is datetime)
+
     def test_list_pullreqs(self):
         pullreqs = github_apis.list_pullreqs(self._github_owner, self._github_repo, self._github_token, nmax=1)
         self.assertEqual(len(pullreqs), 1)
         pr_number, pr_created_at, pr_updated_at, pr_title, pr_body, pr_user, pr_repo, pr_branch = pullreqs[0]
-        self.assertIsNotNone(pr_number)
-        self.assertIsNotNone(pr_created_at)
-        self.assertIsNotNone(pr_updated_at)
-        self.assertIsNotNone(pr_title)
-        self.assertIsNotNone(pr_body)
-        self.assertIsNotNone(pr_user)
-        self.assertIsNotNone(pr_repo)
-        self.assertIsNotNone(pr_branch)
+        self.assertTrue(pr_number.isdigit())
+        self._assertIsDateTime(pr_created_at)
+        self._assertIsDateTime(pr_updated_at)
+        self.assertTrue(len(pr_title) > 0)
+        self.assertTrue(len(pr_body) > 0)
+        self.assertTrue(len(pr_user) > 0)
+        self.assertTrue(len(pr_repo) > 0)
+        self.assertTrue(len(pr_branch) > 0)
 
     def test_list_commits_for(self):
         pullreqs = github_apis.list_pullreqs(self._github_owner, self._github_repo, self._github_token, nmax=1)
@@ -82,8 +86,8 @@ class GitHubApiTests(unittest.TestCase):
         commits = github_apis.list_commits_for(pr_number, self._github_owner, self._github_repo, self._github_token, nmax=1)
         self.assertEqual(len(commits), 1)
         sha, commit_date = commits[0]
-        self.assertIsNotNone(sha)
-        self.assertIsNotNone(commit_date)
+        self.assertTrue(len(sha) > 0)
+        self._assertIsDateTime(commit_date)
 
     def test_list_file_commits_for(self):
         commits = github_apis.list_file_commits_for('README.md', self._github_owner, self._github_repo, self._github_token, nmax=1)
@@ -122,13 +126,14 @@ class GitHubApiTests(unittest.TestCase):
     def test_list_workflow_runs(self):
         runs = github_apis.list_workflow_runs(self._github_owner, self._github_repo, self._github_token, nmax=1, testing=True)
         self.assertEqual(len(runs), 1)
-        run_id, name, event, pr_number, pr_head, pr_base = runs[0]
-        self.assertIsNotNone(run_id)
-        self.assertIsNotNone(name)
-        self.assertIsNotNone(event)
-        self.assertIsNotNone(pr_number)
-        self.assertIsNotNone(pr_head)
-        self.assertIsNotNone(pr_base)
+        run_id, name, event, conclusion, pr_number, pr_head, pr_base = runs[0]
+        self.assertTrue(run_id.isdigit())
+        self.assertTrue(len(name) > 0)
+        self.assertTrue(event in ['workflow_run', 'schedule', 'push'])
+        self.assertTrue(conclusion in ['success', 'failure', 'skipped'])
+        self.assertTrue(pr_number == '' or pr_number.isdigit())
+        self.assertTrue(len(pr_head) >= 0)
+        self.assertTrue(len(pr_base) >= 0)
 
     def test_list_workflow_jobs(self):
         runs = github_apis.list_workflow_runs(self._github_owner, self._github_repo, self._github_token, nmax=1, testing=True)
@@ -137,9 +142,9 @@ class GitHubApiTests(unittest.TestCase):
         jobs = github_apis.list_workflow_jobs(run_id, self._github_owner, self._github_repo, self._github_token, nmax=1)
         self.assertEqual(len(jobs), 1)
         job_id, name, conclusion = jobs[0]
-        self.assertIsNotNone(job_id)
-        self.assertIsNotNone(name)
-        self.assertIsNotNone(conclusion)
+        self.assertTrue(job_id.isdigit())
+        self.assertTrue(len(name) > 0)
+        self.assertTrue(conclusion in ['success', 'failure', 'skipped'])
 
     def test_list_workflow_job_logs(self):
         runs = github_apis.list_workflow_runs(self._github_owner, self._github_repo, self._github_token, nmax=1, testing=True)
@@ -152,7 +157,6 @@ class GitHubApiTests(unittest.TestCase):
         self.assertIsNotNone(logs)
 
     def test_github_datetime(self):
-        from datetime import datetime, timezone
         import dateutil.parser as parser
         self.assertEqual(github_apis.from_github_datetime('2019-10-29T05:31:29Z'),
                          parser.parse('2019-10-29T05:31:29Z'))

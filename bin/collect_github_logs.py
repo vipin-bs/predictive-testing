@@ -51,28 +51,29 @@ def _get_test_results_from(pr_user: str, pr_repo: str, params: Dict[str, str],
     test_results: Dict[str, Tuple[List[str], List[str]]] = {}
 
     runs = github_apis.list_workflow_runs(pr_user, pr_repo, params['GITHUB_TOKEN'], since=since)
-    for run_id, run_name, event, pr_number, head, base in tqdm.tqdm(runs, desc=f"Workflow Runs ({pr_user}/{pr_repo})"):
+    for run_id, run_name, event, conclusion, pr_number, head, base in tqdm.tqdm(runs, desc=f"Workflow Runs ({pr_user}/{pr_repo})"):
         logging.info(f"run_id:{run_id}, pr_number:{pr_number}, run_name:{run_name}")
 
-        if not run_filter(run_name):
-            logging.info(f"Run (run_id:{run_id}, run_name:'{run_name}') skipped")
+        if not run_filter(run_name) or conclusion not in ['success', 'failure']:
+            logging.info(f"Run (run_id:{run_id}, run_name:'{run_name}', conclusion={conclusion}) skipped")
         else:
             # List up all the updated files between 'base' and 'head' as corresponding to this run
             files = github_apis.list_change_files(base, f"{pr_user}:{head}", pr_user, pr_repo, params['GITHUB_TOKEN'])
 
-            jobs = github_apis.list_workflow_jobs(run_id, pr_user, pr_repo, params['GITHUB_TOKEN'])
-            selected_jobs: List[Tuple[str, str, str]] = []
-            for job in jobs:
-                job_id, job_name, conclusion = job
-                if not job_filter(job_name):
-                    logging.info(f"Job (run_id/job_id:{job_id}/{run_id}, name:'{run_name}':'{job_name}') skipped")
-                else:
-                    selected_jobs.append(job)
-
-            tests_passed = len(list(filter(lambda j: j[2] == 'failure', selected_jobs))) == 0
-            if tests_passed:
+            if conclusion == 'success':
+                # jobs = github_apis.list_workflow_jobs(run_id, pr_user, pr_repo, params['GITHUB_TOKEN'])
+                # assert len(list(filter(lambda j: j[2] == 'failure', jobs))) == 0
                 test_results[head] = (files, [])
             else:  # failed case
+                jobs = github_apis.list_workflow_jobs(run_id, pr_user, pr_repo, params['GITHUB_TOKEN'])
+                selected_jobs: List[Tuple[str, str, str]] = []
+                for job in jobs:
+                    job_id, job_name, conclusion = job
+                    if not job_filter(job_name):
+                        logging.info(f"Job (run_id/job_id:{job_id}/{run_id}, name:'{run_name}':'{job_name}') skipped")
+                    else:
+                        selected_jobs.append(job)
+
                 failed_tests = []
                 for job_id, job_name, conclusion in selected_jobs:
                     logging.info(f"job_id:{job_id}, job_name:{job_name}, conclusion:{conclusion}")

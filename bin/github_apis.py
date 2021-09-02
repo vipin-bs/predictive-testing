@@ -89,6 +89,14 @@ def _create_since_validator(since: datetime) -> Any:
     return validate_with_since
 
 
+def _create_date_filter(since: Optional[datetime]) -> Any:
+    f = _always_false
+    if since is not None:
+        f = _create_since_validator(since)
+
+    return f
+
+
 def _validate_dict_keys(d: Any, expected_keys: List[str]) -> bool:
     if type(d) is not dict:
         logging.warning(f"Expected type is 'dict', but '{type(d).__name__}' found")
@@ -107,11 +115,7 @@ def _validate_dict_keys(d: Any, expected_keys: List[str]) -> bool:
 @timeout_decorator.timeout(1800, timeout_exception=StopIteration)
 def list_pullreqs(owner: str, repo: str, token, since: Optional[datetime] = None, nmax: int = 100000) -> List[Tuple[str, str, str, str, str, str, str, str]]:
     pullreqs: List[Tuple[str, str, str, str, str, str, str, str]] = []
-
-    check_updated = _always_false
-    if since is not None:
-        check_updated = _create_since_validator(since)
-
+    check_updated = _create_date_filter(since)
     rem_pages = nmax
     npage = 1
     while True:
@@ -149,11 +153,7 @@ def list_pullreqs(owner: str, repo: str, token, since: Optional[datetime] = None
 def list_commits_for(pr_number: str, owner: str, repo: str, token,
                      since: Optional[datetime] = None, nmax: int = 100000) -> List[Tuple[str, str]]:
     commits: List[Tuple[str, str]] = []
-
-    check_date = _always_false
-    if since is not None:
-        check_date = _create_since_validator(since)
-
+    check_date = _create_date_filter(since)
     rem_pages = nmax
     npage = 1
     while True:
@@ -183,8 +183,6 @@ def list_commits_for(pr_number: str, owner: str, repo: str, token,
 def list_file_commits_for(path: str, owner: str, repo: str, token,
                           since: Optional[str] = None, until: Optional[str] = None,
                           nmax: int = 100000) -> List[Tuple[str, str]]:
-    commits: List[Tuple[str, str]] = []
-
     # Limits a read scope if 'since' or 'until' specified
     extra_params = {}
     if since is not None:
@@ -192,6 +190,7 @@ def list_file_commits_for(path: str, owner: str, repo: str, token,
     if until is not None:
         extra_params['until'] = str(until)
 
+    commits: List[Tuple[str, str]] = []
     rem_pages = nmax
     npage = 1
     while True:
@@ -217,7 +216,6 @@ def list_file_commits_for(path: str, owner: str, repo: str, token,
 # https://docs.github.com/en/rest/reference/repos#compare-two-commits
 def list_change_files(base: str, head: str, owner: str, repo: str, token, nmax: int = 100000) -> List[Tuple[str, str, str, str]]:
     files: List[Tuple[str, str, str, str]] = []
-
     rem_pages = nmax
     npage = 1
     while True:
@@ -241,18 +239,14 @@ def list_change_files(base: str, head: str, owner: str, repo: str, token, nmax: 
 
 
 # https://docs.github.com/en/rest/reference/actions#list-workflow-runs-for-a-repository
-def list_workflow_runs(owner: str, repo: str, token: str, since: Optional[datetime] = None, nmax: int = 100000, testing: bool = False) -> List[Tuple[str, str, str, str, str, str]]:
-    runs: List[Tuple[str, str, str, str, str, str]] = []
-
-    check_updated = _always_false
-    if since is not None:
-        check_updated = _create_since_validator(since)
-
+def list_workflow_runs(owner: str, repo: str, token: str, since: Optional[datetime] = None, nmax: int = 100000, testing: bool = False) -> List[Tuple[str, str, str, str, str, str, str]]:
     api = f'repos/{owner}/{repo}/actions/runs'
     latest_run = request_github_api(api, token, params={ 'per_page': '1' })
-    if len(latest_run) == 0:
+    if not _validate_dict_keys(latest_run, ['total_count', 'workflow_runs']):
         return []
 
+    runs: List[Tuple[str, str, str, str, str, str, str]] = []
+    check_updated = _create_date_filter(since)
     total_runs_count = int(latest_run['total_count'])
     num_pages = int(total_runs_count / 100) + 1
     rem_pages = nmax
@@ -261,18 +255,18 @@ def list_workflow_runs(owner: str, repo: str, token: str, since: Optional[dateti
         params = { 'page': str(page), 'per_page': str(per_page) }
         wruns = request_github_api(api, token=token, params=params)
         for run in wruns['workflow_runs']:
-            if not _validate_dict_keys(run, ['id', 'name', 'event', 'updated_at', 'pull_requests']):
+            if not _validate_dict_keys(run, ['id', 'name', 'event', 'status', 'conclusion', 'updated_at', 'pull_requests']):
                 return runs
 
             if check_updated(run['updated_at']):
                 return runs
 
-            if run['event'] == 'push' and len(run['pull_requests']) > 0:
+            if run['event'] == 'push' and run['status'] == 'completed' and len(run['pull_requests']) > 0:
                 pr = run['pull_requests'][0]
                 runs.append((str(run['id']), run['name'], run['event'], pr['number'], pr['head']['sha'], pr['base']['sha']))
             # TODO: Removes 'testing' in future
             elif testing:
-                runs.append((str(run['id']), run['name'], run['event'], '', '', ''))
+                runs.append((str(run['id']), run['name'], run['event'], run['conclusion'], '', '', ''))
 
         rem_pages -= per_page
         if len(wruns) == 0 or rem_pages == 0:
@@ -283,17 +277,15 @@ def list_workflow_runs(owner: str, repo: str, token: str, since: Optional[dateti
 
 # https://docs.github.com/en/rest/reference/actions#list-jobs-for-a-workflow-run
 def list_workflow_jobs(run_id: str, owner: str, repo: str, token, nmax: int = 100000) -> List[Tuple[str, str, str]]:
-    jobs: List[Tuple[str, str, str]] = []
-
     api = f'repos/{owner}/{repo}/actions/runs/{run_id}/jobs'
     latest_job = request_github_api(api, token, params={ 'per_page': '1' })
-    if len(latest_job) == 0:
+    if not _validate_dict_keys(latest_job, ['total_count', 'jobs']):
         return []
 
+    jobs: List[Tuple[str, str, str]] = []
     total_jobs_count = int(latest_job['total_count'])
     num_pages = int(total_jobs_count / 100) + 1
     rem_pages = nmax
-
     for page in range(0, num_pages):
         per_page = 100 if rem_pages >= 100 else rem_pages
         params = { 'page': str(page), 'per_page': str(per_page) }
