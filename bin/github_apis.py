@@ -70,7 +70,7 @@ def _retry_if_timeout(caught: Any) -> Any:
                 retry_on_exception=_retry_if_timeout,
                 wrap_exception=False)
 def request_github_api(api: str, token: str, params: Dict[str, str] = {}, pass_thru: bool = False) -> Any:
-    headers = { 'Accept': 'application/vnd.github.v3+json', 'Authorization': f'Token {token}', 'User-Agent': 'collect-github-logs' }
+    headers = { 'Accept': 'application/vnd.github.v3+json', 'Authorization': f'Token {token}', 'User-Agent': 'github-apis' }
     ret = requests.get(f'https://api.github.com/{api}', timeout=10, headers=headers, params=params, verify=False)
     if ret.status_code != 200:
         msg = _to_error_msg(ret.text)
@@ -119,9 +119,13 @@ def _validate_dict_keys(d: Any, expected_keys: List[str]) -> bool:
     return True
 
 
+def get_rate_limit(token: str) -> Dict[str, Any]:
+    return request_github_api(f"rate_limit", token)
+
+
 # https://docs.github.com/en/rest/reference/pulls#list-pull-requests
 @timeout_decorator.timeout(1800, timeout_exception=StopIteration)
-def list_pullreqs(owner: str, repo: str, token, since: Optional[datetime] = None, nmax: int = 100000) -> List[Tuple[str, str, str, str, str, str, str, str]]:
+def list_pullreqs(owner: str, repo: str, token: str, since: Optional[datetime] = None, nmax: int = 100000) -> List[Tuple[str, str, str, str, str, str, str, str]]:
     pullreqs: List[Tuple[str, str, str, str, str, str, str, str]] = []
     check_updated = _create_date_filter(since)
     rem_pages = nmax
@@ -158,7 +162,7 @@ def list_pullreqs(owner: str, repo: str, token, since: Optional[datetime] = None
 
 
 # https://docs.github.com/en/rest/reference/pulls#list-commits-on-a-pull-request
-def list_commits_for(pr_number: str, owner: str, repo: str, token,
+def list_commits_for(pr_number: str, owner: str, repo: str, token: str,
                      since: Optional[datetime] = None, nmax: int = 100000) -> List[Tuple[str, str, str]]:
     commits: List[Tuple[str, str, str]] = []
     check_date = _create_date_filter(since)
@@ -188,7 +192,7 @@ def list_commits_for(pr_number: str, owner: str, repo: str, token,
 
 
 # https://docs.github.com/en/rest/reference/repos#list-commits
-def list_file_commits_for(path: str, owner: str, repo: str, token,
+def list_file_commits_for(path: str, owner: str, repo: str, token: str,
                           since: Optional[str] = None, until: Optional[str] = None,
                           nmax: int = 100000) -> List[Tuple[str, str]]:
     # Limits a read scope if 'since' or 'until' specified
@@ -227,7 +231,7 @@ def list_file_commits_for(path: str, owner: str, repo: str, token,
 
 
 # https://docs.github.com/en/rest/reference/repos#compare-two-commits
-def list_change_files(base: str, head: str, owner: str, repo: str, token, nmax: int = 100000) -> List[Tuple[str, str, str, str]]:
+def list_change_files(base: str, head: str, owner: str, repo: str, token: str, nmax: int = 100000) -> List[Tuple[str, str, str, str]]:
     files: List[Tuple[str, str, str, str]] = []
     rem_pages = nmax
     npage = 1
@@ -298,7 +302,7 @@ def list_workflow_runs(owner: str, repo: str, token: str, since: Optional[dateti
 
 
 # https://docs.github.com/en/rest/reference/actions#list-jobs-for-a-workflow-run
-def list_workflow_jobs(run_id: str, owner: str, repo: str, token, nmax: int = 100000) -> List[Tuple[str, str, str]]:
+def list_workflow_jobs(run_id: str, owner: str, repo: str, token: str, nmax: int = 100000) -> List[Tuple[str, str, str]]:
     api = f'repos/{owner}/{repo}/actions/runs/{run_id}/jobs'
     latest_job = request_github_api(api, token, params={ 'per_page': '1' })
     if not _validate_dict_keys(latest_job, ['total_count', 'jobs']):
@@ -326,13 +330,13 @@ def list_workflow_jobs(run_id: str, owner: str, repo: str, token, nmax: int = 10
 
 
 # https://docs.github.com/en/rest/reference/actions#download-job-logs-for-a-workflow-run
-def get_workflow_job_logs(job_id: str, owner: str, repo: str, token) -> str:
+def get_workflow_job_logs(job_id: str, owner: str, repo: str, token: str) -> str:
     api = f'repos/{owner}/{repo}/actions/jobs/{job_id}/logs'
     return request_github_api(api, token, pass_thru=True)
 
 
 # https://docs.github.com/en/rest/reference/repos#get-all-contributor-commit-activity
-def list_contributors_stats(owner: str, repo: str, token) -> List[Tuple[str, str]]:
+def list_contributors_stats(owner: str, repo: str, token: str) -> List[Tuple[str, str]]:
     contributors: List[Tuple[str, str]] = []
     stats = request_github_api(f"repos/{owner}/{repo}/stats/contributors", token)
     for stat in stats:

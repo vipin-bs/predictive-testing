@@ -102,7 +102,23 @@ def _create_workflow_handlers(proj: str) -> Tuple[Any, Any, Any]:
         raise ValueError(f'Unknown project type: {proj}')
 
 
+def _to_rate_limit_msg(rate_limit: Dict[str, Any]) -> str:
+    import time
+    c = rate_limit['resources']['core']
+    renewal = c['reset'] - int(time.time())
+    return f"limit={c['limit']}, used={c['used']}, remaining={c['remaining']}, reset={renewal}s"
+
+
 def _traverse_pull_requests(output_path: str, since: Optional[str], max_num_pullreqs: int, params: Dict[str, str]) -> None:
+    if len(output_path) == 0:
+        raise ValueError("Output Path must be specified in '--output'")
+    if len(params['GITHUB_TOKEN']) == 0:
+        raise ValueError("GitHub token must be specified in '--github-token'")
+    if len(params['GITHUB_OWNER']) == 0:
+        raise ValueError("GitHub owner must be specified in '--github-owner'")
+    if len(params['GITHUB_REPO']) == 0:
+        raise ValueError("GitHub repository must be specified in '--github-repo'")
+
     # Make an output dir in advance
     os.mkdir(output_path)
 
@@ -113,6 +129,10 @@ def _traverse_pull_requests(output_path: str, since: Optional[str], max_num_pull
         level=logging.INFO,
         format='%(asctime)s.%(msecs)03d: %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S')
+
+    # Logging rate limit
+    logging.info(f"rate_limit: {_to_rate_limit_msg(github_apis.get_rate_limit(params['GITHUB_TOKEN']))}")
+
 
     # Parses a specified datetime string if possible
     import dateutil.parser as parser
@@ -192,16 +212,23 @@ def _traverse_pull_requests(output_path: str, since: Optional[str], max_num_pull
                                 output.flush()
 
 
+def _show_rate_limit(params: Dict[str, str]) -> None:
+    rate_limit = github_apis.get_rate_limit(params['GITHUB_TOKEN'])
+    print('======== GitHub Rate Limit ========')
+    print(_to_rate_limit_msg(rate_limit))
+
+
 def main():
     # Parses command-line arguments
     from argparse import ArgumentParser
     parser = ArgumentParser()
-    parser.add_argument('--output', dest='output', type=str, required=True)
+    parser.add_argument('--output', dest='output', type=str, default='')
     parser.add_argument('--max-num-pullreqs', dest='max_num_pullreqs', type=int, default=100000)
     parser.add_argument('--since', dest='since', type=str)
-    parser.add_argument('--github-token', dest='github_token', type=str, required=True)
-    parser.add_argument('--github-owner', dest='github_owner', type=str, required=True)
-    parser.add_argument('--github-repo', dest='github_repo', type=str, required=True)
+    parser.add_argument('--github-token', dest='github_token', type=str, default='')
+    parser.add_argument('--github-owner', dest='github_owner', type=str, default='')
+    parser.add_argument('--github-repo', dest='github_repo', type=str, default='')
+    parser.add_argument('--show-rate-limit', dest='show_rate_limit', action='store_true')
     args = parser.parse_args()
 
     params = {
@@ -210,7 +237,10 @@ def main():
         "GITHUB_REPO": args.github_repo
     }
 
-    _traverse_pull_requests(args.output, args.since, args.max_num_pullreqs, params)
+    if not args.show_rate_limit:
+        _traverse_pull_requests(args.output, args.since, args.max_num_pullreqs, params)
+    else:
+        _show_rate_limit(params)
 
 
 if __name__ == "__main__":
