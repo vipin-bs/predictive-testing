@@ -51,7 +51,7 @@ def _get_test_results_from(pr_user: str, pr_repo: str, params: Dict[str, str],
     test_results: Dict[str, Tuple[List[str], List[str]]] = {}
 
     runs = github_apis.list_workflow_runs(pr_user, pr_repo, params['GITHUB_TOKEN'], since=since)
-    for run_id, run_name, event, conclusion, pr_number, head, base in tqdm.tqdm(runs, desc=f"Workflow Runs ({pr_user}/{pr_repo})"):
+    for run_id, run_name, event, conclusion, pr_number, head, base in tqdm.tqdm(runs, desc=f"Workflow Runs ({pr_user}/{pr_repo})", leave=False):
         logging.info(f"run_id:{run_id}, pr_number:{pr_number}, run_name:{run_name}")
 
         if not run_filter(run_name) or conclusion not in ['success', 'failure']:
@@ -142,32 +142,36 @@ def _traverse_pull_requests(output_path: str, since: Optional[str], max_num_pull
             test_results = _get_test_results_from(pr_user, pr_repo, params,
                                                   run_filter, job_filter, extract_failed_tests_from,
                                                   since=since)
+            if len(test_results) == 0:
+                logging.warning(f"No valid test result found in workflows ({pr_user}/{pr_repo})")
+            else:
+                logging.info(f"{len(test_results)} test results found in workflows ({pr_user}/{pr_repo})")
+                for pr_number, pr_created_at, pr_updated_at, pr_title, pr_body, pr_user, pr_repo, pr_branch in pullreqs:
+                    if pr_repo != '':
+                        commits = github_apis.list_commits_for(pr_number, params['GITHUB_OWNER'], params['GITHUB_REPO'], params['GITHUB_TOKEN'],
+                                                               since=None)
+                        logging.info(f"pullreq#{pr_number} has {len(commits)} commits (created_at:{pr_created_at}, updated_at:{pr_updated_at})")
 
-            for pr_number, pr_created_at, pr_updated_at, pr_title, pr_body, pr_user, pr_repo, pr_branch in pullreqs:
-                if pr_repo != '':
-                    commits = github_apis.list_commits_for(pr_number, params['GITHUB_OWNER'], params['GITHUB_REPO'], params['GITHUB_TOKEN'],
-                                                           since=since)
-                    logging.info(f"pullreq#{pr_number} has {len(commits)} commits")
+                        for (commit, commit_date) in commits:
+                            logging.info(f"commit:{commit}, commit_date:{commit_date}")
+                            if commit in test_results:
+                                buf: Dict[str, Any] = {}
+                                buf['author'] = pr_user
+                                buf['commit_date'] = github_apis.format_github_datetime(commit_date, '%Y/%m/%d %H:%M:%S')
+                                buf['title'] = pr_title
+                                buf['body'] = pr_body
+                                buf['files'] = []
+                                (files, tests) = test_results[commit]
+                                for file in files:
+                                    update_counts = github_features.count_file_updates(
+                                        file, commit_date, [3, 14, 56],
+                                        params['GITHUB_OWNER'], params['GITHUB_REPO'], params['GITHUB_TOKEN'])
+                                    buf['files'].append({'file': file, 'updated': update_counts})
 
-                    for (commit, commit_date) in commits:
-                        if commit in test_results:
-                            buf: Dict[str, Any] = {}
-                            buf['author'] = pr_user
-                            buf['commit_date'] = github_apis.format_github_datetime(commit_date, '%Y/%m/%d %H:%M:%S')
-                            buf['title'] = pr_title
-                            buf['body'] = pr_body
-                            buf['files'] = []
-                            (files, tests) = test_results[commit]
-                            for file in files:
-                                update_counts = github_features.count_file_updates(
-                                    file, commit_date, [3, 14, 56],
-                                    params['GITHUB_OWNER'], params['GITHUB_REPO'], params['GITHUB_TOKEN'])
-                                buf['files'].append({'file': file, 'updated': update_counts})
-
-                            buf['failed_tests'] = tests
-                            output.write(json.dumps(buf))
-                            output.write("\n")
-                            output.flush()
+                                buf['failed_tests'] = tests
+                                output.write(json.dumps(buf))
+                                output.write("\n")
+                                output.flush()
 
 
 def main():

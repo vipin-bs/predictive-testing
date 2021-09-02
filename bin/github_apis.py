@@ -263,7 +263,7 @@ def list_workflow_runs(owner: str, repo: str, token: str, since: Optional[dateti
 
             if run['event'] == 'push' and run['status'] == 'completed' and len(run['pull_requests']) > 0:
                 pr = run['pull_requests'][0]
-                runs.append((str(run['id']), run['name'], run['event'], pr['number'], pr['head']['sha'], pr['base']['sha']))
+                runs.append((str(run['id']), run['name'], run['event'], run['conclusion'], pr['number'], pr['head']['sha'], pr['base']['sha']))
             # TODO: Removes 'testing' in future
             elif testing:
                 runs.append((str(run['id']), run['name'], run['event'], run['conclusion'], '', '', ''))
