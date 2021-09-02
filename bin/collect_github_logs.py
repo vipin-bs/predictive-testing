@@ -126,7 +126,12 @@ def _traverse_pull_requests(output_path: str, since: Optional[str], max_num_pull
     if len(pullreqs) == 0:
         raise Exception('No valid pull request found')
 
-    # Grouping pull requests by a user
+    # Dumps all the pull request logs to resume job
+    with open(f"{output_path}/pullreqs.json", "w") as output:
+        output.write(json.dumps(pullreqs))
+        output.flush()
+
+    # Groups pull requests by a user
     pullreqs_by_user: Dict[Tuple[str, str], List[Any]] = {}
     for pullreq in pullreqs:
         pr_user, pr_repo = pullreq[5], pullreq[6]
@@ -184,7 +189,6 @@ def _traverse_pull_requests(output_path: str, since: Optional[str], max_num_pull
 
                                 buf['failed_tests'] = tests
                                 output.write(json.dumps(buf))
-                                output.write("\n")
                                 output.flush()
 
 
