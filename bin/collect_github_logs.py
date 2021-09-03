@@ -163,33 +163,8 @@ def _create_failed_test_extractor(p: str) -> Any:
     return extractor
 
 
-def _traverse_pull_requests(output_path: str, since: Optional[str], max_num_pullreqs: int, params: Dict[str, str]) -> None:
-    if len(output_path) == 0:
-        raise ValueError("Output Path must be specified in '--output'")
-    if len(params['GITHUB_TOKEN']) == 0:
-        raise ValueError("GitHub token must be specified in '--github-token'")
-    if len(params['GITHUB_OWNER']) == 0:
-        raise ValueError("GitHub owner must be specified in '--github-owner'")
-    if len(params['GITHUB_REPO']) == 0:
-        raise ValueError("GitHub repository must be specified in '--github-repo'")
-
-    # Make an output dir in advance
-    os.mkdir(output_path)
-
-    # For logger setup
-    logger = _setup_logger(f'{output_path}/debug-info.log')
-
-    # logger rate limit
-    logger.info(f"rate_limit: {_to_rate_limit_msg(github_apis.get_rate_limit(params['GITHUB_TOKEN']))}")
-
-    # Parses a specified datetime string if possible
-    import dateutil.parser as parser
-    if since is not None:
-        since = parser.parse(since)
-        logger.info(f"Target timestamp: since={github_apis.to_github_datetime(since)} "
-                    f"until={github_apis.to_github_datetime(datetime.now(timezone.utc))}")
-
-    logger.info(f"Fetching all pull requests in {params['GITHUB_OWNER']}/{params['GITHUB_REPO']}...")
+def _traverse_pull_requests(output_path: str, since: Optional[datetime], max_num_pullreqs: int, params: Dict[str, str], logger: Any) -> None:
+    logger.info(f"Fetching candidate pull requests in {params['GITHUB_OWNER']}/{params['GITHUB_REPO']}...")
     pullreqs = github_apis.list_pullreqs(params['GITHUB_OWNER'], params['GITHUB_REPO'], params['GITHUB_TOKEN'],
                                          since=since, nmax=max_num_pullreqs, logger=logger)
     if len(pullreqs) == 0:
@@ -263,6 +238,35 @@ def _traverse_pull_requests(output_path: str, since: Optional[str], max_num_pull
                                 output.flush()
 
 
+def _traverse_github_logs(traverse_func: Any, output_path: str, since: Optional[str], max_num_pullreqs: int, params: Dict[str, str]) -> None:
+    if len(output_path) == 0:
+        raise ValueError("Output Path must be specified in '--output'")
+    if len(params['GITHUB_TOKEN']) == 0:
+        raise ValueError("GitHub token must be specified in '--github-token'")
+    if len(params['GITHUB_OWNER']) == 0:
+        raise ValueError("GitHub owner must be specified in '--github-owner'")
+    if len(params['GITHUB_REPO']) == 0:
+        raise ValueError("GitHub repository must be specified in '--github-repo'")
+
+    # Make an output dir in advance
+    os.mkdir(output_path)
+
+    # For logger setup
+    logger = _setup_logger(f'{output_path}/debug-info.log')
+
+    # logger rate limit
+    logger.info(f"rate_limit: {_to_rate_limit_msg(github_apis.get_rate_limit(params['GITHUB_TOKEN']))}")
+
+    # Parses a specified datetime string if possible
+    import dateutil.parser as parser
+    if since is not None:
+        since = parser.parse(since)
+        logger.info(f"Target timestamp: since={github_apis.to_github_datetime(since)} "
+                    f"until={github_apis.to_github_datetime(datetime.now(timezone.utc))}")
+
+    traverse_func(output_path, since, max_num_pullreqs, params, logger)
+
+
 def _show_rate_limit(params: Dict[str, str]) -> None:
     rate_limit = github_apis.get_rate_limit(params['GITHUB_TOKEN'])
     print('======== GitHub Rate Limit ========')
@@ -289,7 +293,9 @@ def main():
     }
 
     if not args.show_rate_limit:
-        _traverse_pull_requests(args.output, args.since, args.max_num_pullreqs, params)
+        _traverse_github_logs(_traverse_pull_requests,
+                              args.output, args.since, args.max_num_pullreqs,
+                              params)
     else:
         _show_rate_limit(params)
 
