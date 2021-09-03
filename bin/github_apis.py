@@ -86,6 +86,14 @@ def request_github_api(api: str, token: str, params: Dict[str, str] = {}, pass_t
         return ret.text
 
 
+def _assert_github_prams(owner, repo, token):
+    def is_valid_str(s):
+        return type(s) is str and len(s) > 0
+
+    assert is_valid_str(owner) and is_valid_str(repo) and is_valid_str(token), \
+        f"Invalid input found: owner={owner}, repo={repo}, token={token}"
+
+
 def _always_false(d: str) -> bool:
     return False
 
@@ -126,6 +134,8 @@ def get_rate_limit(token: str) -> Dict[str, Any]:
 # https://docs.github.com/en/rest/reference/pulls#list-pull-requests
 @timeout_decorator.timeout(1800, timeout_exception=StopIteration)
 def list_pullreqs(owner: str, repo: str, token: str, since: Optional[datetime] = None, nmax: int = 100000) -> List[Tuple[str, str, str, str, str, str, str, str]]:
+    _assert_github_prams(owner, repo, token)
+
     pullreqs: List[Tuple[str, str, str, str, str, str, str, str]] = []
     check_updated = _create_date_filter(since)
     rem_pages = nmax
@@ -141,16 +151,20 @@ def list_pullreqs(owner: str, repo: str, token: str, since: Optional[datetime] =
             if check_updated(pullreq['updated_at']):
                 return pullreqs
 
-            pr_number = str(pullreq['number'])
-            pr_created_at = pullreq['created_at']
-            pr_updated_at = pullreq['updated_at']
-            pr_title = pullreq['title']
-            pr_body = pullreq['body']
-            pr_user = pullreq['user']['login']
-            pr_repo = pullreq['head']['repo']['name'] if pullreq['head']['repo'] is not None else ''
-            pr_branch = pullreq['head']['ref']
-            pullreqs.append((pr_number, pr_created_at, pr_updated_at, pr_title, pr_body,
-                             pr_user, pr_repo, pr_branch))
+            if pullreq['head']['repo'] is not None:
+                pr_number = str(pullreq['number'])
+                pr_created_at = pullreq['created_at']
+                pr_updated_at = pullreq['updated_at']
+                pr_title = pullreq['title']
+                pr_body = pullreq['body']
+                pr_user = pullreq['user']['login']
+                pr_repo = pullreq['head']['repo']['name']
+                pr_branch = pullreq['head']['ref']
+                pullreqs.append((pr_number, pr_created_at, pr_updated_at, pr_title, pr_body,
+                                 pr_user, pr_repo, pr_branch))
+            else:
+                logging.warning(f"repository not found: pr_number={pullreq['number']}, "
+                                f"pr_user={pullreq['user']['login']}")
 
         rem_pages -= per_page
         npage += 1
@@ -164,6 +178,8 @@ def list_pullreqs(owner: str, repo: str, token: str, since: Optional[datetime] =
 # https://docs.github.com/en/rest/reference/pulls#list-commits-on-a-pull-request
 def list_commits_for(pr_number: str, owner: str, repo: str, token: str,
                      since: Optional[datetime] = None, nmax: int = 100000) -> List[Tuple[str, str, str]]:
+    _assert_github_prams(owner, repo, token)
+
     commits: List[Tuple[str, str, str]] = []
     check_date = _create_date_filter(since)
     rem_pages = nmax
@@ -195,6 +211,8 @@ def list_commits_for(pr_number: str, owner: str, repo: str, token: str,
 def list_file_commits_for(path: str, owner: str, repo: str, token: str,
                           since: Optional[str] = None, until: Optional[str] = None,
                           nmax: int = 100000) -> List[Tuple[str, str]]:
+    _assert_github_prams(owner, repo, token)
+
     # Limits a read scope if 'since' or 'until' specified
     extra_params = {}
     if since is not None:
@@ -227,6 +245,8 @@ def list_file_commits_for(path: str, owner: str, repo: str, token: str,
 
 # https://docs.github.com/en/rest/reference/repos#compare-two-commits
 def list_change_files(base: str, head: str, owner: str, repo: str, token: str, nmax: int = 100000) -> List[Tuple[str, str, str, str]]:
+    _assert_github_prams(owner, repo, token)
+
     files: List[Tuple[str, str, str, str]] = []
     rem_pages = nmax
     npage = 1
@@ -255,14 +275,10 @@ def list_change_files(base: str, head: str, owner: str, repo: str, token: str, n
 
 # https://docs.github.com/en/rest/reference/actions#list-workflow-runs-for-a-repository
 def list_workflow_runs(owner: str, repo: str, token: str, since: Optional[datetime] = None, nmax: int = 100000, testing: bool = False) -> List[Tuple[str, str, str, str, str, str, str]]:
-    try:
-        # This request can fail if any workflow run does not exist
-        api = f'repos/{owner}/{repo}/actions/runs'
-        latest_run = request_github_api(api, token, params={ 'per_page': '1' })
-    except Exception:
-        logging.warning(f"Any workflow run does not exist in {owner}/{repo}")
-        return []
+    _assert_github_prams(owner, repo, token)
 
+    api = f'repos/{owner}/{repo}/actions/runs'
+    latest_run = request_github_api(api, token, params={ 'per_page': '1' })
     if not _validate_dict_keys(latest_run, ['total_count', 'workflow_runs']):
         return []
 
@@ -298,6 +314,8 @@ def list_workflow_runs(owner: str, repo: str, token: str, since: Optional[dateti
 
 # https://docs.github.com/en/rest/reference/actions#list-jobs-for-a-workflow-run
 def list_workflow_jobs(run_id: str, owner: str, repo: str, token: str, nmax: int = 100000) -> List[Tuple[str, str, str]]:
+    _assert_github_prams(owner, repo, token)
+
     api = f'repos/{owner}/{repo}/actions/runs/{run_id}/jobs'
     latest_job = request_github_api(api, token, params={ 'per_page': '1' })
     if not _validate_dict_keys(latest_job, ['total_count', 'jobs']):
@@ -326,12 +344,15 @@ def list_workflow_jobs(run_id: str, owner: str, repo: str, token: str, nmax: int
 
 # https://docs.github.com/en/rest/reference/actions#download-job-logs-for-a-workflow-run
 def get_workflow_job_logs(job_id: str, owner: str, repo: str, token: str) -> str:
+    _assert_github_prams(owner, repo, token)
     api = f'repos/{owner}/{repo}/actions/jobs/{job_id}/logs'
     return request_github_api(api, token, pass_thru=True)
 
 
 # https://docs.github.com/en/rest/reference/repos#get-all-contributor-commit-activity
 def list_contributors_stats(owner: str, repo: str, token: str) -> List[Tuple[str, str]]:
+    _assert_github_prams(owner, repo, token)
+
     contributors: List[Tuple[str, str]] = []
     stats = request_github_api(f"repos/{owner}/{repo}/stats/contributors", token)
     for stat in stats:
