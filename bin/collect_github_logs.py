@@ -45,11 +45,32 @@ def _get_failed_tests(pr_user: str, pr_repo: str, job_name: str, job_id: str,
    return extract_failed_tests_from(logs)
 
 
+def _create_name_filter(targets: Optional[List[str]]) -> Any:
+    if targets is not None:
+        def name_filter(name: str) -> bool:
+            for target in targets:
+              if name.find(target) != -1:
+                  return True
+            return False
+
+        return name_filter
+    else:
+        def pass_thru(name: str) -> bool:
+            return True
+
+        return pass_thru
+
+
 def _get_test_results_from(owner: str, repo: str, params: Dict[str, str],
-                           run_filter: Any, job_filter: Any, extract_failed_tests_from: Any,
+                           target_runs: Optional[List[str]], target_jobs: Optional[List[str]],
+                           extract_failed_tests_from: Any,
                            since: Optional[datetime],
                            logger: Any) -> Dict[str, Tuple[List[Dict[str, str]], List[str]]]:
     test_results: Dict[str, Tuple[List[Dict[str, str]], List[str]]] = {}
+
+    # Creates filter functions based on the specified target lists
+    run_filter = _create_name_filter(target_runs)
+    job_filter = _create_name_filter(target_jobs)
 
     runs = github_apis.list_workflow_runs(owner, repo, params['GITHUB_TOKEN'], since=since, logger=logger)
     for run_id, run_name, head_sha, event, conclusion, pr_number, head, base in tqdm.tqdm(runs, desc=f"Workflow Runs ({owner}/{repo})", leave=False):
@@ -65,18 +86,16 @@ def _get_test_results_from(owner: str, repo: str, params: Dict[str, str],
                 files.append({'name': filename, 'additions': additions, 'deletions': deletions, 'changes': changes})
 
             if conclusion == 'success':
-                # jobs = github_apis.list_workflow_jobs(run_id, owner, repo, params['GITHUB_TOKEN'], logger=logger)
-                # assert len(list(filter(lambda j: j[2] == 'failure', jobs))) == 0
                 test_results[head] = (files, [])
             else:  # failed case
                 jobs = github_apis.list_workflow_jobs(run_id, owner, repo, params['GITHUB_TOKEN'], logger=logger)
                 selected_jobs: List[Tuple[str, str, str]] = []
                 for job in jobs:
                     job_id, job_name, conclusion = job
-                    if not job_filter(job_name):
-                        logger.info(f"Job (run_id/job_id:{job_id}/{run_id}, name:'{run_name}':'{job_name}') skipped")
-                    else:
+                    if job_filter(job_name):
                         selected_jobs.append(job)
+                    else:
+                        logger.info(f"Job (run_id/job_id:{job_id}/{run_id}, name:'{run_name}':'{job_name}') skipped")
 
                 failed_tests = []
                 for job_id, job_name, conclusion in selected_jobs:
@@ -122,6 +141,17 @@ def _setup_logger(logfile: str) -> None:
     fh.setFormatter(Formatter('%(asctime)s.%(msecs)03d: %(message)s', '%Y-%m-%d %H:%M:%S'))
     logger.addHandler(fh)
     return logger
+
+
+# Generates an extractor for failed tests from a specified regex pattern
+def _create_failed_test_extractor(p: str) -> Any:
+    import re
+    extractor = re.compile(p)
+
+    def extractor(logs: str) -> List[str]:
+        return extractor.findall(logs)
+
+    return extractor
 
 
 def _traverse_pull_requests(output_path: str, since: Optional[str], max_num_pullreqs: int, params: Dict[str, str]) -> None:
@@ -171,11 +201,13 @@ def _traverse_pull_requests(output_path: str, since: Optional[str], max_num_pull
         pullreqs_by_user[(pr_user, pr_repo)].append(pullreq)
 
     # Generates project-dependent run/job filters and log extractor
-    run_filter, job_filter, extract_failed_tests_from = _create_workflow_handlers('spark')
+    target_runs, target_jobs, extract_failed_tests_from = _create_workflow_handlers('spark')
+    # target_runs, target_jobs, extract_failed_tests_from = \
+    #     None, None, _create_failed_test_extractor(r"error.+?(org\.apache\.spark\.[a-zA-Z0-9\.]+Suite)")
 
     # Fetches test results from mainstream-side workflow jobs
     test_results = _get_test_results_from(params['GITHUB_OWNER'], params['GITHUB_REPO'], params,
-                                          run_filter, job_filter, extract_failed_tests_from,
+                                          target_runs, target_jobs, extract_failed_tests_from,
                                           since=since, logger=logger)
 
     with open(f"{output_path}/github-logs.json", "w") as output:
@@ -186,7 +218,7 @@ def _traverse_pull_requests(output_path: str, since: Optional[str], max_num_pull
 
             # Fetches test results from folk-side workflow jobs
             user_test_results = _get_test_results_from(pr_user, pr_repo, params,
-                                                       run_filter, job_filter, extract_failed_tests_from,
+                                                       target_runs, target_jobs, extract_failed_tests_from,
                                                        since=since, logger=logger)
 
             # Merges the tests results with mainstream's ones

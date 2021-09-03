@@ -21,8 +21,9 @@ import re
 from typing import Any, List, Tuple
 
 
-def _spark_run_filter(n: str) -> bool:
-    return n == 'Build and test'
+_target_workflow_runs = [
+    'Build and test'
+]
 
 
 _target_workflow_jobs = [
@@ -42,18 +43,12 @@ _target_workflow_jobs = [
 ]
 
 
-def _spark_job_filter(n: str) -> bool:
-    for target_job in _target_workflow_jobs:
-      if n.find(target_job) != -1:
-          return True
-    return False
-
-
 _RE_COMPILE_FAILURE = re.compile(r"error.+? Compilation failed")
 _RE_SCALA_TEST = re.compile(r"error.+?(org\.apache\.spark\.[a-zA-Z0-9\.]+Suite)")
 _RE_PYTHON_TEST = re.compile(r"Had test failures in (pyspark\.[a-zA-Z0-9\._]+) with python")
 
 
+# TODO: Needs to generalize this method
 def _extract_spark_failed_tests_from(logs: str) -> List[str]:
     if _RE_COMPILE_FAILURE.search(logs) is not None:
         return []
@@ -66,7 +61,6 @@ def _extract_spark_failed_tests_from(logs: str) -> List[str]:
     return list(set(tests))
 
 
-def create_spark_workflow_handlers() -> Tuple[Any, Any, Any]:
-    return _spark_run_filter, _spark_job_filter, \
+def create_spark_workflow_handlers() -> Tuple[List[str], List[str], Any]:
+    return _target_workflow_runs, _target_workflow_jobs, \
         _extract_spark_failed_tests_from
-
