@@ -90,12 +90,14 @@ class GitHubApiTests(unittest.TestCase):
         self._assertIsDateTime(commit_date)
         self.assertTrue(len(commit_message) > 0)
 
-    def test_list_file_commits_for(self):
-        commits = github_apis.list_file_commits_for('README.md', self._github_owner, self._github_repo, self._github_token, nmax=1)
+    def test_list_repo_commits(self):
+        commits = github_apis.list_repo_commits(self._github_owner, self._github_repo, self._github_token, path='README.md', nmax=1)
         self.assertEqual(len(commits), 1)
-        sha, commit_date = commits[0]
-        self.assertIsNotNone(sha)
-        self.assertIsNotNone(commit_date)
+        sha, commit_user, commit_date, commit_message = commits[0]
+        self.assertTrue(len(sha) > 0)
+        self._assertIsDateTime(commit_date)
+        self.assertTrue(len(commit_user) > 0)
+        self.assertTrue(len(commit_message) > 0)
 
     def test_list_change_files(self):
         base = '5a510cf578c84e3edb7fb58d16c332ca141be913'
@@ -115,11 +117,13 @@ class GitHubApiTests(unittest.TestCase):
             ('sql/hive-thriftserver/pom.xml', '11', '0', '11')])
 
     def test_list_file_commits_with_period_specified(self):
-        commits = github_apis.list_file_commits_for('README.md', self._github_owner, self._github_repo, self._github_token,
-                                                    since='2011-04-1T05:31:29Z', until='2012-04-01T05:31:29Z')
+        commits = github_apis.list_repo_commits(self._github_owner, self._github_repo, self._github_token,
+                                                path='README.md', since='2011-04-1T05:31:29Z', until='2012-04-01T05:31:29Z')
         self.assertEqual(len(commits), 7)
-        sha, commit_date = commits[0]
+        sha, commit_user, commit_date, commit_message = commits[0]
         self.assertEqual(sha, 'ca64a7ae03f2ba4a965b6f2b55afbd6d9f2a397a')
+        self.assertEqual(commit_user, 'mateiz')
+        self.assertEqual(commit_message, 'Documentation')
         self.assertEqual(commit_date, '2012-03-17T20:51:29Z')
 
     def test_list_workflow_runs(self):

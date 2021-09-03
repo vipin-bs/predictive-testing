@@ -233,34 +233,45 @@ def list_commits_for(pr_number: str, owner: str, repo: str, token: str,
 
 
 # https://docs.github.com/en/rest/reference/repos#list-commits
-def list_file_commits_for(path: str, owner: str, repo: str, token: str,
-                          since: Optional[str] = None, until: Optional[str] = None, nmax: int = 100000,
-                          logger: Any = None) -> List[Tuple[str, str]]:
+def list_repo_commits(owner: str, repo: str, token: str,
+                      path: Optional[str], since: Optional[str] = None, until: Optional[str] = None,
+                      nmax: int = 100000, logger: Any = None) -> List[Tuple[str, str, str, str]]:
     _assert_github_prams(owner, repo, token)
 
     logger = logger or _default_logger
 
-    # Limits a read scope if 'since' or 'until' specified
+    # Adds some optional params if necessary
     extra_params = {}
+    if path is not None:
+        extra_params['path'] = str(path)
     if since is not None:
         extra_params['since'] = str(since)
     if until is not None:
         extra_params['until'] = str(until)
 
-    commits: List[Tuple[str, str]] = []
+    commits: List[Tuple[str, str, str, str]] = []
     rem_pages = nmax
     npage = 1
     while True:
         per_page = 100 if rem_pages >= 100 else rem_pages
-        params = { 'page': str(npage), 'per_page': str(per_page), 'path': path }
+        params = { 'page': str(npage), 'per_page': str(per_page) }
         params.update(extra_params)
         file_commits = _request_github_api(f"repos/{owner}/{repo}/commits", token,
                                            params=params, logger=logger)
         for commit in file_commits:
-            if not _validate_dict_keys(commit, ['sha', 'commit'], logger=logger):
+            if not _validate_dict_keys(commit, ['sha', 'author', 'commit'], logger=logger):
                 return commits
 
-            commits.append((commit['sha'], commit['commit']['author']['date']))
+            sha = commit['sha']
+            commit_date = commit['commit']['author']['date']
+            commit_message = commit['commit']['message']
+            commit_user = ''
+            if commit['author'] is not None:
+                commit_user = commit['author']['login']
+            elif commit['committer'] is not None:
+                commit_user = commit['committer']['login']
+
+            commits.append((sha, commit_user, commit_date, commit_message))
 
         rem_pages -= per_page
         npage += 1
