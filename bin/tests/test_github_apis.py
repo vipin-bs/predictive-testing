@@ -134,19 +134,20 @@ class GitHubApiTests(unittest.TestCase):
         self.assertEqual(commit_date, '2012-03-17T20:51:29Z')
 
     def test_list_workflow_runs(self):
-        runs = github_apis.list_workflow_runs(self._github_owner, self._github_repo, self._github_token, nmax=1, testing=True)
+        runs = github_apis.list_workflow_runs(self._github_owner, self._github_repo, self._github_token, nmax=1)
         self.assertEqual(len(runs), 1)
-        run_id, name, event, conclusion, pr_number, pr_head, pr_base = runs[0]
+        run_id, name, head_sha, event, conclusion, pr_number, pr_head, pr_base = runs[0]
         self.assertTrue(run_id.isdigit())
         self.assertTrue(len(name) > 0)
         self.assertTrue(event in ['workflow_run', 'schedule', 'push'])
+        self.assertTrue(len(head_sha) > 0)
         self.assertTrue(conclusion in ['success', 'failure', 'skipped'])
         self.assertTrue(pr_number == '' or pr_number.isdigit())
         self.assertTrue(len(pr_head) >= 0)
         self.assertTrue(len(pr_base) >= 0)
 
     def test_list_workflow_jobs(self):
-        runs = github_apis.list_workflow_runs(self._github_owner, self._github_repo, self._github_token, nmax=1, testing=True)
+        runs = github_apis.list_workflow_runs(self._github_owner, self._github_repo, self._github_token, nmax=1)
         self.assertEqual(len(runs), 1)
         run_id = runs[0][0]
         jobs = github_apis.list_workflow_jobs(run_id, self._github_owner, self._github_repo, self._github_token, nmax=1)
@@ -157,7 +158,7 @@ class GitHubApiTests(unittest.TestCase):
         self.assertTrue(conclusion in ['success', 'failure', 'skipped'])
 
     def test_list_workflow_job_logs(self):
-        runs = github_apis.list_workflow_runs(self._github_owner, self._github_repo, self._github_token, nmax=1, testing=True)
+        runs = github_apis.list_workflow_runs(self._github_owner, self._github_repo, self._github_token, nmax=1)
         self.assertEqual(len(runs), 1)
         run_id = runs[0][0]
         jobs = github_apis.list_workflow_jobs(run_id, self._github_owner, self._github_repo, self._github_token, nmax=1)

@@ -318,8 +318,7 @@ def list_change_files_between(base: str, head: str, owner: str, repo: str, token
 
 # https://docs.github.com/en/rest/reference/actions#list-workflow-runs-for-a-repository
 def list_workflow_runs(owner: str, repo: str, token: str, since: Optional[datetime] = None,
-                       nmax: int = 100000, logger: Any = None,
-                       testing: bool = False) -> List[Tuple[str, str, str, str, str, str, str]]:
+                       nmax: int = 100000, logger: Any = None) -> List[Tuple[str, str, str, str, str, str, str, str]]:
     _assert_github_prams(owner, repo, token)
 
     logger = logger or _default_logger
@@ -329,7 +328,7 @@ def list_workflow_runs(owner: str, repo: str, token: str, since: Optional[dateti
     if not _validate_dict_keys(latest_run, ['total_count', 'workflow_runs'], logger=logger):
         return []
 
-    runs: List[Tuple[str, str, str, str, str, str, str]] = []
+    runs: List[Tuple[str, str, str, str, str, str, str, str]] = []
     check_updated = _create_date_filter(since)
     total_runs_count = int(latest_run['total_count'])
     num_pages = int(total_runs_count / 100) + 1
@@ -346,12 +345,17 @@ def list_workflow_runs(owner: str, repo: str, token: str, since: Optional[dateti
             if check_updated(run['updated_at']):
                 return runs
 
-            if run['event'] == 'push' and run['status'] == 'completed' and len(run['pull_requests']) > 0:
-                pr = run['pull_requests'][0]
-                runs.append((str(run['id']), run['name'], run['event'], run['conclusion'], pr['number'], pr['head']['sha'], pr['base']['sha']))
-            # TODO: Removes 'testing' in future
-            elif testing:
-                runs.append((str(run['id']), run['name'], run['event'], run['conclusion'], '', '', ''))
+            if run['status'] == 'completed':
+                if len(run['pull_requests']) == 0:
+                    pr_number, pr_head, pr_base = '', '', ''
+                else:
+                    pr = run['pull_requests'][0]
+                    pr_number = str(pr['number'])
+                    pr_head = pr['head']['sha']
+                    pr_base = pr['base']['sha']
+
+                runs.append((str(run['id']), run['name'], run['head_sha'], run['event'], run['conclusion'],
+                             pr_number, pr_head, pr_base))
 
         rem_pages -= per_page
         if len(wruns) == 0 or rem_pages == 0:
