@@ -59,7 +59,8 @@ def _get_test_results_from(owner: str, repo: str, params: Dict[str, str],
             logger.info(f"Run (run_id:{run_id}, run_name:'{run_name}', conclusion={conclusion}) skipped")
         else:
             # List up all the updated files between 'base' and 'head' as corresponding to this run
-            changed_files = github_apis.list_change_files(base, head, owner, repo, params['GITHUB_TOKEN'], logger=logger)
+            changed_files = github_apis.list_change_files_between(base, head, owner, repo, params['GITHUB_TOKEN'],
+                                                                  logger=logger)
             files: List[Dict[str, str]] = []
             for file in changed_files:
                 filename, additions, deletions, changes = file

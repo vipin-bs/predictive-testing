@@ -99,10 +99,17 @@ class GitHubApiTests(unittest.TestCase):
         self.assertTrue(len(commit_user) > 0)
         self.assertTrue(len(commit_message) > 0)
 
-    def test_list_change_files(self):
+    def test_list_change_files_from(self):
+        ref = '5a510cf578c84e3edb7fb58d16c332ca141be913'
+        files = github_apis.list_change_files_from(ref, self._github_owner, self._github_repo, self._github_token)
+        self.assertEqual(sorted(files), [
+            ('sql/core/src/main/scala/org/apache/spark/sql/execution/HiveResult.scala', '10', '2', '12')
+        ])
+
+    def test_list_change_files_between(self):
         base = '5a510cf578c84e3edb7fb58d16c332ca141be913'
         head = 'bc61b62a55c5c3ace181aef53e26a5ddcd6b85bf'
-        files = github_apis.list_change_files(base, head, self._github_owner, self._github_repo, self._github_token)
+        files = github_apis.list_change_files_between(base, head, self._github_owner, self._github_repo, self._github_token)
         self.assertEqual(sorted(files), [
             ('external/avro/pom.xml', '11', '0', '11'),
             ('external/kafka-0-10-sql/pom.xml', '11', '1', '12'),

@@ -282,39 +282,38 @@ def list_repo_commits(owner: str, repo: str, token: str,
     return []
 
 
-# https://docs.github.com/en/rest/reference/repos#compare-two-commits
-def list_change_files(base: str, head: str, owner: str, repo: str, token: str, nmax: int = 100000,
-                      logger: Any = None) -> List[Tuple[str, str, str, str]]:
-    _assert_github_prams(owner, repo, token)
-
+def _list_change_files(api: str, token: str, logger: Any) -> List[Tuple[str, str, str, str]]:
     logger = logger or _default_logger
 
     files: List[Tuple[str, str, str, str]] = []
-    rem_pages = nmax
     npage = 1
     while True:
-        per_page = 100 if rem_pages >= 100 else rem_pages
-        params = { 'page': str(npage), 'per_page': str(per_page) }
-        compare = _request_github_api(f"repos/{owner}/{repo}/compare/{base}...{head}", token,
-                                      params=params, logger=logger)
-        if not _validate_dict_keys(compare, ['commits'], logger=logger):
-            return files
+        params = { 'page': str(npage), 'per_page': '100' }
+        changed_files= _request_github_api(api, token, params=params, logger=logger)
+        if 'files' not in changed_files or len(changed_files['files']) == 0:
+             return files
 
-        if 'files' in compare:
-            for file in compare['files']:
-                expected_keys = ['filename', 'additions', 'deletions', 'changes']
-                if not _validate_dict_keys(file, expected_keys, logger=logger):
-                    return files
+        for file in changed_files['files']:
+            files.append((file['filename'], str(file['additions']), str(file['deletions']), str(file['changes'])))
 
-                files.append((file['filename'], str(file['additions']), str(file['deletions']), str(file['changes'])))
-
-        rem_pages -= per_page
         npage += 1
-        if len(compare['commits']) == 0 or rem_pages == 0:
-            return files
 
     assert False, 'unreachable path'
     return []
+
+
+# https://docs.github.com/en/rest/reference/repos#get-a-commit
+def list_change_files_from(ref: str, owner: str, repo: str, token: str,
+                           logger: Any = None) -> List[Tuple[str, str, str, str]]:
+    _assert_github_prams(owner, repo, token)
+    return _list_change_files(f"repos/{owner}/{repo}/commits/{ref}", token, logger)
+
+
+# https://docs.github.com/en/rest/reference/repos#compare-two-commits
+def list_change_files_between(base: str, head: str, owner: str, repo: str, token: str,
+                              logger: Any = None) -> List[Tuple[str, str, str, str]]:
+    _assert_github_prams(owner, repo, token)
+    return _list_change_files(f"repos/{owner}/{repo}/compare/{base}...{head}", token, logger)
 
 
 # https://docs.github.com/en/rest/reference/actions#list-workflow-runs-for-a-repository
