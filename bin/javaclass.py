@@ -21,7 +21,6 @@
 Helper functions to analyze java class files
 """
 
-import logging
 import pickle
 import re
 from typing import List, Optional, Tuple

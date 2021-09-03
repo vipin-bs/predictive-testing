@@ -17,7 +17,6 @@
 # limitations under the License.
 #
 
-import logging
 import json
 import os
 import tqdm
@@ -40,58 +39,61 @@ def _trim_text(s: str, max_num: int) -> str:
 
 def _get_failed_tests(pr_user: str, pr_repo: str, job_name: str, job_id: str,
                       extract_failed_tests_from: Any,
-                      params: Dict[str, str]) -> List[str]:
-   logs = github_apis.get_workflow_job_logs(job_id, pr_user, pr_repo, params['GITHUB_TOKEN'])
+                      params: Dict[str, str],
+                      logger: Any) -> List[str]:
+   logs = github_apis.get_workflow_job_logs(job_id, pr_user, pr_repo, params['GITHUB_TOKEN'], logger=logger)
    return extract_failed_tests_from(logs)
 
 
 def _get_test_results_from(owner: str, repo: str, params: Dict[str, str],
                            run_filter: Any, job_filter: Any, extract_failed_tests_from: Any,
-                           since: Optional[datetime] = None) -> Dict[str, Tuple[List[Dict[str, str]], List[str]]]:
+                           since: Optional[datetime],
+                           logger: Any) -> Dict[str, Tuple[List[Dict[str, str]], List[str]]]:
     test_results: Dict[str, Tuple[List[Dict[str, str]], List[str]]] = {}
 
-    runs = github_apis.list_workflow_runs(owner, repo, params['GITHUB_TOKEN'], since=since)
+    runs = github_apis.list_workflow_runs(owner, repo, params['GITHUB_TOKEN'], since=since, logger=logger)
     for run_id, run_name, event, conclusion, pr_number, head, base in tqdm.tqdm(runs, desc=f"Workflow Runs ({owner}/{repo})", leave=False):
-        logging.info(f"run_id:{run_id}, pr_number:{pr_number}, run_name:{run_name}")
+        logger.info(f"run_id:{run_id}, pr_number:{pr_number}, run_name:{run_name}")
 
         if not run_filter(run_name) or conclusion not in ['success', 'failure']:
-            logging.info(f"Run (run_id:{run_id}, run_name:'{run_name}', conclusion={conclusion}) skipped")
+            logger.info(f"Run (run_id:{run_id}, run_name:'{run_name}', conclusion={conclusion}) skipped")
         else:
             # List up all the updated files between 'base' and 'head' as corresponding to this run
-            changed_files = github_apis.list_change_files(base, head, owner, repo, params['GITHUB_TOKEN'])
+            changed_files = github_apis.list_change_files(base, head, owner, repo, params['GITHUB_TOKEN'], logger=logger)
             files: List[Dict[str, str]] = []
             for file in changed_files:
                 filename, additions, deletions, changes = file
                 files.append({'name': filename, 'additions': additions, 'deletions': deletions, 'changes': changes})
 
             if conclusion == 'success':
-                # jobs = github_apis.list_workflow_jobs(run_id, owner, repo, params['GITHUB_TOKEN'])
+                # jobs = github_apis.list_workflow_jobs(run_id, owner, repo, params['GITHUB_TOKEN'], logger=logger)
                 # assert len(list(filter(lambda j: j[2] == 'failure', jobs))) == 0
                 test_results[head] = (files, [])
             else:  # failed case
-                jobs = github_apis.list_workflow_jobs(run_id, owner, repo, params['GITHUB_TOKEN'])
+                jobs = github_apis.list_workflow_jobs(run_id, owner, repo, params['GITHUB_TOKEN'], logger=logger)
                 selected_jobs: List[Tuple[str, str, str]] = []
                 for job in jobs:
                     job_id, job_name, conclusion = job
                     if not job_filter(job_name):
-                        logging.info(f"Job (run_id/job_id:{job_id}/{run_id}, name:'{run_name}':'{job_name}') skipped")
+                        logger.info(f"Job (run_id/job_id:{job_id}/{run_id}, name:'{run_name}':'{job_name}') skipped")
                     else:
                         selected_jobs.append(job)
 
                 failed_tests = []
                 for job_id, job_name, conclusion in selected_jobs:
-                    logging.info(f"job_id:{job_id}, job_name:{job_name}, conclusion:{conclusion}")
+                    logger.info(f"job_id:{job_id}, job_name:{job_name}, conclusion:{conclusion}")
                     if conclusion == 'failure':
-                        tests = _get_failed_tests(owner, repo, job_name, job_id, extract_failed_tests_from, params)
+                        tests = _get_failed_tests(owner, repo, job_name, job_id, extract_failed_tests_from,
+                                                  params, logger=logger)
                         failed_tests.extend(tests)
 
                 # If we cannot detect any failed test in logs, just ignore it
                 if len(failed_tests) > 0:
                     test_results[head] = (files, failed_tests)
                 else:
-                    logging.warning(f"No test failure found: run_id={run_id} run_name='{run_name}'")
+                    logger.warning(f"No test failure found: run_id={run_id} run_name='{run_name}'")
 
-    logging.info(f"{len(test_results)} test results found in workflows ({owner}/{repo})")
+    logger.info(f"{len(test_results)} test results found in workflows ({owner}/{repo})")
     return test_results
 
 
@@ -109,6 +111,17 @@ def _to_rate_limit_msg(rate_limit: Dict[str, Any]) -> str:
     return f"limit={c['limit']}, used={c['used']}, remaining={c['remaining']}, reset={renewal}s"
 
 
+def _setup_logger(logfile: str) -> None:
+    from logging import getLogger, FileHandler, Formatter, DEBUG, INFO
+    logger = getLogger(__name__)
+    logger.setLevel(DEBUG)
+    fh = FileHandler(logfile)
+    fh.setLevel(INFO)
+    fh.setFormatter(Formatter('%(asctime)s.%(msecs)03d: %(message)s', '%Y-%m-%d %H:%M:%S'))
+    logger.addHandler(fh)
+    return logger
+
+
 def _traverse_pull_requests(output_path: str, since: Optional[str], max_num_pullreqs: int, params: Dict[str, str]) -> None:
     if len(output_path) == 0:
         raise ValueError("Output Path must be specified in '--output'")
@@ -122,27 +135,22 @@ def _traverse_pull_requests(output_path: str, since: Optional[str], max_num_pull
     # Make an output dir in advance
     os.mkdir(output_path)
 
-    # For logging setup
-    logging.basicConfig(
-        filename=f'{output_path}/debug-info.log',
-        filemode='w',
-        level=logging.INFO,
-        format='%(asctime)s.%(msecs)03d: %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S')
+    # For logger setup
+    logger = _setup_logger(f'{output_path}/debug-info.log')
 
-    # Logging rate limit
-    logging.info(f"rate_limit: {_to_rate_limit_msg(github_apis.get_rate_limit(params['GITHUB_TOKEN']))}")
-
+    # logger rate limit
+    logger.info(f"rate_limit: {_to_rate_limit_msg(github_apis.get_rate_limit(params['GITHUB_TOKEN']))}")
 
     # Parses a specified datetime string if possible
     import dateutil.parser as parser
     if since is not None:
         since = parser.parse(since)
-        logging.info(f"Target timestamp: since={github_apis.to_github_datetime(since)} "
-                     f"until={github_apis.to_github_datetime(datetime.now(timezone.utc))}")
+        logger.info(f"Target timestamp: since={github_apis.to_github_datetime(since)} "
+                    f"until={github_apis.to_github_datetime(datetime.now(timezone.utc))}")
 
-    logging.info(f"Fetching all pull requests in {params['GITHUB_OWNER']}/{params['GITHUB_REPO']}...")
-    pullreqs = github_apis.list_pullreqs(params['GITHUB_OWNER'], params['GITHUB_REPO'], params['GITHUB_TOKEN'], since=since, nmax=max_num_pullreqs)
+    logger.info(f"Fetching all pull requests in {params['GITHUB_OWNER']}/{params['GITHUB_REPO']}...")
+    pullreqs = github_apis.list_pullreqs(params['GITHUB_OWNER'], params['GITHUB_REPO'], params['GITHUB_TOKEN'],
+                                         since=since, nmax=max_num_pullreqs, logger=logger)
     if len(pullreqs) == 0:
         raise Exception('No valid pull request found')
 
@@ -166,32 +174,32 @@ def _traverse_pull_requests(output_path: str, since: Optional[str], max_num_pull
     # Fetches test results from mainstream-side workflow jobs
     test_results = _get_test_results_from(params['GITHUB_OWNER'], params['GITHUB_REPO'], params,
                                           run_filter, job_filter, extract_failed_tests_from,
-                                          since=since)
+                                          since=since, logger=logger)
 
     with open(f"{output_path}/github-logs.json", "w") as output:
         pb_title = f"Pull Reqests ({params['GITHUB_OWNER']}/{params['GITHUB_REPO']})"
         # TODO: Could we parallelize crawling jobs by users?
         for (pr_user, pr_repo), pullreqs in tqdm.tqdm(pullreqs_by_user.items(), desc=pb_title):
-            logging.info(f"pr_user:{pr_user}, pr_repo:{pr_repo}, #pullreqs:{len(pullreqs)}")
+            logger.info(f"pr_user:{pr_user}, pr_repo:{pr_repo}, #pullreqs:{len(pullreqs)}")
 
             # Fetches test results from folk-side workflow jobs
             user_test_results = _get_test_results_from(pr_user, pr_repo, params,
                                                        run_filter, job_filter, extract_failed_tests_from,
-                                                       since=since)
+                                                       since=since, logger=logger)
 
             # Merges the tests results with mainstream's ones
             user_test_results.update(test_results)
             if len(user_test_results) == 0:
-                logging.warning(f"No valid test result found in workflows ({pr_user}/{pr_repo})")
+                logger.warning(f"No valid test result found in workflows ({pr_user}/{pr_repo})")
             else:
                 for pr_number, pr_created_at, pr_updated_at, pr_title, pr_body, pr_user, pr_repo, pr_branch in pullreqs:
                     if pr_repo != '':
                         commits = github_apis.list_commits_for(pr_number, params['GITHUB_OWNER'], params['GITHUB_REPO'], params['GITHUB_TOKEN'],
-                                                               since=None)
-                        logging.info(f"pullreq#{pr_number} has {len(commits)} commits (created_at:{pr_created_at}, updated_at:{pr_updated_at})")
+                                                               since=None, logger=logger)
+                        logger.info(f"pullreq#{pr_number} has {len(commits)} commits (created_at:{pr_created_at}, updated_at:{pr_updated_at})")
 
                         for (commit, commit_date, commit_message) in commits:
-                            logging.info(f"commit:{commit}, commit_date:{commit_date}")
+                            logger.info(f"commit:{commit}, commit_date:{commit_date}")
                             if commit in user_test_results:
                                 buf: Dict[str, Any] = {}
                                 buf['author'] = pr_user

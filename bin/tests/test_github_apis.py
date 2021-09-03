@@ -46,7 +46,7 @@ class GitHubApiTests(unittest.TestCase):
         cls._github_repo = 'spark'
 
     def _request_github_api(self, api, pass_thru=False):
-        return github_apis.request_github_api(api, token=self._github_token, pass_thru=pass_thru)
+        return github_apis._request_github_api(api, token=self._github_token, pass_thru=pass_thru)
 
     def test_request_github_api(self):
         result = self._request_github_api('')

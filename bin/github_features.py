@@ -20,17 +20,18 @@
 import github_apis
 
 import datetime
-from typing import List
+from typing import Any, List
 
 
 def count_file_updates(path: str, base_date: str, days: List[int], owner: str, repo: str,
-                       token: str) -> List[int]:
+                       token: str, logger: Any = None) -> List[int]:
     update_counts: List[int] = []
     base = github_apis.from_github_datetime(base_date)
     for day in days:
         since_date = github_apis.to_github_datetime(base - datetime.timedelta(day))
         file_commits = github_apis.list_file_commits_for(
-            path, owner, repo, token, since=since_date, until=base_date)
+            path, owner, repo, token, since=since_date, until=base_date,
+            logger=logger)
         update_counts.append(len(file_commits))
 
     return update_counts

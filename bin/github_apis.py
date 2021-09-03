@@ -17,13 +17,24 @@
 # limitations under the License.
 #
 
-import logging
 import timeout_decorator
 import json
 import requests
 import retrying
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple, Union
+
+
+def _setup_default_logger():
+    from logging import getLogger, NullHandler, DEBUG
+    logger = getLogger(__name__)
+    logger.setLevel(DEBUG)
+    logger.addHandler(NullHandler())
+    logger.propagate = False
+    return logger
+
+
+_default_logger = _setup_default_logger()
 
 
 # The GitHub time format (UTC)
@@ -52,12 +63,11 @@ def _to_debug_msg(ret: Any) -> str:
         return "ret:<unknown>"
 
 
-def _to_error_msg(text_as_json: str) -> str:
+def _to_error_msg(text: str) -> str:
     try:
-        ret = json.loads(text_as_json)
-        return ret['message']
+        return (json.loads(text))['message']
     except:
-        return '<none>'
+        return text
 
 
 # For a list of requests's exceptions, see:
@@ -69,7 +79,8 @@ def _retry_if_timeout(caught: Any) -> Any:
 @retrying.retry(stop_max_attempt_number=4, wait_exponential_multiplier=1000, wait_exponential_max=4000,
                 retry_on_exception=_retry_if_timeout,
                 wrap_exception=False)
-def request_github_api(api: str, token: str, params: Dict[str, str] = {}, pass_thru: bool = False) -> Any:
+def _request_github_api(api: str, token: str, params: Dict[str, str] = {}, pass_thru: bool = False,
+                        logger: Any = _default_logger) -> Any:
     headers = { 'Accept': 'application/vnd.github.v3+json', 'Authorization': f'Token {token}', 'User-Agent': 'github-apis' }
     ret = requests.get(f'https://api.github.com/{api}', timeout=10, headers=headers, params=params, verify=False)
     if ret.status_code != 200:
@@ -79,8 +90,8 @@ def request_github_api(api: str, token: str, params: Dict[str, str] = {}, pass_t
 
     if not pass_thru:
         result = json.loads(ret.text)
-        logging.info(f"api:/{api}, params:{params}, {_to_debug_msg(result)}")
-        logging.debug(f"ret:{json.dumps(result, indent=4)}")
+        logger.info(f"api:/{api}, params:{params}, {_to_debug_msg(result)}")
+        logger.debug(f"ret:{json.dumps(result, indent=4)}")
         return result
     else:
         return ret.text
@@ -113,28 +124,31 @@ def _create_date_filter(since: Optional[datetime]) -> Any:
     return f
 
 
-def _validate_dict_keys(d: Any, expected_keys: List[str]) -> bool:
+def _validate_dict_keys(d: Any, expected_keys: List[str], logger: Any = _default_logger) -> bool:
     if type(d) is not dict:
-        logging.warning(f"Expected type is 'dict', but '{type(d).__name__}' found")
+        logger.warning(f"Expected type is 'dict', but '{type(d).__name__}' found")
         return False
     else:
         nonexistent_keys = list(filter(lambda k: k not in d, expected_keys))
         if len(nonexistent_keys) != 0:
-            logging.warning(f"Expected keys ({','.join(nonexistent_keys)}) are not found "
-                            f"in {','.join(d.keys())} ")
+            logger.warning(f"Expected keys ({','.join(nonexistent_keys)}) are not found "
+                           f"in {','.join(d.keys())} ")
             return False
 
     return True
 
 
-def get_rate_limit(token: str) -> Dict[str, Any]:
-    return request_github_api(f"rate_limit", token)
+def get_rate_limit(token: str, logger: Any = None) -> Dict[str, Any]:
+    return _request_github_api(f"rate_limit", token, logger=logger or _default_logger)
 
 
 # https://docs.github.com/en/rest/reference/pulls#list-pull-requests
 @timeout_decorator.timeout(1800, timeout_exception=StopIteration)
-def list_pullreqs(owner: str, repo: str, token: str, since: Optional[datetime] = None, nmax: int = 100000) -> List[Tuple[str, str, str, str, str, str, str, str]]:
+def list_pullreqs(owner: str, repo: str, token: str, since: Optional[datetime] = None, nmax: int = 100000,
+                  logger: Any = None) -> List[Tuple[str, str, str, str, str, str, str, str]]:
     _assert_github_prams(owner, repo, token)
+
+    logger = logger or _default_logger
 
     pullreqs: List[Tuple[str, str, str, str, str, str, str, str]] = []
     check_updated = _create_date_filter(since)
@@ -143,9 +157,10 @@ def list_pullreqs(owner: str, repo: str, token: str, since: Optional[datetime] =
     while True:
         per_page = 100 if rem_pages >= 100 else rem_pages
         params = { 'page': str(npage), 'per_page': str(per_page), 'state': 'all', 'sort': 'updated', 'direction': 'desc' }
-        prs = request_github_api(f"repos/{owner}/{repo}/pulls", token, params=params)
+        prs = _request_github_api(f"repos/{owner}/{repo}/pulls", token, params=params, logger=logger)
         for pullreq in prs:
-            if not _validate_dict_keys(pullreq, ['number', 'created_at', 'updated_at', 'title', 'body', 'user', 'head']):
+            expected_keys = ['number', 'created_at', 'updated_at', 'title', 'body', 'user', 'head']
+            if not _validate_dict_keys(pullreq, expected_keys, logger=logger):
                 return pullreqs
 
             if check_updated(pullreq['updated_at']):
@@ -163,8 +178,8 @@ def list_pullreqs(owner: str, repo: str, token: str, since: Optional[datetime] =
                 pullreqs.append((pr_number, pr_created_at, pr_updated_at, pr_title, pr_body,
                                  pr_user, pr_repo, pr_branch))
             else:
-                logging.warning(f"repository not found: pr_number={pullreq['number']}, "
-                                f"pr_user={pullreq['user']['login']}")
+                logger.warning(f"repository not found: pr_number={pullreq['number']}, "
+                               f"pr_user={pullreq['user']['login']}")
 
         rem_pages -= per_page
         npage += 1
@@ -177,8 +192,11 @@ def list_pullreqs(owner: str, repo: str, token: str, since: Optional[datetime] =
 
 # https://docs.github.com/en/rest/reference/pulls#list-commits-on-a-pull-request
 def list_commits_for(pr_number: str, owner: str, repo: str, token: str,
-                     since: Optional[datetime] = None, nmax: int = 100000) -> List[Tuple[str, str, str]]:
+                     since: Optional[datetime] = None, nmax: int = 100000,
+                     logger: Any = None) -> List[Tuple[str, str, str]]:
     _assert_github_prams(owner, repo, token)
+
+    logger = logger or _default_logger
 
     commits: List[Tuple[str, str, str]] = []
     check_date = _create_date_filter(since)
@@ -187,9 +205,10 @@ def list_commits_for(pr_number: str, owner: str, repo: str, token: str,
     while True:
         per_page = 100 if rem_pages >= 100 else rem_pages
         params = { 'page': str(npage), 'per_page': str(per_page) }
-        pr_commits = request_github_api(f"repos/{owner}/{repo}/pulls/{pr_number}/commits", token, params=params)
+        pr_commits = _request_github_api(f"repos/{owner}/{repo}/pulls/{pr_number}/commits", token,
+                                         params=params, logger=logger)
         for commit in pr_commits:
-            if not _validate_dict_keys(commit, ['sha', 'commit']):
+            if not _validate_dict_keys(commit, ['sha', 'commit'], logger=logger):
                 return commits
 
             commit_date = commit['commit']['author']['date']
@@ -209,9 +228,11 @@ def list_commits_for(pr_number: str, owner: str, repo: str, token: str,
 
 # https://docs.github.com/en/rest/reference/repos#list-commits
 def list_file_commits_for(path: str, owner: str, repo: str, token: str,
-                          since: Optional[str] = None, until: Optional[str] = None,
-                          nmax: int = 100000) -> List[Tuple[str, str]]:
+                          since: Optional[str] = None, until: Optional[str] = None, nmax: int = 100000,
+                          logger: Any = None) -> List[Tuple[str, str]]:
     _assert_github_prams(owner, repo, token)
+
+    logger = logger or _default_logger
 
     # Limits a read scope if 'since' or 'until' specified
     extra_params = {}
@@ -227,9 +248,10 @@ def list_file_commits_for(path: str, owner: str, repo: str, token: str,
         per_page = 100 if rem_pages >= 100 else rem_pages
         params = { 'page': str(npage), 'per_page': str(per_page), 'path': path }
         params.update(extra_params)
-        file_commits = request_github_api(f"repos/{owner}/{repo}/commits", token, params=params)
+        file_commits = _request_github_api(f"repos/{owner}/{repo}/commits", token,
+                                           params=params, logger=logger)
         for commit in file_commits:
-            if not _validate_dict_keys(commit, ['sha', 'commit']):
+            if not _validate_dict_keys(commit, ['sha', 'commit'], logger=logger):
                 return commits
 
             commits.append((commit['sha'], commit['commit']['author']['date']))
@@ -244,8 +266,11 @@ def list_file_commits_for(path: str, owner: str, repo: str, token: str,
 
 
 # https://docs.github.com/en/rest/reference/repos#compare-two-commits
-def list_change_files(base: str, head: str, owner: str, repo: str, token: str, nmax: int = 100000) -> List[Tuple[str, str, str, str]]:
+def list_change_files(base: str, head: str, owner: str, repo: str, token: str, nmax: int = 100000,
+                      logger: Any = None) -> List[Tuple[str, str, str, str]]:
     _assert_github_prams(owner, repo, token)
+
+    logger = logger or _default_logger
 
     files: List[Tuple[str, str, str, str]] = []
     rem_pages = nmax
@@ -253,13 +278,15 @@ def list_change_files(base: str, head: str, owner: str, repo: str, token: str, n
     while True:
         per_page = 100 if rem_pages >= 100 else rem_pages
         params = { 'page': str(npage), 'per_page': str(per_page) }
-        compare = request_github_api(f"repos/{owner}/{repo}/compare/{base}...{head}", token, params=params)
-        if not _validate_dict_keys(compare, ['commits']):
+        compare = _request_github_api(f"repos/{owner}/{repo}/compare/{base}...{head}", token,
+                                      params=params, logger=logger)
+        if not _validate_dict_keys(compare, ['commits'], logger=logger):
             return files
 
         if 'files' in compare:
             for file in compare['files']:
-                if not _validate_dict_keys(file, ['filename', 'additions', 'deletions', 'changes']):
+                expected_keys = ['filename', 'additions', 'deletions', 'changes']
+                if not _validate_dict_keys(file, expected_keys, logger=logger):
                     return files
 
                 files.append((file['filename'], str(file['additions']), str(file['deletions']), str(file['changes'])))
@@ -274,12 +301,16 @@ def list_change_files(base: str, head: str, owner: str, repo: str, token: str, n
 
 
 # https://docs.github.com/en/rest/reference/actions#list-workflow-runs-for-a-repository
-def list_workflow_runs(owner: str, repo: str, token: str, since: Optional[datetime] = None, nmax: int = 100000, testing: bool = False) -> List[Tuple[str, str, str, str, str, str, str]]:
+def list_workflow_runs(owner: str, repo: str, token: str, since: Optional[datetime] = None,
+                       nmax: int = 100000, logger: Any = None,
+                       testing: bool = False) -> List[Tuple[str, str, str, str, str, str, str]]:
     _assert_github_prams(owner, repo, token)
 
+    logger = logger or _default_logger
+
     api = f'repos/{owner}/{repo}/actions/runs'
-    latest_run = request_github_api(api, token, params={ 'per_page': '1' })
-    if not _validate_dict_keys(latest_run, ['total_count', 'workflow_runs']):
+    latest_run = _request_github_api(api, token, params={ 'per_page': '1' }, logger=logger)
+    if not _validate_dict_keys(latest_run, ['total_count', 'workflow_runs'], logger=logger):
         return []
 
     runs: List[Tuple[str, str, str, str, str, str, str]] = []
@@ -290,9 +321,10 @@ def list_workflow_runs(owner: str, repo: str, token: str, since: Optional[dateti
     for page in range(0, num_pages):
         per_page = 100 if rem_pages >= 100 else rem_pages
         params = { 'page': str(page), 'per_page': str(per_page) }
-        wruns = request_github_api(api, token=token, params=params)
+        wruns = _request_github_api(api, token=token, params=params, logger=logger)
         for run in wruns['workflow_runs']:
-            if not _validate_dict_keys(run, ['id', 'name', 'event', 'status', 'conclusion', 'updated_at', 'pull_requests']):
+            expected_keys = ['id', 'name', 'event', 'status', 'conclusion', 'updated_at', 'pull_requests']
+            if not _validate_dict_keys(run, expected_keys, logger=logger):
                 return runs
 
             if check_updated(run['updated_at']):
@@ -313,12 +345,15 @@ def list_workflow_runs(owner: str, repo: str, token: str, since: Optional[dateti
 
 
 # https://docs.github.com/en/rest/reference/actions#list-jobs-for-a-workflow-run
-def list_workflow_jobs(run_id: str, owner: str, repo: str, token: str, nmax: int = 100000) -> List[Tuple[str, str, str]]:
+def list_workflow_jobs(run_id: str, owner: str, repo: str, token: str, nmax: int = 100000,
+                       logger: Any = None) -> List[Tuple[str, str, str]]:
     _assert_github_prams(owner, repo, token)
 
+    logger = logger or _default_logger
+
     api = f'repos/{owner}/{repo}/actions/runs/{run_id}/jobs'
-    latest_job = request_github_api(api, token, params={ 'per_page': '1' })
-    if not _validate_dict_keys(latest_job, ['total_count', 'jobs']):
+    latest_job = _request_github_api(api, token, params={ 'per_page': '1' }, logger=logger)
+    if not _validate_dict_keys(latest_job, ['total_count', 'jobs'], logger=logger):
         return []
 
     jobs: List[Tuple[str, str, str]] = []
@@ -328,9 +363,9 @@ def list_workflow_jobs(run_id: str, owner: str, repo: str, token: str, nmax: int
     for page in range(0, num_pages):
         per_page = 100 if rem_pages >= 100 else rem_pages
         params = { 'page': str(page), 'per_page': str(per_page) }
-        wjobs = request_github_api(api, token=token, params=params)
+        wjobs = _request_github_api(api, token=token, params=params, logger=logger)
         for job in wjobs['jobs']:
-            if not _validate_dict_keys(job, ['id', 'name', 'conclusion']):
+            if not _validate_dict_keys(job, ['id', 'name', 'conclusion'], logger=logger):
                 return jobs
 
             jobs.append((str(job['id']), job['name'], job['conclusion']))
@@ -343,20 +378,22 @@ def list_workflow_jobs(run_id: str, owner: str, repo: str, token: str, nmax: int
 
 
 # https://docs.github.com/en/rest/reference/actions#download-job-logs-for-a-workflow-run
-def get_workflow_job_logs(job_id: str, owner: str, repo: str, token: str) -> str:
+def get_workflow_job_logs(job_id: str, owner: str, repo: str, token: str, logger: Any = None) -> str:
     _assert_github_prams(owner, repo, token)
     api = f'repos/{owner}/{repo}/actions/jobs/{job_id}/logs'
-    return request_github_api(api, token, pass_thru=True)
+    return _request_github_api(api, token, pass_thru=True, logger=logger or _default_logger)
 
 
 # https://docs.github.com/en/rest/reference/repos#get-all-contributor-commit-activity
-def list_contributors_stats(owner: str, repo: str, token: str) -> List[Tuple[str, str]]:
+def list_contributors_stats(owner: str, repo: str, token: str, logger: Any = None) -> List[Tuple[str, str]]:
     _assert_github_prams(owner, repo, token)
 
+    logger = logger or _default_logger
+
     contributors: List[Tuple[str, str]] = []
-    stats = request_github_api(f"repos/{owner}/{repo}/stats/contributors", token)
+    stats = _request_github_api(f"repos/{owner}/{repo}/stats/contributors", token, logger=logger)
     for stat in stats:
-        if not _validate_dict_keys(stat, ['author', 'total']):
+        if not _validate_dict_keys(stat, ['author', 'total'], logger=logger):
             return []
 
         contributors.append((stat['author']['login'], str(stat['total'])))

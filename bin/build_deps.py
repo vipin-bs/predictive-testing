@@ -21,7 +21,6 @@
 Analyze build dependencies in a coarse-grained way
 """
 
-import logging
 import os
 import pickle
 import re
@@ -31,11 +30,20 @@ from functools import reduce
 import javaclass
 
 
+def _setup_logger():
+    from logging import getLogger, StreamHandler, Formatter, DEBUG, INFO
+    logger = getLogger(__name__)
+    logger.setLevel(DEBUG)
+    ch = StreamHandler()
+    ch.setLevel(INFO)
+    ch.setFormatter(Formatter('%(asctime)s.%(msecs)03d: %(message)s', '%Y-%m-%d %H:%M:%S'))
+    logger.addHandler(ch)
+    return logger
+
+
 # For logging setup
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s.%(msecs)03d: %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S')
+_logger = _setup_logger()
+
 
 # Sets output names for call graphs
 env = dict(os.environ)
@@ -55,7 +63,7 @@ def _select_handlers_from_file_type(type: str) -> Any:
 
 def _write_data_as(prefix: str, path: str, data: Any) -> None:
     output_path = f"{path}/{prefix}.pkl"
-    logging.info(f"Writing data as '{output_path}'...")
+    _logger.info(f"Writing data as '{output_path}'...")
     with open(output_path, mode='wb') as f:
         pickle.dump(data, f)
 
@@ -74,7 +82,7 @@ def _build_call_graphs(root_paths: List[str],
     if len(all_files) == 0:
         raise Exception(f"No file found in [{', '.join(root_paths)}]")
 
-    logging.info(f"{len(all_files)} files ({len(test_files)} test files included) "
+    _logger.info(f"{len(all_files)} files ({len(test_files)} test files included) "
                  f"found in {','.join(root_paths)}")
 
     import tqdm
@@ -111,7 +119,7 @@ def _analyze_build_deps(root_paths: str,
         raise ValueError("Target package must be specified in '--target-package'")
 
     # Make an output dir in advance
-    logging.info(f"Making an output directory in {os.path.abspath(output_path)}...")
+    _logger.info(f"Making an output directory in {os.path.abspath(output_path)}...")
     os.mkdir(output_path)
 
     adj_list, rev_adj_list = _build_call_graphs(
