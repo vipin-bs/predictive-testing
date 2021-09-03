@@ -109,7 +109,7 @@ def _get_test_results_from(owner: str, repo: str, params: Dict[str, str],
                 if len(failed_tests) > 0:
                     test_results[head] = (files, failed_tests)
                 else:
-                    logger.warning(f"No test failure found: run_id={run_id} run_name='{run_name}'")
+                    logger.warning(f"No test failure found: owner={owner}, repo={repo}, run_id={run_id} run_name='{run_name}'")
 
         else:
             logger.info(f"Run (run_id:{run_id}, run_name:'{run_name}', event={event}, conclusion={conclusion}) skipped")
@@ -133,13 +133,22 @@ def _to_rate_limit_msg(rate_limit: Dict[str, Any]) -> str:
 
 
 def _setup_logger(logfile: str) -> None:
-    from logging import getLogger, FileHandler, Formatter, DEBUG, INFO
+    from logging import getLogger, FileHandler, Formatter, StreamHandler, DEBUG, INFO, WARNING
     logger = getLogger(__name__)
     logger.setLevel(DEBUG)
+
+    formatter = Formatter('%(asctime)s.%(msecs)03d: %(message)s', '%Y-%m-%d %H:%M:%S')
+
     fh = FileHandler(logfile)
     fh.setLevel(INFO)
-    fh.setFormatter(Formatter('%(asctime)s.%(msecs)03d: %(message)s', '%Y-%m-%d %H:%M:%S'))
+    fh.setFormatter(formatter)
     logger.addHandler(fh)
+
+    ch = StreamHandler()
+    ch.setLevel(WARNING)
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
+
     return logger
 
 
