@@ -36,7 +36,7 @@ def _exec_subprocess(cmd: str, raise_error=True):
     stdout, stderr = child.communicate()
     rt = child.returncode
     if rt != 0 and raise_error:
-        raise Exception(f"command return code is not 0. got {rt}. stderr = {stderr}")
+        raise RuntimeError(f"command return code is not 0. got {rt}. stderr = {stderr}")
 
     return stdout, stderr, rt
 

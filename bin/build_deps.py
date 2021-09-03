@@ -80,7 +80,7 @@ def _build_call_graphs(root_paths: List[str],
     test_files = reduce(lambda x, y: x.extend(y), [ list_test_files(p, target_package) for p in root_paths])
     all_files = [*files, *test_files]
     if len(all_files) == 0:
-        raise Exception(f"No file found in [{', '.join(root_paths)}]")
+        raise RuntimeError(f"No file found in [{', '.join(root_paths)}]")
 
     _logger.info(f"{len(all_files)} files ({len(test_files)} test files included) "
                  f"found in {','.join(root_paths)}")

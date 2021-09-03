@@ -152,7 +152,7 @@ def _traverse_pull_requests(output_path: str, since: Optional[str], max_num_pull
     pullreqs = github_apis.list_pullreqs(params['GITHUB_OWNER'], params['GITHUB_REPO'], params['GITHUB_TOKEN'],
                                          since=since, nmax=max_num_pullreqs, logger=logger)
     if len(pullreqs) == 0:
-        raise Exception('No valid pull request found')
+        raise RuntimeError('No valid pull request found')
 
     # Dumps all the pull request logs to resume job
     with open(f"{output_path}/pullreqs.json", "w") as output:

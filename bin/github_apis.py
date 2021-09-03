@@ -17,10 +17,10 @@
 # limitations under the License.
 #
 
-import timeout_decorator
 import json
 import requests
 import retrying
+import timeout_decorator
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -84,9 +84,15 @@ def _request_github_api(api: str, token: str, params: Dict[str, str] = {}, pass_
     headers = { 'Accept': 'application/vnd.github.v3+json', 'Authorization': f'Token {token}', 'User-Agent': 'github-apis' }
     ret = requests.get(f'https://api.github.com/{api}', timeout=10, headers=headers, params=params, verify=False)
     if ret.status_code != 200:
-        msg = _to_error_msg(ret.text)
-        except_msg = f"{api} request (params={params}) failed: status_code={ret.status_code}, msg='{msg}'"
-        raise Exception(except_msg)
+        error_msg = "{} request (params={}) failed because: {}"
+        if ret.status_code == 403 and ret.text.find('API rate limit exceeded') != -1:
+            error_msg = error_msg.format(
+                api, str(params), 'the GitHub API rate limit exceeded')
+        else:
+            error_msg = error_msg.format(
+                api, str(params), f"status_code={ret.status_code}, msg='{_to_error_msg(ret.text)}'")
+
+        raise RuntimeError(error_msg)
 
     if not pass_thru:
         result = json.loads(ret.text)
@@ -139,7 +145,7 @@ def _validate_dict_keys(d: Any, expected_keys: List[str], logger: Any = _default
 
 
 def get_rate_limit(token: str, logger: Any = None) -> Dict[str, Any]:
-    return _request_github_api(f"rate_limit", token, logger=logger or _default_logger)
+    return _request_github_api(f"rate_limit", token)
 
 
 # https://docs.github.com/en/rest/reference/pulls#list-pull-requests
@@ -380,8 +386,12 @@ def list_workflow_jobs(run_id: str, owner: str, repo: str, token: str, nmax: int
 # https://docs.github.com/en/rest/reference/actions#download-job-logs-for-a-workflow-run
 def get_workflow_job_logs(job_id: str, owner: str, repo: str, token: str, logger: Any = None) -> str:
     _assert_github_prams(owner, repo, token)
-    api = f'repos/{owner}/{repo}/actions/jobs/{job_id}/logs'
-    return _request_github_api(api, token, pass_thru=True, logger=logger or _default_logger)
+    try:
+        api = f'repos/{owner}/{repo}/actions/jobs/{job_id}/logs'
+        return _request_github_api(api, token, pass_thru=True)
+    except:
+        logger.warning(f"Job logs (job_id={job_id}) not found in {owner}/{repo}")
+        return ''
 
 
 # https://docs.github.com/en/rest/reference/repos#get-all-contributor-commit-activity
