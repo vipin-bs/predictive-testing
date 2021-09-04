@@ -147,7 +147,7 @@ def _to_rate_limit_msg(rate_limit: Dict[str, Any]) -> str:
     return f"limit={c['limit']}, used={c['used']}, remaining={c['remaining']}, reset={renewal}s"
 
 
-def _setup_logger(logfile: str) -> None:
+def _setup_logger(logfile: str) -> Any:
     from logging import getLogger, FileHandler, Formatter, StreamHandler, DEBUG, INFO, WARNING
     logger = getLogger(__name__)
     logger.setLevel(DEBUG)

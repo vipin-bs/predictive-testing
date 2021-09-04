@@ -25,7 +25,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 
-def _setup_default_logger():
+def _setup_default_logger() -> Any:
     from logging import getLogger, NullHandler, DEBUG
     logger = getLogger(__name__)
     logger.setLevel(DEBUG)
