@@ -26,7 +26,7 @@ from datetime import datetime, timezone
 
 import github_apis
 import github_features
-import github_spark_logs
+import spark_logs
 
 
 # Suppress warinig messages in REST APIs
@@ -116,7 +116,7 @@ def _get_test_results_from(owner: str, repo: str, params: Dict[str, str],
                                                    f"run_id={run_id} job_name='{job_name}')")
                             else:
                                 # If `tests` is None, it represents a compilation failure
-                                logging.info(f"Compilation failure found: job_id={job_id}")
+                                logger.info(f"Compilation failure found: job_id={job_id}")
 
                     # If we cannot detect any failed test in logs, just ignore it
                     if len(failed_tests) > 0:
@@ -134,7 +134,7 @@ def _get_test_results_from(owner: str, repo: str, params: Dict[str, str],
 
 def _create_workflow_handlers(proj: str) -> Tuple[Any, Any, Any]:
     if proj == 'spark':
-        return github_spark_logs.create_spark_workflow_handlers()
+        return spark_logs.create_spark_workflow_handlers()
     else:
         raise ValueError(f'Unknown project type: {proj}')
 
