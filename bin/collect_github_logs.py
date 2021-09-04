@@ -73,10 +73,15 @@ def _get_test_results_from(owner: str, repo: str, params: Dict[str, str],
     for run_id, run_name, head_sha, event, conclusion, pr_number, head, base in tqdm.tqdm(runs, desc=f"Workflow Runs ({owner}/{repo})", leave=False):
         logger.info(f"run_id:{run_id}, run_name:{run_name}, event:{event}, head_sha={head_sha}")
 
-        if run_filter(run_name) and event == 'push' and conclusion in ['success', 'failure'] and pr_number.isdigit():
-            # List up all the updated files between 'base' and 'head' as corresponding to this run
-            changed_files = github_apis.list_change_files_between(base, head, owner, repo, params['GITHUB_TOKEN'],
-                                                                  logger=logger)
+        if run_filter(run_name) and conclusion in ['success', 'failure']:
+            if pr_number.isdigit():
+                # List up all the updated files between 'base' and 'head' as corresponding to this run
+                changed_files = github_apis.list_change_files_between(
+                    base, head, owner, repo, params['GITHUB_TOKEN'], logger=logger)
+            else:
+                changed_files = github_apis.list_change_files_from(
+                    head_sha, owner, repo, params['GITHUB_TOKEN'], logger=logger)
+
             files: List[Dict[str, str]] = []
             for file in changed_files:
                 filename, additions, deletions, changes = file
