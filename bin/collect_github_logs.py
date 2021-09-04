@@ -33,10 +33,6 @@ import spark_logs
 warnings.simplefilter('ignore')
 
 
-def _trim_text(s: str, max_num: int) -> str:
-    return s[0:max_num] + '...' if len(s) > max_num else s
-
-
 # NOTE: In case of a compilation failure, it returns None
 def _get_failed_tests(pr_user: str, pr_repo: str, job_name: str, job_id: str,
                       extract_failed_tests_from: Any,
@@ -166,22 +162,6 @@ def _setup_logger(logfile: str) -> None:
     return logger
 
 
-# Generates an extractor for failed tests from a specified regex pattern
-def _create_failed_test_extractor(p: str) -> Any:
-    import re
-    extractor = re.compile(p)
-
-    def extractor(logs: str) -> Optonal[List[str]]:
-        failed_tests = extractor.findall(logs)
-        if len(failed_tests) > 0:
-            return failed_tests
-        else:
-            # We assume a compilation failure in this case
-            return None
-
-    return extractor
-
-
 def _traverse_pull_requests(output_path: str, since: Optional[datetime], max_num_pullreqs: int, params: Dict[str, str], logger: Any) -> None:
     logger.info(f"Fetching candidate pull requests in {params['GITHUB_OWNER']}/{params['GITHUB_REPO']}...")
     pullreqs = github_apis.list_pullreqs(params['GITHUB_OWNER'], params['GITHUB_REPO'], params['GITHUB_TOKEN'],
@@ -205,8 +185,6 @@ def _traverse_pull_requests(output_path: str, since: Optional[datetime], max_num
 
     # Generates project-dependent run/job filters and log extractor
     target_runs, target_jobs, extract_failed_tests_from = _create_workflow_handlers('spark')
-    # target_runs, target_jobs, extract_failed_tests_from = \
-    #     None, None, _create_failed_test_extractor(r"error.+?(org\.apache\.spark\.[a-zA-Z0-9\.]+Suite)")
 
     # Fetches test results from mainstream-side workflow jobs
     test_results = _get_test_results_from(params['GITHUB_OWNER'], params['GITHUB_REPO'], params,

@@ -44,6 +44,10 @@ class GitHubUtilsTests(unittest.TestCase):
         cls._github_owner = 'maropu'
         cls._github_repo = 'spark'
 
+        # Test data root path
+        _resource_path = os.getenv("PREDICTIVE_TESTING_TESTDATA")
+        cls._test_data_path = f"{_resource_path}/spark-logs"
+
     def test_count_file_updates(self):
         update_counts = github_utils.count_file_updates(
             'README.md',
@@ -54,6 +58,35 @@ class GitHubUtilsTests(unittest.TestCase):
             token=self._github_token
         )
         self.assertEqual(update_counts, [2, 14, 93])
+
+    def test_create_failed_test_extractor(self):
+        test_failure_patterns = [
+            "error.+?(org\.apache\.spark\.[a-zA-Z0-9\.]+Suite)",
+            "Had test failures in (pyspark\.[a-zA-Z0-9\._]+) with python"
+        ]
+        compilation_failure_patterns = [
+            "error.+? Compilation failed",
+            "Failing because of negative scalastyle result"
+        ]
+        extractor = github_utils.create_failed_test_extractor(test_failure_patterns, compilation_failure_patterns)
+
+        from pathlib import Path
+        compilation_failure_logs_path = f"{self._test_data_path}/compilation_failures.log"
+        data = Path(compilation_failure_logs_path).read_text()
+        self.assertEqual(extractor(data), None)  # 'None' represents compilation failures
+
+        syntax_failure_logs_path = f"{self._test_data_path}/scalastyle_failures.log"
+        data = Path(syntax_failure_logs_path).read_text()
+        self.assertEqual(extractor(data), None)  # 'None' represents compilation failures
+
+        test_failure_logs_path = f"{self._test_data_path}/test_failures.log"
+        data = Path(test_failure_logs_path).read_text()
+        self.assertEqual(extractor(data), [
+            'org.apache.spark.sql.hive.StatisticsSuite',
+            'org.apache.spark.sql.hive.InsertSuite'])
+
+    def test_trim_text(self):
+        self.assertEqual(github_utils.trim_text('abcdefghijk', 4), 'abcd...')
 
 
 if __name__ == "__main__":

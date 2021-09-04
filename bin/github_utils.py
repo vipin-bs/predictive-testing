@@ -20,7 +20,7 @@
 import github_apis
 
 import datetime
-from typing import Any, List
+from typing import Any, List, Optional
 
 
 def count_file_updates(path: str, base_date: str, days: List[int], owner: str, repo: str,
@@ -35,3 +35,31 @@ def count_file_updates(path: str, base_date: str, days: List[int], owner: str, r
         update_counts.append(len(file_commits))
 
     return update_counts
+
+
+# Generates an extractor for failed tests from specified regex patterns
+def create_failed_test_extractor(test_failure_patterns: List[str],
+                                 compilation_failure_patterns: Optional[List[str]] = None) -> Any:
+    import re
+    test_failures = list(map(lambda p: re.compile(p), test_failure_patterns))
+    if compilation_failure_patterns is not None:
+        compilation_failures = list(map(lambda p: re.compile(p), compilation_failure_patterns))
+
+    def extractor(logs: str) -> Optional[List[str]]:
+        if compilation_failure_patterns is not None:
+            for p in compilation_failures:
+                if p.search(logs) is not None:
+                    # 'None' represents a compilation failure
+                    return None
+
+            failed_tests: List[str] = []
+            for p in test_failures:
+                failed_tests.extend(p.findall(logs))
+
+            return failed_tests
+
+    return extractor
+
+
+def trim_text(s: str, max_num: int) -> str:
+    return s[0:max_num] + '...' if len(s) > max_num else s

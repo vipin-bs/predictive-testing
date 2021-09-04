@@ -1,0 +1,728 @@
+2021-08-26T06:38:59.5539647Z ##[group]Run # Hive "other tests" test needs larger metaspace size based on experiment.
+2021-08-26T06:38:59.5540790Z [36;1m# Hive "other tests" test needs larger metaspace size based on experiment.[0m
+2021-08-26T06:38:59.5542029Z [36;1mif [[ "$MODULES_TO_TEST" == "hive" ]] && [[ "$EXCLUDED_TAGS" == "org.apache.spark.tags.SlowHiveTest" ]]; then export METASPACE_SIZE=2g; fi[0m
+2021-08-26T06:38:59.5543072Z [36;1mexport SERIAL_SBT_TESTS=1[0m
+2021-08-26T06:38:59.5544089Z [36;1m./dev/run-tests --parallelism 1 --modules "$MODULES_TO_TEST" --included-tags "$INCLUDED_TAGS" --excluded-tags "$EXCLUDED_TAGS"[0m
+2021-08-26T06:38:59.5586426Z shell: /usr/bin/bash -e {0}
+2021-08-26T06:38:59.5586870Z env:
+2021-08-26T06:38:59.5587949Z   MODULES_TO_TEST: streaming, sql-kafka-0-10, streaming-kafka-0-10, mllib-local, mllib, yarn, mesos, kubernetes, hadoop-cloud, spark-ganglia-lgpl
+2021-08-26T06:38:59.5590092Z   EXCLUDED_TAGS: 
+2021-08-26T06:38:59.5590553Z   INCLUDED_TAGS: 
+2021-08-26T06:38:59.5591034Z   HADOOP_PROFILE: hadoop3.2
+2021-08-26T06:38:59.5591562Z   HIVE_PROFILE: hive2.3
+2021-08-26T06:38:59.5592356Z   GITHUB_PREV_SHA: dd56dddfcf5d3aeab4a8e742d05f2fce3b187d20
+2021-08-26T06:38:59.5593188Z   SPARK_LOCAL_IP: localhost
+2021-08-26T06:38:59.5593916Z   APACHE_SPARK_REF: 1a42aa5bd44e7524bb55463bbd85bea782715834
+2021-08-26T06:38:59.5594714Z   JAVA_HOME_8.0.302_x64: /opt/hostedtoolcache/jdk/8.0.302/x64
+2021-08-26T06:38:59.5595385Z   JAVA_HOME: /opt/hostedtoolcache/jdk/8.0.302/x64
+2021-08-26T06:38:59.5596059Z   JAVA_HOME_8_0_302_X64: /opt/hostedtoolcache/jdk/8.0.302/x64
+2021-08-26T06:38:59.5596799Z   pythonLocation: /opt/hostedtoolcache/Python/3.8.11/x64
+2021-08-26T06:38:59.5597589Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.8.11/x64/lib
+2021-08-26T06:38:59.5598187Z ##[endgroup]
+2021-08-26T06:39:00.2380082Z [info] Using build tool sbt with profiles -Phadoop-3.2 -Phive-2.3 under environment github_actions
+2021-08-26T06:39:00.2419710Z [info] Found the following changed modules: yarn
+2021-08-26T06:39:00.2421026Z [info] Setup the following environment variables for tests: 
+2021-08-26T06:39:00.2421793Z 
+2021-08-26T06:39:00.2422588Z ========================================================================
+2021-08-26T06:39:00.2423133Z Building Spark
+2021-08-26T06:39:00.2423618Z ========================================================================
+2021-08-26T06:39:00.2427723Z [info] Building Spark using SBT with these arguments:  -Phadoop-3.2 -Phive-2.3 -Phive-thriftserver -Phive -Pyarn -Pspark-ganglia-lgpl -Pkinesis-asl -Pmesos -Pdocker-integration-tests -Phadoop-cloud -Pkubernetes test:package streaming-kinesis-asl-assembly/assembly
+2021-08-26T06:39:00.2557090Z Using /opt/hostedtoolcache/jdk/8.0.302/x64 as default JAVA_HOME.
+2021-08-26T06:39:00.2559347Z Note, this will be overridden by -java-home if it is set.
+2021-08-26T06:39:00.2618242Z Attempting to fetch sbt
+2021-08-26T06:39:00.3709502Z Launching sbt from build/sbt-launch-1.5.5.jar
+2021-08-26T06:39:00.7715943Z [info] [launcher] getting org.scala-sbt sbt 1.5.5  (this may take some time)...
+2021-08-26T06:39:06.4579406Z [info] [launcher] getting Scala 2.12.14 (for sbt)...
+2021-08-26T06:39:09.0269125Z [0m[[0m[0minfo[0m] [0m[0mwelcome to sbt 1.5.5 (Azul Systems, Inc. Java 1.8.0_302)[0m
+2021-08-26T06:39:14.6290230Z [0m[[0m[0minfo[0m] [0m[0mloading settings for project spark-build from plugins.sbt ...[0m
+2021-08-26T06:39:16.8248060Z [0m[[0m[0minfo[0m] [0m[0mloading project definition from /home/runner/work/spark/spark/project[0m
+2021-08-26T06:39:22.1663349Z [0m[[0m[0minfo[0m] [0m[0mcompiling 3 Scala sources to /home/runner/work/spark/spark/project/target/scala-2.12/sbt-1.0/classes ...[0m
+2021-08-26T06:39:22.2800395Z [0m[[0m[0minfo[0m] [0m[0mNon-compiled module 'compiler-bridge_2.12' for Scala 2.12.14. Compiling...[0m
+2021-08-26T06:39:35.1150484Z [0m[[0m[0minfo[0m] [0m[0m  Compilation completed in 12.834s.[0m
+2021-08-26T06:39:41.2452225Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:39:44.2218628Z [0m[[0m[0minfo[0m] [0m[0mresolving key references (36366 settings) ...[0m
+2021-08-26T06:39:48.6596584Z [0m[[0m[0minfo[0m] [0m[0mset current project to spark-parent (in build file:/home/runner/work/spark/spark/)[0m
+2021-08-26T06:39:49.0380877Z [0m[[0m[33mwarn[0m] [0m[0mthere are 210 keys that are not used by any other settings/tasks:[0m
+2021-08-26T06:39:49.0382725Z [0m[[0m[33mwarn[0m] [0m[0m [0m
+2021-08-26T06:39:49.0384021Z [0m[[0m[33mwarn[0m] [0m[0m* assembly / Compile / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0385587Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1057[0m
+2021-08-26T06:39:49.0387164Z [0m[[0m[33mwarn[0m] [0m[0m* assembly / M2r / publishMavenStyle[0m
+2021-08-26T06:39:49.0392373Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:289[0m
+2021-08-26T06:39:49.0394395Z [0m[[0m[33mwarn[0m] [0m[0m* assembly / Sbt / publishMavenStyle[0m
+2021-08-26T06:39:49.0399921Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:290[0m
+2021-08-26T06:39:49.0402560Z [0m[[0m[33mwarn[0m] [0m[0m* assembly / Test / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0404038Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1058[0m
+2021-08-26T06:39:49.0405399Z [0m[[0m[33mwarn[0m] [0m[0m* assembly / scalaStyleOnCompile / logLevel[0m
+2021-08-26T06:39:49.0406806Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:191[0m
+2021-08-26T06:39:49.0408142Z [0m[[0m[33mwarn[0m] [0m[0m* assembly / scalaStyleOnTest / logLevel[0m
+2021-08-26T06:39:49.0409608Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:192[0m
+2021-08-26T06:39:49.0410929Z [0m[[0m[33mwarn[0m] [0m[0m* avro / Compile / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0412219Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1057[0m
+2021-08-26T06:39:49.0413494Z [0m[[0m[33mwarn[0m] [0m[0m* avro / M2r / publishMavenStyle[0m
+2021-08-26T06:39:49.0414754Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:289[0m
+2021-08-26T06:39:49.0415981Z [0m[[0m[33mwarn[0m] [0m[0m* avro / Sbt / publishMavenStyle[0m
+2021-08-26T06:39:49.0417225Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:290[0m
+2021-08-26T06:39:49.0418453Z [0m[[0m[33mwarn[0m] [0m[0m* avro / Test / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0419703Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1058[0m
+2021-08-26T06:39:49.0420969Z [0m[[0m[33mwarn[0m] [0m[0m* avro / scalaStyleOnCompile / logLevel[0m
+2021-08-26T06:39:49.0422282Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:191[0m
+2021-08-26T06:39:49.0423562Z [0m[[0m[33mwarn[0m] [0m[0m* avro / scalaStyleOnTest / logLevel[0m
+2021-08-26T06:39:49.0424868Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:192[0m
+2021-08-26T06:39:49.0426148Z [0m[[0m[33mwarn[0m] [0m[0m* catalyst / Compile / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0427437Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1057[0m
+2021-08-26T06:39:49.0430913Z [0m[[0m[33mwarn[0m] [0m[0m* catalyst / M2r / publishMavenStyle[0m
+2021-08-26T06:39:49.0435923Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:289[0m
+2021-08-26T06:39:49.0440585Z [0m[[0m[33mwarn[0m] [0m[0m* catalyst / Sbt / publishMavenStyle[0m
+2021-08-26T06:39:49.0443813Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:290[0m
+2021-08-26T06:39:49.0446537Z [0m[[0m[33mwarn[0m] [0m[0m* catalyst / Test / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0447641Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1058[0m
+2021-08-26T06:39:49.0449046Z [0m[[0m[33mwarn[0m] [0m[0m* catalyst / scalaStyleOnCompile / logLevel[0m
+2021-08-26T06:39:49.0450372Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:191[0m
+2021-08-26T06:39:49.0451468Z [0m[[0m[33mwarn[0m] [0m[0m* catalyst / scalaStyleOnTest / logLevel[0m
+2021-08-26T06:39:49.0452569Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:192[0m
+2021-08-26T06:39:49.0453625Z [0m[[0m[33mwarn[0m] [0m[0m* core / Compile / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0454684Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1057[0m
+2021-08-26T06:39:49.0455728Z [0m[[0m[33mwarn[0m] [0m[0m* core / M2r / publishMavenStyle[0m
+2021-08-26T06:39:49.0457000Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:289[0m
+2021-08-26T06:39:49.0458021Z [0m[[0m[33mwarn[0m] [0m[0m* core / Sbt / publishMavenStyle[0m
+2021-08-26T06:39:49.0459112Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:290[0m
+2021-08-26T06:39:49.0460152Z [0m[[0m[33mwarn[0m] [0m[0m* core / Test / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0461195Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1058[0m
+2021-08-26T06:39:49.0462290Z [0m[[0m[33mwarn[0m] [0m[0m* core / scalaStyleOnCompile / logLevel[0m
+2021-08-26T06:39:49.0463406Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:191[0m
+2021-08-26T06:39:49.0464439Z [0m[[0m[33mwarn[0m] [0m[0m* core / scalaStyleOnTest / logLevel[0m
+2021-08-26T06:39:49.0465519Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:192[0m
+2021-08-26T06:39:49.0466788Z [0m[[0m[33mwarn[0m] [0m[0m* docker-integration-tests / Compile / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0468046Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1057[0m
+2021-08-26T06:39:49.0469283Z [0m[[0m[33mwarn[0m] [0m[0m* docker-integration-tests / M2r / publishMavenStyle[0m
+2021-08-26T06:39:49.0470525Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:289[0m
+2021-08-26T06:39:49.0471738Z [0m[[0m[33mwarn[0m] [0m[0m* docker-integration-tests / Sbt / publishMavenStyle[0m
+2021-08-26T06:39:49.0472985Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:290[0m
+2021-08-26T06:39:49.0474209Z [0m[[0m[33mwarn[0m] [0m[0m* docker-integration-tests / Test / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0475428Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1058[0m
+2021-08-26T06:39:49.0476741Z [0m[[0m[33mwarn[0m] [0m[0m* docker-integration-tests / scalaStyleOnCompile / logLevel[0m
+2021-08-26T06:39:49.0478068Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:191[0m
+2021-08-26T06:39:49.0479323Z [0m[[0m[33mwarn[0m] [0m[0m* docker-integration-tests / scalaStyleOnTest / logLevel[0m
+2021-08-26T06:39:49.0480570Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:192[0m
+2021-08-26T06:39:49.0482199Z [0m[[0m[33mwarn[0m] [0m[0m* examples / Compile / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0483342Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1057[0m
+2021-08-26T06:39:49.0484395Z [0m[[0m[33mwarn[0m] [0m[0m* examples / M2r / publishMavenStyle[0m
+2021-08-26T06:39:49.0485578Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:289[0m
+2021-08-26T06:39:49.0486682Z [0m[[0m[33mwarn[0m] [0m[0m* examples / Sbt / publishMavenStyle[0m
+2021-08-26T06:39:49.0487778Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:290[0m
+2021-08-26T06:39:49.0570161Z [0m[[0m[33mwarn[0m] [0m[0m* examples / Test / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0577812Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1058[0m
+2021-08-26T06:39:49.0579093Z [0m[[0m[33mwarn[0m] [0m[0m* examples / scalaStyleOnCompile / logLevel[0m
+2021-08-26T06:39:49.0583129Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:191[0m
+2021-08-26T06:39:49.0591788Z [0m[[0m[33mwarn[0m] [0m[0m* examples / scalaStyleOnTest / logLevel[0m
+2021-08-26T06:39:49.0592980Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:192[0m
+2021-08-26T06:39:49.0594093Z [0m[[0m[33mwarn[0m] [0m[0m* ganglia-lgpl / Compile / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0595501Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1057[0m
+2021-08-26T06:39:49.0596611Z [0m[[0m[33mwarn[0m] [0m[0m* ganglia-lgpl / M2r / publishMavenStyle[0m
+2021-08-26T06:39:49.0597739Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:289[0m
+2021-08-26T06:39:49.0598846Z [0m[[0m[33mwarn[0m] [0m[0m* ganglia-lgpl / Sbt / publishMavenStyle[0m
+2021-08-26T06:39:49.0599959Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:290[0m
+2021-08-26T06:39:49.0601036Z [0m[[0m[33mwarn[0m] [0m[0m* ganglia-lgpl / Test / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0602152Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1058[0m
+2021-08-26T06:39:49.0603485Z [0m[[0m[33mwarn[0m] [0m[0m* ganglia-lgpl / scalaStyleOnCompile / logLevel[0m
+2021-08-26T06:39:49.0604724Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:191[0m
+2021-08-26T06:39:49.0605858Z [0m[[0m[33mwarn[0m] [0m[0m* ganglia-lgpl / scalaStyleOnTest / logLevel[0m
+2021-08-26T06:39:49.0607025Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:192[0m
+2021-08-26T06:39:49.0608100Z [0m[[0m[33mwarn[0m] [0m[0m* graphx / Compile / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0609310Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1057[0m
+2021-08-26T06:39:49.0610458Z [0m[[0m[33mwarn[0m] [0m[0m* graphx / M2r / publishMavenStyle[0m
+2021-08-26T06:39:49.0612383Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:289[0m
+2021-08-26T06:39:49.0614457Z [0m[[0m[33mwarn[0m] [0m[0m* graphx / Sbt / publishMavenStyle[0m
+2021-08-26T06:39:49.0620775Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:290[0m
+2021-08-26T06:39:49.0621879Z [0m[[0m[33mwarn[0m] [0m[0m* graphx / Test / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0622939Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1058[0m
+2021-08-26T06:39:49.0624070Z [0m[[0m[33mwarn[0m] [0m[0m* graphx / scalaStyleOnCompile / logLevel[0m
+2021-08-26T06:39:49.0625203Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:191[0m
+2021-08-26T06:39:49.0626259Z [0m[[0m[33mwarn[0m] [0m[0m* graphx / scalaStyleOnTest / logLevel[0m
+2021-08-26T06:39:49.0638515Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:192[0m
+2021-08-26T06:39:49.0641710Z [0m[[0m[33mwarn[0m] [0m[0m* hadoop-cloud / Compile / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0644938Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1057[0m
+2021-08-26T06:39:49.0648047Z [0m[[0m[33mwarn[0m] [0m[0m* hadoop-cloud / M2r / publishMavenStyle[0m
+2021-08-26T06:39:49.0651409Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:289[0m
+2021-08-26T06:39:49.0654732Z [0m[[0m[33mwarn[0m] [0m[0m* hadoop-cloud / Sbt / publishMavenStyle[0m
+2021-08-26T06:39:49.0657840Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:290[0m
+2021-08-26T06:39:49.0660901Z [0m[[0m[33mwarn[0m] [0m[0m* hadoop-cloud / Test / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0663934Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1058[0m
+2021-08-26T06:39:49.0667049Z [0m[[0m[33mwarn[0m] [0m[0m* hadoop-cloud / scalaStyleOnCompile / logLevel[0m
+2021-08-26T06:39:49.0670144Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:191[0m
+2021-08-26T06:39:49.0671464Z [0m[[0m[33mwarn[0m] [0m[0m* hadoop-cloud / scalaStyleOnTest / logLevel[0m
+2021-08-26T06:39:49.0674778Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:192[0m
+2021-08-26T06:39:49.0679477Z [0m[[0m[33mwarn[0m] [0m[0m* hive / Compile / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0682628Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1057[0m
+2021-08-26T06:39:49.0686451Z [0m[[0m[33mwarn[0m] [0m[0m* hive / M2r / publishMavenStyle[0m
+2021-08-26T06:39:49.0689711Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:289[0m
+2021-08-26T06:39:49.0691076Z [0m[[0m[33mwarn[0m] [0m[0m* hive / Sbt / publishMavenStyle[0m
+2021-08-26T06:39:49.0693467Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:290[0m
+2021-08-26T06:39:49.0697026Z [0m[[0m[33mwarn[0m] [0m[0m* hive / Test / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0700354Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1058[0m
+2021-08-26T06:39:49.0701737Z [0m[[0m[33mwarn[0m] [0m[0m* hive / scalaStyleOnCompile / logLevel[0m
+2021-08-26T06:39:49.0705367Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:191[0m
+2021-08-26T06:39:49.0707753Z [0m[[0m[33mwarn[0m] [0m[0m* hive / scalaStyleOnTest / logLevel[0m
+2021-08-26T06:39:49.0711546Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:192[0m
+2021-08-26T06:39:49.0714070Z [0m[[0m[33mwarn[0m] [0m[0m* hive-thriftserver / Compile / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0717855Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1057[0m
+2021-08-26T06:39:49.0720356Z [0m[[0m[33mwarn[0m] [0m[0m* hive-thriftserver / M2r / publishMavenStyle[0m
+2021-08-26T06:39:49.0724047Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:289[0m
+2021-08-26T06:39:49.0726576Z [0m[[0m[33mwarn[0m] [0m[0m* hive-thriftserver / Sbt / publishMavenStyle[0m
+2021-08-26T06:39:49.0730664Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:290[0m
+2021-08-26T06:39:49.0733232Z [0m[[0m[33mwarn[0m] [0m[0m* hive-thriftserver / Test / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0736895Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1058[0m
+2021-08-26T06:39:49.0740571Z [0m[[0m[33mwarn[0m] [0m[0m* hive-thriftserver / scalaStyleOnCompile / logLevel[0m
+2021-08-26T06:39:49.0743168Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:191[0m
+2021-08-26T06:39:49.0746881Z [0m[[0m[33mwarn[0m] [0m[0m* hive-thriftserver / scalaStyleOnTest / logLevel[0m
+2021-08-26T06:39:49.0749453Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:192[0m
+2021-08-26T06:39:49.0753256Z [0m[[0m[33mwarn[0m] [0m[0m* kubernetes / Compile / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0759836Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1057[0m
+2021-08-26T06:39:49.0762306Z [0m[[0m[33mwarn[0m] [0m[0m* kubernetes / M2r / publishMavenStyle[0m
+2021-08-26T06:39:49.0765143Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:289[0m
+2021-08-26T06:39:49.0770442Z [0m[[0m[33mwarn[0m] [0m[0m* kubernetes / Sbt / publishMavenStyle[0m
+2021-08-26T06:39:49.0777449Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:290[0m
+2021-08-26T06:39:49.0778800Z [0m[[0m[33mwarn[0m] [0m[0m* kubernetes / Test / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0780085Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1058[0m
+2021-08-26T06:39:49.0781379Z [0m[[0m[33mwarn[0m] [0m[0m* kubernetes / scalaStyleOnCompile / logLevel[0m
+2021-08-26T06:39:49.0784403Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:191[0m
+2021-08-26T06:39:49.0789168Z [0m[[0m[33mwarn[0m] [0m[0m* kubernetes / scalaStyleOnTest / logLevel[0m
+2021-08-26T06:39:49.0791779Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:192[0m
+2021-08-26T06:39:49.0795633Z [0m[[0m[33mwarn[0m] [0m[0m* kvstore / Compile / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0799453Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1057[0m
+2021-08-26T06:39:49.0803047Z [0m[[0m[33mwarn[0m] [0m[0m* kvstore / M2r / publishMavenStyle[0m
+2021-08-26T06:39:49.0805571Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:289[0m
+2021-08-26T06:39:49.0809308Z [0m[[0m[33mwarn[0m] [0m[0m* kvstore / Sbt / publishMavenStyle[0m
+2021-08-26T06:39:49.0811761Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:290[0m
+2021-08-26T06:39:49.0814230Z [0m[[0m[33mwarn[0m] [0m[0m* kvstore / Test / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0829772Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1058[0m
+2021-08-26T06:39:49.0831138Z [0m[[0m[33mwarn[0m] [0m[0m* kvstore / scalaStyleOnCompile / logLevel[0m
+2021-08-26T06:39:49.0832316Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:191[0m
+2021-08-26T06:39:49.0833398Z [0m[[0m[33mwarn[0m] [0m[0m* kvstore / scalaStyleOnTest / logLevel[0m
+2021-08-26T06:39:49.0834481Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:192[0m
+2021-08-26T06:39:49.0835572Z [0m[[0m[33mwarn[0m] [0m[0m* launcher / Compile / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0836676Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1057[0m
+2021-08-26T06:39:49.0837745Z [0m[[0m[33mwarn[0m] [0m[0m* launcher / M2r / publishMavenStyle[0m
+2021-08-26T06:39:49.0838852Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:289[0m
+2021-08-26T06:39:49.0839924Z [0m[[0m[33mwarn[0m] [0m[0m* launcher / Sbt / publishMavenStyle[0m
+2021-08-26T06:39:49.0841038Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:290[0m
+2021-08-26T06:39:49.0842079Z [0m[[0m[33mwarn[0m] [0m[0m* launcher / Test / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0843159Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1058[0m
+2021-08-26T06:39:49.0844278Z [0m[[0m[33mwarn[0m] [0m[0m* launcher / scalaStyleOnCompile / logLevel[0m
+2021-08-26T06:39:49.0845403Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:191[0m
+2021-08-26T06:39:49.0846488Z [0m[[0m[33mwarn[0m] [0m[0m* launcher / scalaStyleOnTest / logLevel[0m
+2021-08-26T06:39:49.0847594Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:192[0m
+2021-08-26T06:39:49.0848663Z [0m[[0m[33mwarn[0m] [0m[0m* mesos / Compile / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0849943Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1057[0m
+2021-08-26T06:39:49.0851259Z [0m[[0m[33mwarn[0m] [0m[0m* mesos / M2r / publishMavenStyle[0m
+2021-08-26T06:39:49.0852317Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:289[0m
+2021-08-26T06:39:49.0853367Z [0m[[0m[33mwarn[0m] [0m[0m* mesos / Sbt / publishMavenStyle[0m
+2021-08-26T06:39:49.0854441Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:290[0m
+2021-08-26T06:39:49.0855465Z [0m[[0m[33mwarn[0m] [0m[0m* mesos / Test / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0856541Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1058[0m
+2021-08-26T06:39:49.0857643Z [0m[[0m[33mwarn[0m] [0m[0m* mesos / scalaStyleOnCompile / logLevel[0m
+2021-08-26T06:39:49.0858955Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:191[0m
+2021-08-26T06:39:49.0860053Z [0m[[0m[33mwarn[0m] [0m[0m* mesos / scalaStyleOnTest / logLevel[0m
+2021-08-26T06:39:49.0861152Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:192[0m
+2021-08-26T06:39:49.0862192Z [0m[[0m[33mwarn[0m] [0m[0m* mllib / Compile / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0863276Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1057[0m
+2021-08-26T06:39:49.0897605Z [0m[[0m[33mwarn[0m] [0m[0m* mllib / M2r / publishMavenStyle[0m
+2021-08-26T06:39:49.0899060Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:289[0m
+2021-08-26T06:39:49.0900124Z [0m[[0m[33mwarn[0m] [0m[0m* mllib / Sbt / publishMavenStyle[0m
+2021-08-26T06:39:49.0901208Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:290[0m
+2021-08-26T06:39:49.0902290Z [0m[[0m[33mwarn[0m] [0m[0m* mllib / Test / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0903370Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1058[0m
+2021-08-26T06:39:49.0904479Z [0m[[0m[33mwarn[0m] [0m[0m* mllib / scalaStyleOnCompile / logLevel[0m
+2021-08-26T06:39:49.0905608Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:191[0m
+2021-08-26T06:39:49.0906652Z [0m[[0m[33mwarn[0m] [0m[0m* mllib / scalaStyleOnTest / logLevel[0m
+2021-08-26T06:39:49.0907744Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:192[0m
+2021-08-26T06:39:49.0908844Z [0m[[0m[33mwarn[0m] [0m[0m* mllib-local / Compile / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0909950Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1057[0m
+2021-08-26T06:39:49.0911062Z [0m[[0m[33mwarn[0m] [0m[0m* mllib-local / M2r / publishMavenStyle[0m
+2021-08-26T06:39:49.0912174Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:289[0m
+2021-08-26T06:39:49.0913260Z [0m[[0m[33mwarn[0m] [0m[0m* mllib-local / Sbt / publishMavenStyle[0m
+2021-08-26T06:39:49.0914371Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:290[0m
+2021-08-26T06:39:49.0915456Z [0m[[0m[33mwarn[0m] [0m[0m* mllib-local / Test / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0916541Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1058[0m
+2021-08-26T06:39:49.0917691Z [0m[[0m[33mwarn[0m] [0m[0m* mllib-local / scalaStyleOnCompile / logLevel[0m
+2021-08-26T06:39:49.0918853Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:191[0m
+2021-08-26T06:39:49.0919939Z [0m[[0m[33mwarn[0m] [0m[0m* mllib-local / scalaStyleOnTest / logLevel[0m
+2021-08-26T06:39:49.0921093Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:192[0m
+2021-08-26T06:39:49.0922500Z [0m[[0m[33mwarn[0m] [0m[0m* network-common / Compile / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0923630Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1057[0m
+2021-08-26T06:39:49.0924745Z [0m[[0m[33mwarn[0m] [0m[0m* network-common / M2r / publishMavenStyle[0m
+2021-08-26T06:39:49.0925880Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:289[0m
+2021-08-26T06:39:49.0926991Z [0m[[0m[33mwarn[0m] [0m[0m* network-common / Sbt / publishMavenStyle[0m
+2021-08-26T06:39:49.0928105Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:290[0m
+2021-08-26T06:39:49.0929432Z [0m[[0m[33mwarn[0m] [0m[0m* network-common / Test / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0930823Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1058[0m
+2021-08-26T06:39:49.0931988Z [0m[[0m[33mwarn[0m] [0m[0m* network-common / scalaStyleOnCompile / logLevel[0m
+2021-08-26T06:39:49.0933211Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:191[0m
+2021-08-26T06:39:49.0934353Z [0m[[0m[33mwarn[0m] [0m[0m* network-common / scalaStyleOnTest / logLevel[0m
+2021-08-26T06:39:49.0935499Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:192[0m
+2021-08-26T06:39:49.0936648Z [0m[[0m[33mwarn[0m] [0m[0m* network-shuffle / Compile / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0937808Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1057[0m
+2021-08-26T06:39:49.0938919Z [0m[[0m[33mwarn[0m] [0m[0m* network-shuffle / M2r / publishMavenStyle[0m
+2021-08-26T06:39:49.0940064Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:289[0m
+2021-08-26T06:39:49.0941219Z [0m[[0m[33mwarn[0m] [0m[0m* network-shuffle / Sbt / publishMavenStyle[0m
+2021-08-26T06:39:49.0942368Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:290[0m
+2021-08-26T06:39:49.0943498Z [0m[[0m[33mwarn[0m] [0m[0m* network-shuffle / Test / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0944641Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1058[0m
+2021-08-26T06:39:49.0945807Z [0m[[0m[33mwarn[0m] [0m[0m* network-shuffle / scalaStyleOnCompile / logLevel[0m
+2021-08-26T06:39:49.0947010Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:191[0m
+2021-08-26T06:39:49.0948156Z [0m[[0m[33mwarn[0m] [0m[0m* network-shuffle / scalaStyleOnTest / logLevel[0m
+2021-08-26T06:39:49.0949324Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:192[0m
+2021-08-26T06:39:49.0950435Z [0m[[0m[33mwarn[0m] [0m[0m* network-yarn / Compile / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0951567Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1057[0m
+2021-08-26T06:39:49.0952689Z [0m[[0m[33mwarn[0m] [0m[0m* network-yarn / M2r / publishMavenStyle[0m
+2021-08-26T06:39:49.0953790Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:289[0m
+2021-08-26T06:39:49.0954886Z [0m[[0m[33mwarn[0m] [0m[0m* network-yarn / Sbt / publishMavenStyle[0m
+2021-08-26T06:39:49.0956005Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:290[0m
+2021-08-26T06:39:49.0957078Z [0m[[0m[33mwarn[0m] [0m[0m* network-yarn / Test / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0958188Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1058[0m
+2021-08-26T06:39:49.0959342Z [0m[[0m[33mwarn[0m] [0m[0m* network-yarn / scalaStyleOnCompile / logLevel[0m
+2021-08-26T06:39:49.0960580Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:191[0m
+2021-08-26T06:39:49.0961870Z [0m[[0m[33mwarn[0m] [0m[0m* network-yarn / scalaStyleOnTest / logLevel[0m
+2021-08-26T06:39:49.0963009Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:192[0m
+2021-08-26T06:39:49.0964050Z [0m[[0m[33mwarn[0m] [0m[0m* repl / Compile / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0965137Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1057[0m
+2021-08-26T06:39:49.0966171Z [0m[[0m[33mwarn[0m] [0m[0m* repl / M2r / publishMavenStyle[0m
+2021-08-26T06:39:49.0967220Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:289[0m
+2021-08-26T06:39:49.0968261Z [0m[[0m[33mwarn[0m] [0m[0m* repl / Sbt / publishMavenStyle[0m
+2021-08-26T06:39:49.0969641Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:290[0m
+2021-08-26T06:39:49.0970709Z [0m[[0m[33mwarn[0m] [0m[0m* repl / Test / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0971806Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1058[0m
+2021-08-26T06:39:49.0972904Z [0m[[0m[33mwarn[0m] [0m[0m* repl / scalaStyleOnCompile / logLevel[0m
+2021-08-26T06:39:49.0974007Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:191[0m
+2021-08-26T06:39:49.0975069Z [0m[[0m[33mwarn[0m] [0m[0m* repl / scalaStyleOnTest / logLevel[0m
+2021-08-26T06:39:49.0976159Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:192[0m
+2021-08-26T06:39:49.0977300Z [0m[[0m[33mwarn[0m] [0m[0m* sketch / Compile / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0978372Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1057[0m
+2021-08-26T06:39:49.0979444Z [0m[[0m[33mwarn[0m] [0m[0m* sketch / M2r / publishMavenStyle[0m
+2021-08-26T06:39:49.0980857Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:289[0m
+2021-08-26T06:39:49.0981922Z [0m[[0m[33mwarn[0m] [0m[0m* sketch / Sbt / publishMavenStyle[0m
+2021-08-26T06:39:49.0983007Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:290[0m
+2021-08-26T06:39:49.0984054Z [0m[[0m[33mwarn[0m] [0m[0m* sketch / Test / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0985108Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1058[0m
+2021-08-26T06:39:49.0987264Z [0m[[0m[33mwarn[0m] [0m[0m* sketch / scalaStyleOnCompile / logLevel[0m
+2021-08-26T06:39:49.0988573Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:191[0m
+2021-08-26T06:39:49.0989635Z [0m[[0m[33mwarn[0m] [0m[0m* sketch / scalaStyleOnTest / logLevel[0m
+2021-08-26T06:39:49.0990763Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:192[0m
+2021-08-26T06:39:49.0991831Z [0m[[0m[33mwarn[0m] [0m[0m* spark / Compile / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0992920Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1057[0m
+2021-08-26T06:39:49.0993969Z [0m[[0m[33mwarn[0m] [0m[0m* spark / M2r / publishMavenStyle[0m
+2021-08-26T06:39:49.0995042Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:289[0m
+2021-08-26T06:39:49.0996061Z [0m[[0m[33mwarn[0m] [0m[0m* spark / Sbt / publishMavenStyle[0m
+2021-08-26T06:39:49.0997133Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:290[0m
+2021-08-26T06:39:49.0998176Z [0m[[0m[33mwarn[0m] [0m[0m* spark / Test / checkstyle / javaSource[0m
+2021-08-26T06:39:49.0999230Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1058[0m
+2021-08-26T06:39:49.1000359Z [0m[[0m[33mwarn[0m] [0m[0m* spark / scalaStyleOnCompile / logLevel[0m
+2021-08-26T06:39:49.1001731Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:191[0m
+2021-08-26T06:39:49.1002799Z [0m[[0m[33mwarn[0m] [0m[0m* spark / scalaStyleOnTest / logLevel[0m
+2021-08-26T06:39:49.1003881Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:192[0m
+2021-08-26T06:39:49.1004926Z [0m[[0m[33mwarn[0m] [0m[0m* sql / Compile / checkstyle / javaSource[0m
+2021-08-26T06:39:49.1006003Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1057[0m
+2021-08-26T06:39:49.1007010Z [0m[[0m[33mwarn[0m] [0m[0m* sql / M2r / publishMavenStyle[0m
+2021-08-26T06:39:49.1008073Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:289[0m
+2021-08-26T06:39:49.1011092Z [0m[[0m[33mwarn[0m] [0m[0m* sql / Sbt / publishMavenStyle[0m
+2021-08-26T06:39:49.1012367Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:290[0m
+2021-08-26T06:39:49.1013445Z [0m[[0m[33mwarn[0m] [0m[0m* sql / Test / checkstyle / javaSource[0m
+2021-08-26T06:39:49.1014511Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1058[0m
+2021-08-26T06:39:49.1015582Z [0m[[0m[33mwarn[0m] [0m[0m* sql / scalaStyleOnCompile / logLevel[0m
+2021-08-26T06:39:49.1016703Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:191[0m
+2021-08-26T06:39:49.1017754Z [0m[[0m[33mwarn[0m] [0m[0m* sql / scalaStyleOnTest / logLevel[0m
+2021-08-26T06:39:49.1018820Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:192[0m
+2021-08-26T06:39:49.1019953Z [0m[[0m[33mwarn[0m] [0m[0m* sql-kafka-0-10 / Compile / checkstyle / javaSource[0m
+2021-08-26T06:39:49.1021119Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1057[0m
+2021-08-26T06:39:49.1022206Z [0m[[0m[33mwarn[0m] [0m[0m* sql-kafka-0-10 / M2r / publishMavenStyle[0m
+2021-08-26T06:39:49.1023357Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:289[0m
+2021-08-26T06:39:49.1024465Z [0m[[0m[33mwarn[0m] [0m[0m* sql-kafka-0-10 / Sbt / publishMavenStyle[0m
+2021-08-26T06:39:49.1025573Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:290[0m
+2021-08-26T06:39:49.1026690Z [0m[[0m[33mwarn[0m] [0m[0m* sql-kafka-0-10 / Test / checkstyle / javaSource[0m
+2021-08-26T06:39:49.1027807Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1058[0m
+2021-08-26T06:39:49.1028960Z [0m[[0m[33mwarn[0m] [0m[0m* sql-kafka-0-10 / scalaStyleOnCompile / logLevel[0m
+2021-08-26T06:39:49.1030145Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:191[0m
+2021-08-26T06:39:49.1031303Z [0m[[0m[33mwarn[0m] [0m[0m* sql-kafka-0-10 / scalaStyleOnTest / logLevel[0m
+2021-08-26T06:39:49.1032475Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:192[0m
+2021-08-26T06:39:49.1033552Z [0m[[0m[33mwarn[0m] [0m[0m* streaming / Compile / checkstyle / javaSource[0m
+2021-08-26T06:39:49.1034668Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1057[0m
+2021-08-26T06:39:49.1035744Z [0m[[0m[33mwarn[0m] [0m[0m* streaming / M2r / publishMavenStyle[0m
+2021-08-26T06:39:49.1036821Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:289[0m
+2021-08-26T06:39:49.1037885Z [0m[[0m[33mwarn[0m] [0m[0m* streaming / Sbt / publishMavenStyle[0m
+2021-08-26T06:39:49.1038980Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:290[0m
+2021-08-26T06:39:49.1040060Z [0m[[0m[33mwarn[0m] [0m[0m* streaming / Test / checkstyle / javaSource[0m
+2021-08-26T06:39:49.1041157Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1058[0m
+2021-08-26T06:39:49.1042521Z [0m[[0m[33mwarn[0m] [0m[0m* streaming / scalaStyleOnCompile / logLevel[0m
+2021-08-26T06:39:49.1043658Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:191[0m
+2021-08-26T06:39:49.1044754Z [0m[[0m[33mwarn[0m] [0m[0m* streaming / scalaStyleOnTest / logLevel[0m
+2021-08-26T06:39:49.1045869Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:192[0m
+2021-08-26T06:39:49.1047055Z [0m[[0m[33mwarn[0m] [0m[0m* streaming-kafka-0-10 / Compile / checkstyle / javaSource[0m
+2021-08-26T06:39:49.1048268Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1057[0m
+2021-08-26T06:39:49.1049624Z [0m[[0m[33mwarn[0m] [0m[0m* streaming-kafka-0-10 / M2r / publishMavenStyle[0m
+2021-08-26T06:39:49.1051032Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:289[0m
+2021-08-26T06:39:49.1052246Z [0m[[0m[33mwarn[0m] [0m[0m* streaming-kafka-0-10 / Sbt / publishMavenStyle[0m
+2021-08-26T06:39:49.1053436Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:290[0m
+2021-08-26T06:39:49.1054596Z [0m[[0m[33mwarn[0m] [0m[0m* streaming-kafka-0-10 / Test / checkstyle / javaSource[0m
+2021-08-26T06:39:49.1055784Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1058[0m
+2021-08-26T06:39:49.1057026Z [0m[[0m[33mwarn[0m] [0m[0m* streaming-kafka-0-10 / scalaStyleOnCompile / logLevel[0m
+2021-08-26T06:39:49.1058277Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:191[0m
+2021-08-26T06:39:49.1059462Z [0m[[0m[33mwarn[0m] [0m[0m* streaming-kafka-0-10 / scalaStyleOnTest / logLevel[0m
+2021-08-26T06:39:49.1060692Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:192[0m
+2021-08-26T06:39:49.1062006Z [0m[[0m[33mwarn[0m] [0m[0m* streaming-kafka-0-10-assembly / Compile / checkstyle / javaSource[0m
+2021-08-26T06:39:49.1063336Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1057[0m
+2021-08-26T06:39:49.1064635Z [0m[[0m[33mwarn[0m] [0m[0m* streaming-kafka-0-10-assembly / M2r / publishMavenStyle[0m
+2021-08-26T06:39:49.1065927Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:289[0m
+2021-08-26T06:39:49.1067189Z [0m[[0m[33mwarn[0m] [0m[0m* streaming-kafka-0-10-assembly / Sbt / publishMavenStyle[0m
+2021-08-26T06:39:49.1068479Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:290[0m
+2021-08-26T06:39:49.1069762Z [0m[[0m[33mwarn[0m] [0m[0m* streaming-kafka-0-10-assembly / Test / checkstyle / javaSource[0m
+2021-08-26T06:39:49.1071060Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1058[0m
+2021-08-26T06:39:49.1072406Z [0m[[0m[33mwarn[0m] [0m[0m* streaming-kafka-0-10-assembly / scalaStyleOnCompile / logLevel[0m
+2021-08-26T06:39:49.1073771Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:191[0m
+2021-08-26T06:39:49.1075080Z [0m[[0m[33mwarn[0m] [0m[0m* streaming-kafka-0-10-assembly / scalaStyleOnTest / logLevel[0m
+2021-08-26T06:39:49.1076448Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:192[0m
+2021-08-26T06:39:49.1077670Z [0m[[0m[33mwarn[0m] [0m[0m* streaming-kinesis-asl / Compile / checkstyle / javaSource[0m
+2021-08-26T06:39:49.1078894Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1057[0m
+2021-08-26T06:39:49.1080072Z [0m[[0m[33mwarn[0m] [0m[0m* streaming-kinesis-asl / M2r / publishMavenStyle[0m
+2021-08-26T06:39:49.1081306Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:289[0m
+2021-08-26T06:39:49.1082497Z [0m[[0m[33mwarn[0m] [0m[0m* streaming-kinesis-asl / Sbt / publishMavenStyle[0m
+2021-08-26T06:39:49.1083869Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:290[0m
+2021-08-26T06:39:49.1085066Z [0m[[0m[33mwarn[0m] [0m[0m* streaming-kinesis-asl / Test / checkstyle / javaSource[0m
+2021-08-26T06:39:49.1086271Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1058[0m
+2021-08-26T06:39:49.1088061Z [0m[[0m[33mwarn[0m] [0m[0m* streaming-kinesis-asl / scalaStyleOnCompile / logLevel[0m
+2021-08-26T06:39:49.1090127Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:191[0m
+2021-08-26T06:39:49.1095571Z [0m[[0m[33mwarn[0m] [0m[0m* streaming-kinesis-asl / scalaStyleOnTest / logLevel[0m
+2021-08-26T06:39:49.1097090Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:192[0m
+2021-08-26T06:39:49.1098457Z [0m[[0m[33mwarn[0m] [0m[0m* streaming-kinesis-asl-assembly / Compile / checkstyle / javaSource[0m
+2021-08-26T06:39:49.1099835Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1057[0m
+2021-08-26T06:39:49.1101161Z [0m[[0m[33mwarn[0m] [0m[0m* streaming-kinesis-asl-assembly / M2r / publishMavenStyle[0m
+2021-08-26T06:39:49.1102475Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:289[0m
+2021-08-26T06:39:49.1103804Z [0m[[0m[33mwarn[0m] [0m[0m* streaming-kinesis-asl-assembly / Sbt / publishMavenStyle[0m
+2021-08-26T06:39:49.1105136Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:290[0m
+2021-08-26T06:39:49.1106445Z [0m[[0m[33mwarn[0m] [0m[0m* streaming-kinesis-asl-assembly / Test / checkstyle / javaSource[0m
+2021-08-26T06:39:49.1107806Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1058[0m
+2021-08-26T06:39:49.1109193Z [0m[[0m[33mwarn[0m] [0m[0m* streaming-kinesis-asl-assembly / scalaStyleOnCompile / logLevel[0m
+2021-08-26T06:39:49.1110582Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:191[0m
+2021-08-26T06:39:49.1111937Z [0m[[0m[33mwarn[0m] [0m[0m* streaming-kinesis-asl-assembly / scalaStyleOnTest / logLevel[0m
+2021-08-26T06:39:49.1113285Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:192[0m
+2021-08-26T06:39:49.1114320Z [0m[[0m[33mwarn[0m] [0m[0m* tags / Compile / checkstyle / javaSource[0m
+2021-08-26T06:39:49.1115403Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1057[0m
+2021-08-26T06:39:49.1116435Z [0m[[0m[33mwarn[0m] [0m[0m* tags / M2r / publishMavenStyle[0m
+2021-08-26T06:39:49.1117488Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:289[0m
+2021-08-26T06:39:49.1118552Z [0m[[0m[33mwarn[0m] [0m[0m* tags / Sbt / publishMavenStyle[0m
+2021-08-26T06:39:49.1119773Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:290[0m
+2021-08-26T06:39:49.1120821Z [0m[[0m[33mwarn[0m] [0m[0m* tags / Test / checkstyle / javaSource[0m
+2021-08-26T06:39:49.1121869Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1058[0m
+2021-08-26T06:39:49.1122961Z [0m[[0m[33mwarn[0m] [0m[0m* tags / scalaStyleOnCompile / logLevel[0m
+2021-08-26T06:39:49.1124081Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:191[0m
+2021-08-26T06:39:49.1125115Z [0m[[0m[33mwarn[0m] [0m[0m* tags / scalaStyleOnTest / logLevel[0m
+2021-08-26T06:39:49.1126207Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:192[0m
+2021-08-26T06:39:49.1127500Z [0m[[0m[33mwarn[0m] [0m[0m* token-provider-kafka-0-10 / Compile / checkstyle / javaSource[0m
+2021-08-26T06:39:49.1128750Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1057[0m
+2021-08-26T06:39:49.1130421Z [0m[[0m[33mwarn[0m] [0m[0m* token-provider-kafka-0-10 / M2r / publishMavenStyle[0m
+2021-08-26T06:39:49.1131699Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:289[0m
+2021-08-26T06:39:49.1132925Z [0m[[0m[33mwarn[0m] [0m[0m* token-provider-kafka-0-10 / Sbt / publishMavenStyle[0m
+2021-08-26T06:39:49.1134186Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:290[0m
+2021-08-26T06:39:49.1135434Z [0m[[0m[33mwarn[0m] [0m[0m* token-provider-kafka-0-10 / Test / checkstyle / javaSource[0m
+2021-08-26T06:39:49.1136683Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1058[0m
+2021-08-26T06:39:49.1137980Z [0m[[0m[33mwarn[0m] [0m[0m* token-provider-kafka-0-10 / scalaStyleOnCompile / logLevel[0m
+2021-08-26T06:39:49.1139485Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:191[0m
+2021-08-26T06:39:49.1140783Z [0m[[0m[33mwarn[0m] [0m[0m* token-provider-kafka-0-10 / scalaStyleOnTest / logLevel[0m
+2021-08-26T06:39:49.1142039Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:192[0m
+2021-08-26T06:39:49.1143097Z [0m[[0m[33mwarn[0m] [0m[0m* tools / Compile / checkstyle / javaSource[0m
+2021-08-26T06:39:49.1144176Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1057[0m
+2021-08-26T06:39:49.1145199Z [0m[[0m[33mwarn[0m] [0m[0m* tools / M2r / publishMavenStyle[0m
+2021-08-26T06:39:49.1146267Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:289[0m
+2021-08-26T06:39:49.1147300Z [0m[[0m[33mwarn[0m] [0m[0m* tools / Sbt / publishMavenStyle[0m
+2021-08-26T06:39:49.1148369Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:290[0m
+2021-08-26T06:39:49.1149414Z [0m[[0m[33mwarn[0m] [0m[0m* tools / Test / checkstyle / javaSource[0m
+2021-08-26T06:39:49.1150502Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1058[0m
+2021-08-26T06:39:49.1151586Z [0m[[0m[33mwarn[0m] [0m[0m* tools / scalaStyleOnCompile / logLevel[0m
+2021-08-26T06:39:49.1152711Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:191[0m
+2021-08-26T06:39:49.1153766Z [0m[[0m[33mwarn[0m] [0m[0m* tools / scalaStyleOnTest / logLevel[0m
+2021-08-26T06:39:49.1154839Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:192[0m
+2021-08-26T06:39:49.1155916Z [0m[[0m[33mwarn[0m] [0m[0m* unsafe / Compile / checkstyle / javaSource[0m
+2021-08-26T06:39:49.1157003Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1057[0m
+2021-08-26T06:39:49.1158059Z [0m[[0m[33mwarn[0m] [0m[0m* unsafe / M2r / publishMavenStyle[0m
+2021-08-26T06:39:49.1159130Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:289[0m
+2021-08-26T06:39:49.1160191Z [0m[[0m[33mwarn[0m] [0m[0m* unsafe / Sbt / publishMavenStyle[0m
+2021-08-26T06:39:49.1161263Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:290[0m
+2021-08-26T06:39:49.1162289Z [0m[[0m[33mwarn[0m] [0m[0m* unsafe / Test / checkstyle / javaSource[0m
+2021-08-26T06:39:49.1163355Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1058[0m
+2021-08-26T06:39:49.1164464Z [0m[[0m[33mwarn[0m] [0m[0m* unsafe / scalaStyleOnCompile / logLevel[0m
+2021-08-26T06:39:49.1165567Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:191[0m
+2021-08-26T06:39:49.1166634Z [0m[[0m[33mwarn[0m] [0m[0m* unsafe / scalaStyleOnTest / logLevel[0m
+2021-08-26T06:39:49.1167746Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:192[0m
+2021-08-26T06:39:49.1168945Z [0m[[0m[33mwarn[0m] [0m[0m* yarn / Compile / checkstyle / javaSource[0m
+2021-08-26T06:39:49.1171800Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1057[0m
+2021-08-26T06:39:49.1172870Z [0m[[0m[33mwarn[0m] [0m[0m* yarn / M2r / publishMavenStyle[0m
+2021-08-26T06:39:49.1173998Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:289[0m
+2021-08-26T06:39:49.1175055Z [0m[[0m[33mwarn[0m] [0m[0m* yarn / Sbt / publishMavenStyle[0m
+2021-08-26T06:39:49.1176121Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:290[0m
+2021-08-26T06:39:49.1177141Z [0m[[0m[33mwarn[0m] [0m[0m* yarn / Test / checkstyle / javaSource[0m
+2021-08-26T06:39:49.1178210Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:1058[0m
+2021-08-26T06:39:49.1179544Z [0m[[0m[33mwarn[0m] [0m[0m* yarn / scalaStyleOnCompile / logLevel[0m
+2021-08-26T06:39:49.1180677Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:191[0m
+2021-08-26T06:39:49.1181730Z [0m[[0m[33mwarn[0m] [0m[0m* yarn / scalaStyleOnTest / logLevel[0m
+2021-08-26T06:39:49.1182820Z [0m[[0m[33mwarn[0m] [0m[0m  +- /home/runner/work/spark/spark/project/SparkBuild.scala:192[0m
+2021-08-26T06:39:49.1183655Z [0m[[0m[33mwarn[0m] [0m[0m [0m
+2021-08-26T06:39:49.1184694Z [0m[[0m[33mwarn[0m] [0m[0mnote: a setting might still be used by a command; to exclude a key from this `lintUnused` check[0m
+2021-08-26T06:39:49.1186130Z [0m[[0m[33mwarn[0m] [0m[0meither append it to `Global / excludeLintKeys` or call .withRank(KeyRanks.Invisible) on the key[0m
+2021-08-26T06:39:49.3324342Z [0m[[0m[33mwarn[0m] [0m[0msbt 0.13 shell syntax is deprecated; use slash syntax instead: examples / Test / package, avro / Test / package, network-shuffle / Test / package, sketch / Test / package, unsafe / Test / package, launcher / Test / package, network-yarn / Test / package, streaming / Test / package, catalyst / Test / package, hive-thriftserver / Test / package, kvstore / Test / package, core / Test / package, ganglia-lgpl / Test / package, hadoop-cloud / Test / package, streaming-kinesis-asl-assembly / Test / package, assembly / Test / package, network-common / Test / package, sql / Test / package, streaming-kafka-0-10-assembly / Test / package, mllib / Test / package, streaming-kinesis-asl / Test / package, docker-integration-tests / Test / package, kubernetes / Test / package, yarn / Test / package, tags / Test / package, graphx / Test / package, token-provider-kafka-0-10 / Test / package, mesos / Test / package, streaming-kafka-0-10 / Test / package, hive / Test / package, tools / Test / package, mllib-local / Test / package, repl / Test / package, sql-kafka-0-10 / Test / package, Test / package[0m
+2021-08-26T06:40:47.5989369Z [0m[[0m[31merror[0m] [0m[0m/home/runner/work/spark/spark/resource-managers/yarn/src/main/scala/org/apache/spark/deploy/yarn/ApplicationMaster.scala:780: File line length exceeds 100 characters[0m
+2021-08-26T06:41:47.3196859Z [0m[[0m[0minfo[0m] [0m[0mcompiling 1 Scala source to /home/runner/work/spark/spark/tools/target/scala-2.12/classes ...[0m
+2021-08-26T06:41:47.8775329Z [0m[[0m[0minfo[0m] [0m[0mcompiling 2 Scala sources and 8 Java sources to /home/runner/work/spark/spark/common/tags/target/scala-2.12/classes ...[0m
+2021-08-26T06:41:48.7694347Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:41:48.8833556Z [0m[[0m[0minfo[0m] [0m[0mcompiling 84 Java sources to /home/runner/work/spark/spark/common/network-common/target/scala-2.12/classes ...[0m
+2021-08-26T06:41:50.0880037Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:41:54.7497235Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:41:56.1893280Z [0m[[0m[0minfo[0m] [0m[0mcompiling 12 Java sources to /home/runner/work/spark/spark/common/kvstore/target/scala-2.12/classes ...[0m
+2021-08-26T06:41:58.7419536Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:41:58.7604834Z [0m[[0m[0minfo[0m] [0m[0mcompiling 20 Java sources to /home/runner/work/spark/spark/launcher/target/scala-2.12/classes ...[0m
+2021-08-26T06:41:59.6059206Z [0m[[0m[0minfo[0m] [0m[0mcompiling 18 Java sources to /home/runner/work/spark/spark/common/unsafe/target/scala-2.12/classes ...[0m
+2021-08-26T06:42:01.2627339Z [0m[[0m[0minfo[0m] [0m[0mNote: /home/runner/work/spark/spark/launcher/src/main/java/org/apache/spark/launcher/LauncherServer.java uses or overrides a deprecated API.[0m
+2021-08-26T06:42:01.2633325Z [0m[[0m[0minfo[0m] [0m[0mNote: Recompile with -Xlint:deprecation for details.[0m
+2021-08-26T06:42:01.4417509Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:42:01.4773348Z [0m[[0m[0minfo[0m] [0m[0mcompiling 9 Java sources to /home/runner/work/spark/spark/common/sketch/target/scala-2.12/classes ...[0m
+2021-08-26T06:42:02.2434476Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:42:02.2687639Z [0m[[0m[0minfo[0m] [0m[0mcompiling 6 Java sources to /home/runner/work/spark/spark/common/tags/target/scala-2.12/test-classes ...[0m
+2021-08-26T06:42:03.6241671Z [0m[[0m[33mwarn[0m] [0m[0m/home/runner/work/spark/spark/common/sketch/src/main/java/org/apache/spark/util/sketch/Platform.java:22:1:  Unsafe is internal proprietary API and may be removed in a future release[0m
+2021-08-26T06:42:03.6243930Z [0m[[0m[33mwarn[0m] [0m[0mimport sun.misc.Unsafe;[0m
+2021-08-26T06:42:03.6245076Z [0m[[0m[33mwarn[0m] [0m[0m               ^[0m
+2021-08-26T06:42:03.6246919Z [0m[[0m[33mwarn[0m] [0m[0m/home/runner/work/spark/spark/common/sketch/src/main/java/org/apache/spark/util/sketch/Platform.java:28:1:  Unsafe is internal proprietary API and may be removed in a future release[0m
+2021-08-26T06:42:03.6248727Z [0m[[0m[33mwarn[0m] [0m[0m  private static final Unsafe _UNSAFE;[0m
+2021-08-26T06:42:03.6250267Z [0m[[0m[33mwarn[0m] [0m[0m                       ^[0m
+2021-08-26T06:42:03.6251735Z [0m[[0m[33mwarn[0m] [0m[0m/home/runner/work/spark/spark/common/sketch/src/main/java/org/apache/spark/util/sketch/Platform.java:150:1:  Unsafe is internal proprietary API and may be removed in a future release[0m
+2021-08-26T06:42:03.6253117Z [0m[[0m[33mwarn[0m] [0m[0m    sun.misc.Unsafe unsafe;[0m
+2021-08-26T06:42:03.6254268Z [0m[[0m[33mwarn[0m] [0m[0m            ^[0m
+2021-08-26T06:42:03.6255982Z [0m[[0m[33mwarn[0m] [0m[0m/home/runner/work/spark/spark/common/sketch/src/main/java/org/apache/spark/util/sketch/Platform.java:152:1:  Unsafe is internal proprietary API and may be removed in a future release[0m
+2021-08-26T06:42:03.6257924Z [0m[[0m[33mwarn[0m] [0m[0m      Field unsafeField = Unsafe.class.getDeclaredField("theUnsafe");[0m
+2021-08-26T06:42:03.6259270Z [0m[[0m[33mwarn[0m] [0m[0m                          ^[0m
+2021-08-26T06:42:03.6260914Z [0m[[0m[33mwarn[0m] [0m[0m/home/runner/work/spark/spark/common/sketch/src/main/java/org/apache/spark/util/sketch/Platform.java:154:1:  Unsafe is internal proprietary API and may be removed in a future release[0m
+2021-08-26T06:42:03.6262684Z [0m[[0m[33mwarn[0m] [0m[0m      unsafe = (sun.misc.Unsafe) unsafeField.get(null);[0m
+2021-08-26T06:42:03.6263785Z [0m[[0m[33mwarn[0m] [0m[0m                        ^5 warnings[0m
+2021-08-26T06:42:03.6663726Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:42:03.6800554Z [0m[[0m[0minfo[0m] [0m[0mcompiling 50 Java sources to /home/runner/work/spark/spark/common/network-shuffle/target/scala-2.12/classes ...[0m
+2021-08-26T06:42:03.8654144Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:42:07.6585948Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:42:43.3813482Z [0m[[0m[0minfo[0m] [0m[0mcompiling 5 Scala sources to /home/runner/work/spark/spark/mllib-local/target/scala-2.12/classes ...[0m
+2021-08-26T06:42:48.3068040Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:42:51.7392486Z [0m[[0m[0minfo[0m] [0m[0mcompiling 26 Java sources to /home/runner/work/spark/spark/common/network-common/target/scala-2.12/test-classes ...[0m
+2021-08-26T06:42:53.5424449Z [0m[[0m[0minfo[0m] [0m[0mcompiling 12 Java sources to /home/runner/work/spark/spark/common/kvstore/target/scala-2.12/test-classes ...[0m
+2021-08-26T06:42:55.5677657Z [0m[[0m[33mwarn[0m] [0m[0m/home/runner/work/spark/spark/common/network-common/src/test/java/org/apache/spark/network/server/OneForOneStreamManagerSuite.java:105:1:  [unchecked] unchecked conversion[0m
+2021-08-26T06:42:55.5680235Z [0m[[0m[33mwarn[0m] [0m[0m    Iterator<ManagedBuffer> buffers = Mockito.mock(Iterator.class);[0m
+2021-08-26T06:42:55.5681820Z [0m[[0m[33mwarn[0m] [0m[0m                                                  ^  required: Iterator<ManagedBuffer>[0m
+2021-08-26T06:42:55.5683464Z [0m[[0m[33mwarn[0m] [0m[0m  found:    Iterator[0m
+2021-08-26T06:42:55.5685515Z [0m[[0m[33mwarn[0m] [0m[0m/home/runner/work/spark/spark/common/network-common/src/test/java/org/apache/spark/network/server/OneForOneStreamManagerSuite.java:111:1:  [unchecked] unchecked conversion[0m
+2021-08-26T06:42:55.5687722Z [0m[[0m[33mwarn[0m] [0m[0m    Iterator<ManagedBuffer> buffers2 = Mockito.mock(Iterator.class);[0m
+2021-08-26T06:42:55.5689430Z [0m[[0m[33mwarn[0m] [0m[0m                                                   ^  required: Iterator<ManagedBuffer>[0m
+2021-08-26T06:42:55.5690710Z [0m[[0m[33mwarn[0m] [0m[0m  found:    Iterator[0m
+2021-08-26T06:42:55.5691785Z [0m[[0m[33mwarn[0m] [0m[0m2 warnings[0m
+2021-08-26T06:42:55.9880221Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:42:56.1452165Z [0m[[0m[0minfo[0m] [0m[0mcompiling 7 Java sources to /home/runner/work/spark/spark/launcher/target/scala-2.12/test-classes ...[0m
+2021-08-26T06:42:56.4432142Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:42:56.4718170Z [0m[[0m[0minfo[0m] [0m[0mcompiling 3 Scala sources to /home/runner/work/spark/spark/common/sketch/target/scala-2.12/test-classes ...[0m
+2021-08-26T06:42:58.5710762Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:42:58.6172553Z [0m[[0m[0minfo[0m] [0m[0mcompiling 1 Scala source and 5 Java sources to /home/runner/work/spark/spark/common/unsafe/target/scala-2.12/test-classes ...[0m
+2021-08-26T06:42:59.2491914Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:42:59.4562247Z [0m[[0m[0minfo[0m] [0m[0mcompiling 3 Java sources to /home/runner/work/spark/spark/common/network-yarn/target/scala-2.12/classes ...[0m
+2021-08-26T06:43:01.6156939Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:43:01.7317693Z [0m[[0m[0minfo[0m] [0m[0mcompiling 568 Scala sources and 101 Java sources to /home/runner/work/spark/spark/core/target/scala-2.12/classes ...[0m
+2021-08-26T06:43:04.3217274Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:43:06.4006338Z [0m[[0m[0minfo[0m] [0m[0mcompiling 18 Java sources to /home/runner/work/spark/spark/common/network-shuffle/target/scala-2.12/test-classes ...[0m
+2021-08-26T06:43:11.1768988Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:44:05.8401677Z [0m[[0m[0minfo[0m] [0m[0mNote: /home/runner/work/spark/spark/core/src/main/java/org/apache/spark/SparkFirehoseListener.java uses or overrides a deprecated API.[0m
+2021-08-26T06:44:05.8404013Z [0m[[0m[0minfo[0m] [0m[0mNote: Recompile with -Xlint:deprecation for details.[0m
+2021-08-26T06:44:06.1142658Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:44:07.2432412Z [0m[[0m[33mwarn[0m] [0m[0mmultiple main classes detected: run 'show discoveredMainClasses' to see the list[0m
+2021-08-26T06:44:08.3370390Z [0m[[0m[0minfo[0m] [0m[0mcompiling 357 Scala sources and 137 Java sources to /home/runner/work/spark/spark/sql/catalyst/target/scala-2.12/classes ...[0m
+2021-08-26T06:44:08.3429379Z [0m[[0m[0minfo[0m] [0m[0mcompiling 1 Scala source and 1 Java source to /home/runner/work/spark/spark/external/spark-ganglia-lgpl/target/scala-2.12/classes ...[0m
+2021-08-26T06:44:10.9834128Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:44:11.0182873Z [0m[[0m[0minfo[0m] [0m[0mcompiling 47 Scala sources to /home/runner/work/spark/spark/resource-managers/kubernetes/core/target/scala-2.12/classes ...[0m
+2021-08-26T06:44:16.8389303Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:44:16.9032297Z [0m[[0m[0minfo[0m] [0m[0mcompiling 20 Scala sources and 1 Java source to /home/runner/work/spark/spark/resource-managers/mesos/target/scala-2.12/classes ...[0m
+2021-08-26T06:44:23.6053023Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:44:24.4160156Z [0m[[0m[0minfo[0m] [0m[0mcompiling 104 Scala sources and 6 Java sources to /home/runner/work/spark/spark/streaming/target/scala-2.12/classes ...[0m
+2021-08-26T06:44:36.7970689Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:44:37.6118191Z [0m[[0m[0minfo[0m] [0m[0mcompiling 312 Scala sources and 28 Java sources to /home/runner/work/spark/spark/core/target/scala-2.12/test-classes ...[0m
+2021-08-26T06:45:43.2887670Z [0m[[0m[33mwarn[0m] [0m[0mIn the last 10 seconds, 8.594 (87.1%) were spent in GC. [Heap: 2.56GB free of 3.78GB, max 3.78GB] Consider increasing the JVM heap using `-Xmx` or try a different collector, e.g. `-XX:+UseG1GC`, for better performance.[0m
+2021-08-26T06:45:55.9655538Z [0m[[0m[33mwarn[0m] [0m[0m/home/runner/work/spark/spark/sql/catalyst/src/main/java/org/apache/spark/sql/connector/catalog/SupportsAtomicPartitionManagement.java:55:1:  [unchecked] unchecked method invocation: method createPartitions in interface SupportsAtomicPartitionManagement is applied to given types[0m
+2021-08-26T06:45:55.9658794Z [0m[[0m[33mwarn[0m] [0m[0m      createPartitions(new InternalRow[]{ident}, new Map[]{properties});[0m
+2021-08-26T06:45:55.9690288Z [0m[[0m[33mwarn[0m] [0m[0m                      ^  required: InternalRow[],Map<String,String>[][0m
+2021-08-26T06:45:55.9691648Z [0m[[0m[33mwarn[0m] [0m[0m  found: InternalRow[],Map[][0m
+2021-08-26T06:45:55.9693708Z [0m[[0m[33mwarn[0m] [0m[0m/home/runner/work/spark/spark/sql/catalyst/src/main/java/org/apache/spark/sql/connector/catalog/SupportsAtomicPartitionManagement.java:55:1:  [unchecked] unchecked conversion[0m
+2021-08-26T06:45:55.9695825Z [0m[[0m[33mwarn[0m] [0m[0m      createPartitions(new InternalRow[]{ident}, new Map[]{properties});[0m
+2021-08-26T06:45:55.9697195Z [0m[[0m[33mwarn[0m] [0m[0m                                                 ^  required: Map<String,String>[][0m
+2021-08-26T06:45:55.9698240Z [0m[[0m[33mwarn[0m] [0m[0m  found:    Map[][0m
+2021-08-26T06:45:55.9699155Z [0m[[0m[33mwarn[0m] [0m[0m2 warnings[0m
+2021-08-26T06:45:57.8431437Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:45:58.4171273Z [0m[[0m[0minfo[0m] [0m[0mcompiling 38 Scala sources and 5 Java sources to /home/runner/work/spark/spark/graphx/target/scala-2.12/classes ...[0m
+2021-08-26T06:46:05.2318310Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:46:05.3023749Z [0m[[0m[0minfo[0m] [0m[0mcompiling 25 Scala sources to /home/runner/work/spark/spark/resource-managers/yarn/target/scala-2.12/classes ...[0m
+2021-08-26T06:46:08.9491899Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:46:09.0022740Z [0m[[0m[0minfo[0m] [0m[0mcompiling 5 Scala sources to /home/runner/work/spark/spark/external/kafka-0-10-token-provider/target/scala-2.12/classes ...[0m
+2021-08-26T06:46:09.9433878Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:46:12.1889744Z [0m[[0m[33mwarn[0m] [0m[0mmultiple main classes detected: run 'show discoveredMainClasses' to see the list[0m
+2021-08-26T06:46:12.2015307Z [0m[[0m[33mwarn[0m] [0m[0mmultiple main classes detected: run 'show discoveredMainClasses' to see the list[0m
+2021-08-26T06:46:15.4963758Z [0m[[0m[0minfo[0m] [0m[0mcompiling 526 Scala sources and 68 Java sources to /home/runner/work/spark/spark/sql/core/target/scala-2.12/classes ...[0m
+2021-08-26T06:46:16.1233921Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:46:17.2446880Z [0m[[0m[0minfo[0m] [0m[0mcompiling 10 Scala sources and 1 Java source to /home/runner/work/spark/spark/external/kafka-0-10/target/scala-2.12/classes ...[0m
+2021-08-26T06:46:20.5482522Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:46:20.5903783Z [0m[[0m[0minfo[0m] [0m[0mcompiling 11 Scala sources and 2 Java sources to /home/runner/work/spark/spark/external/kinesis-asl/target/scala-2.12/classes ...[0m
+2021-08-26T06:46:23.7495347Z [0m[[0m[33mwarn[0m] [0m[0m/home/runner/work/spark/spark/external/kinesis-asl/src/main/java/org/apache/spark/examples/streaming/JavaKinesisWordCountASL.java:157:1:  [unchecked] unchecked method invocation: method union in class JavaStreamingContext is applied to given types[0m
+2021-08-26T06:46:23.7498648Z [0m[[0m[33mwarn[0m] [0m[0m      unionStreams = jssc.union(streamsList.toArray(new JavaDStream[0]));[0m
+2021-08-26T06:46:23.7506195Z [0m[[0m[33mwarn[0m] [0m[0m                               ^  required: JavaDStream<T>[][0m
+2021-08-26T06:46:23.7507593Z [0m[[0m[33mwarn[0m] [0m[0m  found: JavaDStream[][0m
+2021-08-26T06:46:23.7508742Z [0m[[0m[33mwarn[0m] [0m[0m  where T is a type-variable:[0m
+2021-08-26T06:46:23.7510261Z [0m[[0m[33mwarn[0m] [0m[0m    T extends Object declared in method <T>union(JavaDStream<T>...)[0m
+2021-08-26T06:46:23.7512871Z [0m[[0m[33mwarn[0m] [0m[0m/home/runner/work/spark/spark/external/kinesis-asl/src/main/java/org/apache/spark/examples/streaming/JavaKinesisWordCountASL.java:157:1:  [unchecked] unchecked conversion[0m
+2021-08-26T06:46:23.7515957Z [0m[[0m[33mwarn[0m] [0m[0m      unionStreams = jssc.union(streamsList.toArray(new JavaDStream[0]));[0m
+2021-08-26T06:46:23.7518196Z [0m[[0m[33mwarn[0m] [0m[0m                                                   ^  required: JavaDStream<T>[][0m
+2021-08-26T06:46:23.7521267Z [0m[[0m[33mwarn[0m] [0m[0m  found:    JavaDStream[][0m
+2021-08-26T06:46:23.7523100Z [0m[[0m[33mwarn[0m] [0m[0m  where T is a type-variable:[0m
+2021-08-26T06:46:23.7525049Z [0m[[0m[33mwarn[0m] [0m[0m    T extends Object declared in method <T>union(JavaDStream<T>...)[0m
+2021-08-26T06:46:23.7925059Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:46:24.1298280Z [0m[[0m[33mwarn[0m] [0m[0mmultiple main classes detected: run 'show discoveredMainClasses' to see the list[0m
+2021-08-26T06:46:26.4611225Z [0m[[0m[33mwarn[0m] [0m[0mmultiple main classes detected: run 'show discoveredMainClasses' to see the list[0m
+2021-08-26T06:46:26.4613584Z [0m[[0m[0minfo[0m] [0m[0mcompiling 296 Scala sources and 6 Java sources to /home/runner/work/spark/spark/sql/catalyst/target/scala-2.12/test-classes ...[0m
+2021-08-26T06:47:24.9208801Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:47:25.3744032Z [0m[[0m[0minfo[0m] [0m[0mcompiling 6 Scala sources to /home/runner/work/spark/spark/external/kafka-0-10-token-provider/target/scala-2.12/test-classes ...[0m
+2021-08-26T06:47:26.5438261Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:47:26.5568045Z [0m[[0m[0minfo[0m] [0m[0mcompiling 11 Scala sources to /home/runner/work/spark/spark/resource-managers/mesos/target/scala-2.12/test-classes ...[0m
+2021-08-26T06:47:29.7347177Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:47:29.7786544Z [0m[[0m[0minfo[0m] [0m[0mcompiling 38 Scala sources to /home/runner/work/spark/spark/resource-managers/kubernetes/core/target/scala-2.12/test-classes ...[0m
+2021-08-26T06:47:34.7187980Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:47:34.7498461Z [0m[[0m[0minfo[0m] [0m[0mcompiling 11 Scala sources to /home/runner/work/spark/spark/mllib-local/target/scala-2.12/test-classes ...[0m
+2021-08-26T06:47:39.6712022Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:47:39.6975942Z [0m[[0m[0minfo[0m] [0m[0mcompiling 41 Scala sources and 9 Java sources to /home/runner/work/spark/spark/streaming/target/scala-2.12/test-classes ...[0m
+2021-08-26T06:47:40.6372163Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:47:51.3870236Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:47:51.4378589Z [0m[[0m[0minfo[0m] [0m[0mcompiling 19 Scala sources to /home/runner/work/spark/spark/graphx/target/scala-2.12/test-classes ...[0m
+2021-08-26T06:47:53.9538703Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:47:58.3679182Z [0m[[0m[0minfo[0m] [0m[0mcompiling 8 Scala sources and 1 Java source to /home/runner/work/spark/spark/external/kinesis-asl/target/scala-2.12/test-classes ...[0m
+2021-08-26T06:47:58.4151621Z [0m[[0m[0minfo[0m] [0m[0mcompiling 6 Scala sources and 4 Java sources to /home/runner/work/spark/spark/external/kafka-0-10/target/scala-2.12/test-classes ...[0m
+2021-08-26T06:48:02.7306435Z [0m[[0m[0minfo[0m] [0m[0mNote: /home/runner/work/spark/spark/external/kinesis-asl/src/test/java/org/apache/spark/streaming/kinesis/JavaKinesisInputDStreamBuilderSuite.java uses or overrides a deprecated API.[0m
+2021-08-26T06:48:02.7338871Z [0m[[0m[0minfo[0m] [0m[0mNote: Recompile with -Xlint:deprecation for details.[0m
+2021-08-26T06:48:02.7654994Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:48:03.6810618Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:48:03.7851478Z [0m[[0m[0minfo[0m] [0m[0mcompiling 29 Scala sources and 2 Java sources to /home/runner/work/spark/spark/sql/hive/target/scala-2.12/classes ...[0m
+2021-08-26T06:48:04.0771064Z [0m[[0m[0minfo[0m] [0m[0mcompiling 2 Scala sources to /home/runner/work/spark/spark/hadoop-cloud/target/scala-2.12/classes ...[0m
+2021-08-26T06:48:04.7704301Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:48:04.7815903Z [0m[[0m[0minfo[0m] [0m[0mcompiling 18 Scala sources and 1 Java source to /home/runner/work/spark/spark/external/avro/target/scala-2.12/classes ...[0m
+2021-08-26T06:48:08.3345764Z [0m[[0m[33mwarn[0m] [0m[0m/home/runner/work/spark/spark/external/avro/src/main/java/org/apache/spark/sql/avro/SparkAvroKeyOutputFormat.java:55:1:  [unchecked] unchecked call to SparkAvroKeyRecordWriter(Schema,GenericData,CodecFactory,OutputStream,int,Map<String,String>) as a member of the raw type SparkAvroKeyRecordWriter[0m
+2021-08-26T06:48:08.3350684Z [0m[[0m[33mwarn[0m] [0m[0m      return new SparkAvroKeyRecordWriter([0m
+2021-08-26T06:48:08.3352015Z [0m[[0m[33mwarn[0m] [0m[0m             ^[0m
+2021-08-26T06:48:08.3392602Z [0m[[0m[33mwarn[0m] [0m[0m/home/runner/work/spark/spark/external/avro/src/main/java/org/apache/spark/sql/avro/SparkAvroKeyOutputFormat.java:74:1:  [unchecked] unchecked call to DataFileWriter(DatumWriter<D>) as a member of the raw type DataFileWriter[0m
+2021-08-26T06:48:08.3395661Z [0m[[0m[33mwarn[0m] [0m[0m    this.mAvroFileWriter = new DataFileWriter(dataModel.createDatumWriter(writerSchema));[0m
+2021-08-26T06:48:08.3397487Z [0m[[0m[33mwarn[0m] [0m[0m                           ^  where D is a type-variable:[0m
+2021-08-26T06:48:08.3398830Z [0m[[0m[33mwarn[0m] [0m[0m    D extends Object declared in class DataFileWriter[0m
+2021-08-26T06:48:08.4159101Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:48:08.4401636Z [0m[[0m[0minfo[0m] [0m[0mcompiling 327 Scala sources and 5 Java sources to /home/runner/work/spark/spark/mllib/target/scala-2.12/classes ...[0m
+2021-08-26T06:48:11.9597967Z [0m[[0m[0minfo[0m] [0m[0mNote: /home/runner/work/spark/spark/sql/hive/src/main/java/org/apache/hadoop/hive/ql/io/orc/SparkOrcNewRecordReader.java uses or overrides a deprecated API.[0m
+2021-08-26T06:48:11.9641199Z [0m[[0m[0minfo[0m] [0m[0mNote: Recompile with -Xlint:deprecation for details.[0m
+2021-08-26T06:48:12.0331799Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:48:12.0974017Z [0m[[0m[0minfo[0m] [0m[0mcompiling 4 Scala sources to /home/runner/work/spark/spark/repl/target/scala-2.12/classes ...[0m
+2021-08-26T06:48:13.0166945Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:48:13.0492322Z [0m[[0m[0minfo[0m] [0m[0mcompiling 31 Scala sources and 1 Java source to /home/runner/work/spark/spark/external/kafka-0-10-sql/target/scala-2.12/classes ...[0m
+2021-08-26T06:48:17.1221481Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:48:17.2603499Z [0m[[0m[33mwarn[0m] [0m[0mmultiple main classes detected: run 'show discoveredMainClasses' to see the list[0m
+2021-08-26T06:48:20.5410628Z [0m[[0m[0minfo[0m] [0m[0mcompiling 494 Scala sources and 45 Java sources to /home/runner/work/spark/spark/sql/core/target/scala-2.12/test-classes ...[0m
+2021-08-26T06:48:54.8543583Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:48:55.9798578Z [0m[[0m[0minfo[0m] [0m[0mcompiling 2 Scala sources to /home/runner/work/spark/spark/hadoop-cloud/target/scala-2.12/test-classes ...[0m
+2021-08-26T06:48:56.6439113Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:48:56.6661216Z [0m[[0m[0minfo[0m] [0m[0mcompiling 27 Scala sources and 86 Java sources to /home/runner/work/spark/spark/sql/hive-thriftserver/target/scala-2.12/classes ...[0m
+2021-08-26T06:49:04.3921148Z [0m[[0m[0minfo[0m] [0m[0mNote: Some input files use or override a deprecated API.[0m
+2021-08-26T06:49:04.3970343Z [0m[[0m[0minfo[0m] [0m[0mNote: Recompile with -Xlint:deprecation for details.[0m
+2021-08-26T06:49:05.0500493Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:49:05.1172066Z [0m[[0m[33mwarn[0m] [0m[0mmultiple main classes detected: run 'show discoveredMainClasses' to see the list[0m
+2021-08-26T06:49:06.8544528Z [0m[[0m[33mwarn[0m] [0m[0mmultiple main classes detected: run 'show discoveredMainClasses' to see the list[0m
+2021-08-26T06:49:09.0362436Z [0m[[0m[0minfo[0m] [0m[0mcompiling 5 Scala sources to /home/runner/work/spark/spark/repl/target/scala-2.12/test-classes ...[0m
+2021-08-26T06:49:09.9703285Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:49:10.5979570Z [0m[[0m[0minfo[0m] [0m[0mcompiling 204 Scala sources and 135 Java sources to /home/runner/work/spark/spark/examples/target/scala-2.12/classes ...[0m
+2021-08-26T06:49:24.4501820Z [0m[[0m[0minfo[0m] [0m[0mNote: /home/runner/work/spark/spark/examples/src/main/java/org/apache/spark/examples/ml/JavaChiSqSelectorExample.java uses or overrides a deprecated API.[0m
+2021-08-26T06:49:24.4531206Z [0m[[0m[0minfo[0m] [0m[0mNote: Recompile with -Xlint:deprecation for details.[0m
+2021-08-26T06:49:25.2527224Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:49:25.7697684Z [0m[[0m[33mwarn[0m] [0m[0mmultiple main classes detected: run 'show discoveredMainClasses' to see the list[0m
+2021-08-26T06:51:20.6241515Z [0m[[0m[0minfo[0m] [0m[0mNote: Some input files use or override a deprecated API.[0m
+2021-08-26T06:51:20.6251190Z [0m[[0m[0minfo[0m] [0m[0mNote: Recompile with -Xlint:deprecation for details.[0m
+2021-08-26T06:51:21.0516867Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:51:22.6874197Z [0m[[0m[33mwarn[0m] [0m[0mmultiple main classes detected: run 'show discoveredMainClasses' to see the list[0m
+2021-08-26T06:51:22.9843902Z [0m[[0m[0minfo[0m] [0m[0mcompiling 21 Scala sources to /home/runner/work/spark/spark/external/kafka-0-10-sql/target/scala-2.12/test-classes ...[0m
+2021-08-26T06:51:27.3581115Z [0m[[0m[0minfo[0m] [0m[0mcompiling 20 Scala sources to /home/runner/work/spark/spark/external/docker-integration-tests/target/scala-2.12/test-classes ...[0m
+2021-08-26T06:51:29.9972933Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:51:30.0232334Z [0m[[0m[0minfo[0m] [0m[0mcompiling 12 Scala sources and 1 Java source to /home/runner/work/spark/spark/external/avro/target/scala-2.12/test-classes ...[0m
+2021-08-26T06:51:30.6611715Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:51:30.8640046Z [0m[[0m[0minfo[0m] [0m[0mcompiling 205 Scala sources and 66 Java sources to /home/runner/work/spark/spark/mllib/target/scala-2.12/test-classes ...[0m
+2021-08-26T06:51:37.4118028Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:51:37.4508690Z [0m[[0m[0minfo[0m] [0m[0mcompiling 113 Scala sources and 17 Java sources to /home/runner/work/spark/spark/sql/hive/target/scala-2.12/test-classes ...[0m
+2021-08-26T06:52:08.8131942Z [0m[[0m[33mwarn[0m] [0m[0m/home/runner/work/spark/spark/sql/hive/src/test/java/org/apache/spark/sql/hive/test/Complex.java:464:1:  [unchecked] unchecked cast[0m
+2021-08-26T06:52:08.8140156Z [0m[[0m[33mwarn[0m] [0m[0m        setLint((List<Integer>)value);[0m
+2021-08-26T06:52:08.8151575Z [0m[[0m[33mwarn[0m] [0m[0m                               ^  required: List<Integer>[0m
+2021-08-26T06:52:08.8175278Z [0m[[0m[33mwarn[0m] [0m[0m  found:    Object[0m
+2021-08-26T06:52:08.8371282Z [0m[[0m[33mwarn[0m] [0m[0m/home/runner/work/spark/spark/sql/hive/src/test/java/org/apache/spark/sql/hive/test/Complex.java:472:1:  [unchecked] unchecked cast[0m
+2021-08-26T06:52:08.8379055Z [0m[[0m[33mwarn[0m] [0m[0m        setLString((List<String>)value);[0m
+2021-08-26T06:52:08.8382025Z [0m[[0m[33mwarn[0m] [0m[0m                                 ^  required: List<String>[0m
+2021-08-26T06:52:08.8385362Z [0m[[0m[33mwarn[0m] [0m[0m  found:    Object[0m
+2021-08-26T06:52:08.8386759Z [0m[[0m[33mwarn[0m] [0m[0m/home/runner/work/spark/spark/sql/hive/src/test/java/org/apache/spark/sql/hive/test/Complex.java:480:1:  [unchecked] unchecked cast[0m
+2021-08-26T06:52:08.8388108Z [0m[[0m[33mwarn[0m] [0m[0m        setLintString((List<IntString>)value);[0m
+2021-08-26T06:52:08.8392687Z [0m[[0m[33mwarn[0m] [0m[0m                                       ^  required: List<IntString>[0m
+2021-08-26T06:52:08.8393584Z [0m[[0m[33mwarn[0m] [0m[0m  found:    Object[0m
+2021-08-26T06:52:08.8400895Z [0m[[0m[33mwarn[0m] [0m[0m/home/runner/work/spark/spark/sql/hive/src/test/java/org/apache/spark/sql/hive/test/Complex.java:488:1:  [unchecked] unchecked cast[0m
+2021-08-26T06:52:08.8408728Z [0m[[0m[33mwarn[0m] [0m[0m        setMStringString((Map<String,String>)value);[0m
+2021-08-26T06:52:08.8414391Z [0m[[0m[33mwarn[0m] [0m[0m                                             ^  required: Map<String,String>[0m
+2021-08-26T06:52:08.8417493Z [0m[[0m[33mwarn[0m] [0m[0m  found:    Object[0m
+2021-08-26T06:52:08.8423740Z [0m[[0m[33mwarn[0m] [0m[0m/home/runner/work/spark/spark/sql/hive/src/test/java/org/apache/spark/sql/hive/test/Complex.java:749:1:  [unchecked] unchecked call to read(TProtocol,T) as a member of the raw type IScheme[0m
+2021-08-26T06:52:08.8431828Z [0m[[0m[33mwarn[0m] [0m[0m    schemes.get(iprot.getScheme()).getScheme().read(iprot, this);[0m
+2021-08-26T06:52:08.8433295Z [0m[[0m[33mwarn[0m] [0m[0m                                                   ^  where T is a type-variable:[0m
+2021-08-26T06:52:08.8437794Z [0m[[0m[33mwarn[0m] [0m[0m    T extends TBase declared in interface IScheme[0m
+2021-08-26T06:52:08.8439523Z [0m[[0m[33mwarn[0m] [0m[0m/home/runner/work/spark/spark/sql/hive/src/test/java/org/apache/spark/sql/hive/test/Complex.java:753:1:  [unchecked] unchecked call to write(TProtocol,T) as a member of the raw type IScheme[0m
+2021-08-26T06:52:08.8445924Z [0m[[0m[33mwarn[0m] [0m[0m    schemes.get(oprot.getScheme()).getScheme().write(oprot, this);[0m
+2021-08-26T06:52:08.8447191Z [0m[[0m[33mwarn[0m] [0m[0m                                                    ^  where T is a type-variable:[0m
+2021-08-26T06:52:08.8450773Z [0m[[0m[33mwarn[0m] [0m[0m    T extends TBase declared in interface IScheme[0m
+2021-08-26T06:52:08.8452846Z [0m[[0m[33mwarn[0m] [0m[0m/home/runner/work/spark/spark/sql/hive/src/test/java/org/apache/spark/sql/hive/test/Complex.java:1027:1:  [unchecked] getScheme() in ComplexTupleSchemeFactory implements <S>getScheme() in SchemeFactory[0m
+2021-08-26T06:52:08.8458357Z [0m[[0m[33mwarn[0m] [0m[0m    public ComplexTupleScheme getScheme() {[0m
+2021-08-26T06:52:08.8459713Z [0m[[0m[33mwarn[0m] [0m[0m                              ^  return type requires unchecked conversion from ComplexTupleScheme to S[0m
+2021-08-26T06:52:08.8463594Z [0m[[0m[33mwarn[0m] [0m[0m  where S is a type-variable:[0m
+2021-08-26T06:52:08.8464804Z [0m[[0m[33mwarn[0m] [0m[0m    S extends IScheme declared in method <S>getScheme()[0m
+2021-08-26T06:52:08.8466445Z [0m[[0m[33mwarn[0m] [0m[0mNote: /home/runner/work/spark/spark/sql/hive/src/test/java/org/apache/spark/sql/hive/JavaDataFrameSuite.java uses or overrides a deprecated API.[0m
+2021-08-26T06:52:08.8471094Z [0m[[0m[33mwarn[0m] [0m[0mNote: Recompile with -Xlint:deprecation for details.[0m
+2021-08-26T06:52:08.8472326Z [0m[[0m[33mwarn[0m] [0m[0m8 warnings[0m
+2021-08-26T06:52:09.0775103Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:52:09.6046465Z [0m[[0m[33mwarn[0m] [0m[0mmultiple main classes detected: run 'show discoveredMainClasses' to see the list[0m
+2021-08-26T06:52:09.6127769Z [0m[[0m[33mwarn[0m] [0m[0mmultiple main classes detected: run 'show discoveredMainClasses' to see the list[0m
+2021-08-26T06:52:14.7968450Z [0m[[0m[0minfo[0m] [0m[0mcompiling 18 Scala sources to /home/runner/work/spark/spark/sql/hive-thriftserver/target/scala-2.12/test-classes ...[0m
+2021-08-26T06:52:18.7560622Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:52:33.6764772Z [0m[[0m[0minfo[0m] [0m[0mdone compiling[0m
+2021-08-26T06:52:39.7856870Z [0m[[0m[31merror[0m] [0m[0mjava.lang.RuntimeException: Failing because of negative scalastyle result[0m
+2021-08-26T06:52:39.7860525Z [0m[[0m[31merror[0m] [0m[0m	at scala.sys.package$.error(package.scala:30)[0m
+2021-08-26T06:52:39.7866268Z [0m[[0m[31merror[0m] [0m[0m	at org.scalastyle.sbt.Tasks$.handleResult$1(Plugin.scala:132)[0m
+2021-08-26T06:52:39.7876203Z [0m[[0m[31merror[0m] [0m[0m	at org.scalastyle.sbt.Tasks$.doScalastyleWithConfig$1(Plugin.scala:187)[0m
+2021-08-26T06:52:39.7878000Z [0m[[0m[31merror[0m] [0m[0m	at org.scalastyle.sbt.Tasks$.doScalastyle(Plugin.scala:192)[0m
+2021-08-26T06:52:39.7879485Z [0m[[0m[31merror[0m] [0m[0m	at SparkBuild$.$anonfun$cachedScalaStyle$2(SparkBuild.scala:173)[0m
+2021-08-26T06:52:39.7890470Z [0m[[0m[31merror[0m] [0m[0m	at sbt.util.FileFunction$.$anonfun$cached$1(FileFunction.scala:80)[0m
+2021-08-26T06:52:39.7895656Z [0m[[0m[31merror[0m] [0m[0m	at sbt.util.FileFunction$.$anonfun$cached$4(FileFunction.scala:153)[0m
+2021-08-26T06:52:39.7897267Z [0m[[0m[31merror[0m] [0m[0m	at sbt.util.Difference.apply(Tracked.scala:414)[0m
+2021-08-26T06:52:39.7898851Z [0m[[0m[31merror[0m] [0m[0m	at sbt.util.Difference.apply(Tracked.scala:394)[0m
+2021-08-26T06:52:39.7904185Z [0m[[0m[31merror[0m] [0m[0m	at sbt.util.FileFunction$.$anonfun$cached$3(FileFunction.scala:149)[0m
+2021-08-26T06:52:39.7905954Z [0m[[0m[31merror[0m] [0m[0m	at sbt.util.Difference.apply(Tracked.scala:414)[0m
+2021-08-26T06:52:39.7909957Z [0m[[0m[31merror[0m] [0m[0m	at sbt.util.Difference.apply(Tracked.scala:389)[0m
+2021-08-26T06:52:39.7911536Z [0m[[0m[31merror[0m] [0m[0m	at sbt.util.FileFunction$.$anonfun$cached$2(FileFunction.scala:148)[0m
+2021-08-26T06:52:39.7915848Z [0m[[0m[31merror[0m] [0m[0m	at SparkBuild$.$anonfun$cachedScalaStyle$1(SparkBuild.scala:179)[0m
+2021-08-26T06:52:39.7917347Z [0m[[0m[31merror[0m] [0m[0m	at scala.Function1.$anonfun$compose$1(Function1.scala:49)[0m
+2021-08-26T06:52:39.7922237Z [0m[[0m[31merror[0m] [0m[0m	at sbt.internal.util.$tilde$greater.$anonfun$$u2219$1(TypeFunctions.scala:62)[0m
+2021-08-26T06:52:39.7923774Z [0m[[0m[31merror[0m] [0m[0m	at sbt.std.Transform$$anon$4.work(Transform.scala:68)[0m
+2021-08-26T06:52:39.7924950Z [0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.$anonfun$submit$2(Execute.scala:282)[0m
+2021-08-26T06:52:39.7929354Z [0m[[0m[31merror[0m] [0m[0m	at sbt.internal.util.ErrorHandling$.wideConvert(ErrorHandling.scala:23)[0m
+2021-08-26T06:52:39.7931107Z [0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.work(Execute.scala:291)[0m
+2021-08-26T06:52:39.7935088Z [0m[[0m[31merror[0m] [0m[0m	at sbt.Execute.$anonfun$submit$1(Execute.scala:282)[0m
+2021-08-26T06:52:39.7936784Z [0m[[0m[31merror[0m] [0m[0m	at sbt.ConcurrentRestrictions$$anon$4.$anonfun$submitValid$1(ConcurrentRestrictions.scala:265)[0m
+2021-08-26T06:52:39.7941395Z [0m[[0m[31merror[0m] [0m[0m	at sbt.CompletionService$$anon$2.call(CompletionService.scala:64)[0m
+2021-08-26T06:52:39.7943196Z [0m[[0m[31merror[0m] [0m[0m	at java.util.concurrent.FutureTask.run(FutureTask.java:266)[0m
+2021-08-26T06:52:39.7944881Z [0m[[0m[31merror[0m] [0m[0m	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511)[0m
+2021-08-26T06:52:39.7951831Z [0m[[0m[31merror[0m] [0m[0m	at java.util.concurrent.FutureTask.run(FutureTask.java:266)[0m
+2021-08-26T06:52:39.7954040Z [0m[[0m[31merror[0m] [0m[0m	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)[0m
+2021-08-26T06:52:39.7959468Z [0m[[0m[31merror[0m] [0m[0m	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)[0m
+2021-08-26T06:52:39.7961455Z [0m[[0m[31merror[0m] [0m[0m	at java.lang.Thread.run(Thread.java:748)[0m
+2021-08-26T06:52:39.8130096Z [0m[[0m[31merror[0m] [0m[0m(yarn / [31mscalaStyleOnCompile[0m) Failing because of negative scalastyle result[0m
+2021-08-26T06:52:39.8335476Z [0m[[0m[31merror[0m] [0m[0mTotal time: 770 s (12:50), completed Aug 26, 2021 6:52:39 AM[0m
+2021-08-26T06:52:40.5610837Z [0J[error] running /home/runner/work/spark/spark/build/sbt -Phadoop-3.2 -Phive-2.3 -Phive-thriftserver -Phive -Pyarn -Pspark-ganglia-lgpl -Pkinesis-asl -Pmesos -Pdocker-integration-tests -Phadoop-cloud -Pkubernetes test:package streaming-kinesis-asl-assembly/assembly ; received return code 1
+2021-08-26T06:52:41.0337735Z ##[error]Process completed with exit code 16.
