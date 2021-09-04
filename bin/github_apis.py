@@ -234,7 +234,7 @@ def list_commits_for(pr_number: str, owner: str, repo: str, token: str,
 
 # https://docs.github.com/en/rest/reference/repos#list-commits
 def list_repo_commits(owner: str, repo: str, token: str,
-                      path: Optional[str], since: Optional[str] = None, until: Optional[str] = None,
+                      path: Optional[str] = None, since: Optional[str] = None, until: Optional[str] = None,
                       nmax: int = 100000, logger: Any = None) -> List[Tuple[str, str, str, str]]:
     _assert_github_prams(owner, repo, token)
 
