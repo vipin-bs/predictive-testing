@@ -25,7 +25,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 from datetime import datetime, timezone
 
 import github_apis
-import github_features
+import github_utils
 import spark_logs
 
 
@@ -247,7 +247,7 @@ def _traverse_pull_requests(output_path: str, since: Optional[datetime], max_num
                                 buf['files'] = []
                                 files, tests = user_test_results[commit]
                                 for file in files:
-                                    update_counts = github_features.count_file_updates(
+                                    update_counts = github_utils.count_file_updates(
                                         file['name'], commit_date, [3, 14, 56],
                                         params['GITHUB_OWNER'], params['GITHUB_REPO'], params['GITHUB_TOKEN'])
                                     buf['files'].append({'file': file, 'updated': update_counts})

@@ -19,7 +19,7 @@ import os
 import unittest
 import warnings
 
-import github_features
+import github_utils
 
 
 # Suppress warinig messages in REST APIs
@@ -34,7 +34,7 @@ if 'GITHUB_TOKEN' not in env:
 @unittest.skipIf(
     github_access_disabled,
     "envs 'GITHUB_TOKEN' must be defined to test 'github_apis'")
-class GitHubFeatureTests(unittest.TestCase):
+class GitHubUtilsTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -45,7 +45,7 @@ class GitHubFeatureTests(unittest.TestCase):
         cls._github_repo = 'spark'
 
     def test_count_file_updates(self):
-        update_counts = github_features.count_file_updates(
+        update_counts = github_utils.count_file_updates(
             'README.md',
             '2020-08-04T05:31:29Z',
             days=[365, 1460, 3650],

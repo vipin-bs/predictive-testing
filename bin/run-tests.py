@@ -33,7 +33,7 @@ from multiprocessing import Manager
 
 
 python_test_goals = [
-    "test_javaclass", "test_build_deps", "test_github_apis", "test_github_features"
+    "test_javaclass", "test_build_deps", "test_github_apis", "test_github_utils"
 ]
 
 
