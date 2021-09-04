@@ -37,10 +37,11 @@ def _trim_text(s: str, max_num: int) -> str:
     return s[0:max_num] + '...' if len(s) > max_num else s
 
 
+# NOTE: In case of a compilation failure, it returns None
 def _get_failed_tests(pr_user: str, pr_repo: str, job_name: str, job_id: str,
                       extract_failed_tests_from: Any,
                       params: Dict[str, str],
-                      logger: Any) -> List[str]:
+                      logger: Any) -> Optional[List[str]]:
    logs = github_apis.get_workflow_job_logs(job_id, pr_user, pr_repo, params['GITHUB_TOKEN'], logger=logger)
    return extract_failed_tests_from(logs)
 
@@ -87,7 +88,7 @@ def _get_test_results_from(owner: str, repo: str, params: Dict[str, str],
 
             if conclusion == 'success':
                 test_results[head] = (files, [])
-            else:  # failed case
+            else:  # failed run case
                 jobs = github_apis.list_workflow_jobs(run_id, owner, repo, params['GITHUB_TOKEN'], logger=logger)
                 selected_jobs: List[Tuple[str, str, str]] = []
                 for job in jobs:
@@ -97,19 +98,32 @@ def _get_test_results_from(owner: str, repo: str, params: Dict[str, str],
                     else:
                         logger.info(f"Job (run_id/job_id:{job_id}/{run_id}, name:'{run_name}':'{job_name}') skipped")
 
-                failed_tests = []
-                for job_id, job_name, conclusion in selected_jobs:
-                    logger.info(f"job_id:{job_id}, job_name:{job_name}, conclusion:{conclusion}")
-                    if conclusion == 'failure':
-                        tests = _get_failed_tests(owner, repo, job_name, job_id, extract_failed_tests_from,
-                                                  params, logger=logger)
-                        failed_tests.extend(tests)
-
-                # If we cannot detect any failed test in logs, just ignore it
-                if len(failed_tests) > 0:
-                    test_results[head] = (files, failed_tests)
+                all_selected_jobs_passed = len(list(filter(lambda j: j[2] == 'failure', selected_jobs))) == 0
+                if all_selected_jobs_passed:
+                    test_results[head] = (files, [])
                 else:
-                    logger.warning(f"No test failure found: owner={owner}, repo={repo}, run_id={run_id} run_name='{run_name}'")
+                    failed_tests = []
+                    for job_id, job_name, conclusion in selected_jobs:
+                        logger.info(f"job_id:{job_id}, job_name:{job_name}, conclusion:{conclusion}")
+                        if conclusion == 'failure':
+                            tests = _get_failed_tests(owner, repo, job_name, job_id, extract_failed_tests_from,
+                                                      params, logger=logger)
+                            if tests is not None:
+                                if len(tests) > 0:
+                                    failed_tests.extend(tests)
+                                else:
+                                    logger.warning(f"Cannot find any test failure in workfolow job (owner={owner}, repo={repo}, "
+                                                   f"run_id={run_id} job_name='{job_name}')")
+                            else:
+                                # If `tests` is None, it represents a compilation failure
+                                logging.info(f"Compilation failure found: job_id={job_id}")
+
+                    # If we cannot detect any failed test in logs, just ignore it
+                    if len(failed_tests) > 0:
+                        test_results[head] = (files, failed_tests)
+                    else:
+                        logger.info(f"No test failure found in workfolow run (owner={owner}, repo={repo}, "
+                                    f"run_id={run_id} run_name='{run_name}')")
 
         else:
             logger.info(f"Run (run_id:{run_id}, run_name:'{run_name}', event={event}, conclusion={conclusion}) skipped")
@@ -157,8 +171,13 @@ def _create_failed_test_extractor(p: str) -> Any:
     import re
     extractor = re.compile(p)
 
-    def extractor(logs: str) -> List[str]:
-        return extractor.findall(logs)
+    def extractor(logs: str) -> Optonal[List[str]]:
+        failed_tests = extractor.findall(logs)
+        if len(failed_tests) > 0:
+            return failed_tests
+        else:
+            # We assume a compilation failure in this case
+            return None
 
     return extractor
 

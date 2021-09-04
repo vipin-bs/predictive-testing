@@ -18,7 +18,7 @@
 #
 
 import re
-from typing import Any, List, Tuple
+from typing import Any, List, Optional, Tuple
 
 
 _target_workflow_runs = [
@@ -49,9 +49,9 @@ _RE_PYTHON_TEST = re.compile(r"Had test failures in (pyspark\.[a-zA-Z0-9\._]+) w
 
 
 # TODO: Needs to generalize this method
-def _extract_spark_failed_tests_from(logs: str) -> List[str]:
+def _extract_spark_failed_tests_from(logs: str) -> Optional[List[str]]:
     if _RE_COMPILE_FAILURE.search(logs) is not None:
-        return []
+        return None
 
     tests: List[str] = []
 
