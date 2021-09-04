@@ -32,7 +32,7 @@ jobs:
       - name: Install Python packages (Python ${{ matrix.python }})
         run: python -m pip install -r ./bin/requirements.txt
       - name: Run tests
-        env:
-          # GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # env:
+        #   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           CONDA_DISABLED=1 ./bin/run-tests
