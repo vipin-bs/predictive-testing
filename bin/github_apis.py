@@ -172,7 +172,7 @@ def list_pullreqs(owner: str, repo: str, token: str, since: Optional[datetime] =
             if check_updated(pullreq['updated_at']):
                 return pullreqs
 
-            if pullreq['head']['repo'] is not None:
+            if pullreq['head']['repo'] is not None and pullreq['head']['repo']['name'] != '':
                 pr_number = str(pullreq['number'])
                 pr_created_at = pullreq['created_at']
                 pr_updated_at = pullreq['updated_at']

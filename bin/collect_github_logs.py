@@ -213,31 +213,29 @@ def _traverse_pull_requests(output_path: str, since: Optional[datetime], max_num
                 logger.warning(f"No valid test result found in workflows ({pr_user}/{pr_repo})")
             else:
                 for pr_number, pr_created_at, pr_updated_at, pr_title, pr_body, pr_user, pr_repo, pr_branch in pullreqs:
-                    if pr_repo != '':
-                        commits = github_apis.list_commits_for(pr_number, params['GITHUB_OWNER'], params['GITHUB_REPO'], params['GITHUB_TOKEN'],
-                                                               since=None, logger=logger)
-                        logger.info(f"pullreq#{pr_number} has {len(commits)} commits (created_at:{pr_created_at}, updated_at:{pr_updated_at})")
+                    commits = github_apis.list_commits_for(pr_number, params['GITHUB_OWNER'], params['GITHUB_REPO'], params['GITHUB_TOKEN'],
+                                                           since=None, logger=logger)
+                    logger.info(f"pullreq#{pr_number} has {len(commits)} commits (created_at:{pr_created_at}, updated_at:{pr_updated_at})")
+                    for (commit, commit_date, commit_message) in commits:
+                        logger.info(f"commit:{commit}, commit_date:{commit_date}")
+                        if commit in user_test_results:
+                            buf: Dict[str, Any] = {}
+                            buf['author'] = pr_user
+                            buf['commit_date'] = github_apis.format_github_datetime(commit_date, '%Y/%m/%d %H:%M:%S')
+                            buf['commit_message'] = commit_message
+                            buf['title'] = pr_title
+                            buf['body'] = pr_body
+                            buf['files'] = []
+                            files, tests = user_test_results[commit]
+                            for file in files:
+                                update_counts = github_utils.count_file_updates(
+                                    file['name'], commit_date, [3, 14, 56],
+                                    params['GITHUB_OWNER'], params['GITHUB_REPO'], params['GITHUB_TOKEN'])
+                                buf['files'].append({'file': file, 'updated': update_counts})
 
-                        for (commit, commit_date, commit_message) in commits:
-                            logger.info(f"commit:{commit}, commit_date:{commit_date}")
-                            if commit in user_test_results:
-                                buf: Dict[str, Any] = {}
-                                buf['author'] = pr_user
-                                buf['commit_date'] = github_apis.format_github_datetime(commit_date, '%Y/%m/%d %H:%M:%S')
-                                buf['commit_message'] = commit_message
-                                buf['title'] = pr_title
-                                buf['body'] = pr_body
-                                buf['files'] = []
-                                files, tests = user_test_results[commit]
-                                for file in files:
-                                    update_counts = github_utils.count_file_updates(
-                                        file['name'], commit_date, [3, 14, 56],
-                                        params['GITHUB_OWNER'], params['GITHUB_REPO'], params['GITHUB_TOKEN'])
-                                    buf['files'].append({'file': file, 'updated': update_counts})
-
-                                buf['failed_tests'] = tests
-                                output.write(json.dumps(buf))
-                                output.flush()
+                            buf['failed_tests'] = tests
+                            output.write(json.dumps(buf))
+                            output.flush()
 
 
 def _traverse_github_logs(traverse_func: Any, output_path: str, since: Optional[str], max_num_pullreqs: int, params: Dict[str, str]) -> None:
