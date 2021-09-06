@@ -57,7 +57,7 @@ _compilation_failure_patterns = [
 ]
 
 
-def create_spark_workflow_handlers() -> Tuple[List[str], List[str], Any]:
+def create_spark_workflow_handlers() -> Tuple[List[str], List[str], List[str], List[str]]:
     failed_test_extractor = github_utils.create_failed_test_extractor(_test_failure_patterns, _compilation_failure_patterns)
     return _target_workflow_runs, _target_workflow_jobs, \
-        failed_test_extractor
+        _test_failure_patterns, _compilation_failure_patterns

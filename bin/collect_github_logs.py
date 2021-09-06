@@ -59,8 +59,10 @@ def _create_name_filter(targets: Optional[List[str]]) -> Any:
 
 
 def _get_test_results_from(owner: str, repo: str, params: Dict[str, str],
-                           target_runs: Optional[List[str]], target_jobs: Optional[List[str]],
-                           extract_failed_tests_from: Any,
+                           target_runs: Optional[List[str]],
+                           target_jobs: Optional[List[str]],
+                           test_failure_patterns: List[str],
+                           compilation_failure_patterns: List[str],
                            since: Optional[datetime],
                            logger: Any) -> Dict[str, Tuple[str, str, List[Dict[str, str]], List[str]]]:
     test_results: Dict[str, Tuple[str, str, List[Dict[str, str]], List[str]]] = {}
@@ -68,6 +70,8 @@ def _get_test_results_from(owner: str, repo: str, params: Dict[str, str],
     # Creates filter functions based on the specified target lists
     run_filter = _create_name_filter(target_runs)
     job_filter = _create_name_filter(target_jobs)
+
+    extract_failed_tests_from = github_utils.create_failed_test_extractor(test_failure_patterns, compilation_failure_patterns)
 
     runs = github_apis.list_workflow_runs(owner, repo, params['GITHUB_TOKEN'], since=since, logger=logger)
     for run_id, run_name, head_sha, event, conclusion, pr_number, head, base in tqdm.tqdm(runs, desc=f"Workflow Runs ({owner}/{repo})", leave=False):
@@ -133,7 +137,7 @@ def _get_test_results_from(owner: str, repo: str, params: Dict[str, str],
     return test_results
 
 
-def _create_workflow_handlers(proj: str) -> Tuple[Any, Any, Any]:
+def _create_workflow_handlers(proj: str) -> Tuple[List[str], List[str], List[str], List[str]]:
     if proj == 'spark':
         return spark_logs.create_spark_workflow_handlers()
     else:
@@ -189,11 +193,13 @@ def _traverse_pull_requests(output_path: str, since: Optional[datetime], max_num
         pullreqs_by_user[(pr_user, pr_repo)].append(pullreq)
 
     # Generates project-dependent run/job filters and log extractor
-    target_runs, target_jobs, extract_failed_tests_from = _create_workflow_handlers('spark')
+    target_runs, target_jobs, test_failure_patterns, compilation_failure_patterns = \
+        _create_workflow_handlers('spark')
 
     # Fetches test results from mainstream-side workflow jobs
     test_results = _get_test_results_from(params['GITHUB_OWNER'], params['GITHUB_REPO'], params,
-                                          target_runs, target_jobs, extract_failed_tests_from,
+                                          target_runs, target_jobs,
+                                          test_failure_patterns, compilation_failure_patterns,
                                           since=since, logger=logger)
 
     with open(f"{output_path}/github-logs.json", "w") as output:
@@ -224,7 +230,8 @@ def _traverse_pull_requests(output_path: str, since: Optional[datetime], max_num
 
             # Fetches test results from folk-side workflow jobs
             user_test_results = _get_test_results_from(pr_user, pr_repo, params,
-                                                       target_runs, target_jobs, extract_failed_tests_from,
+                                                       target_runs, target_jobs,
+                                                       test_failure_patterns, compilation_failure_patterns,
                                                        since=since, logger=logger)
 
             # Merges the tests results with mainstream's ones
