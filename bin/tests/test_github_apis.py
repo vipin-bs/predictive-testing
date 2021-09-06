@@ -101,7 +101,9 @@ class GitHubApiTests(unittest.TestCase):
 
     def test_list_change_files_from(self):
         ref = '5a510cf578c84e3edb7fb58d16c332ca141be913'
-        files = github_apis.list_change_files_from(ref, self._github_owner, self._github_repo, self._github_token)
+        commit_date, commit_message, files = github_apis.list_change_files_from(ref, self._github_owner, self._github_repo, self._github_token)
+        self.assertEqual(commit_date, '2021-06-22T08:15:35Z')
+        self.assertTrue(commit_message.startswith('[SPARK-35726][SPARK-35769][SQL][FOLLOWUP]'))
         self.assertEqual(sorted(files), [
             ('sql/core/src/main/scala/org/apache/spark/sql/execution/HiveResult.scala', '10', '2', '12')
         ])
@@ -109,7 +111,9 @@ class GitHubApiTests(unittest.TestCase):
     def test_list_change_files_between(self):
         base = '5a510cf578c84e3edb7fb58d16c332ca141be913'
         head = 'bc61b62a55c5c3ace181aef53e26a5ddcd6b85bf'
-        files = github_apis.list_change_files_between(base, head, self._github_owner, self._github_repo, self._github_token)
+        commit_date, commit_message, files = github_apis.list_change_files_between(base, head, self._github_owner, self._github_repo, self._github_token)
+        self.assertEqual(commit_date, '2021-06-22T13:31:24Z')
+        self.assertTrue(commit_message.startswith('[SPARK-35838][BUILD][TESTS]'))
         self.assertEqual(sorted(files), [
             ('external/avro/pom.xml', '11', '0', '11'),
             ('external/kafka-0-10-sql/pom.xml', '11', '1', '12'),
@@ -163,7 +167,7 @@ class GitHubApiTests(unittest.TestCase):
         run_id = runs[0][0]
         jobs = github_apis.list_workflow_jobs(run_id, self._github_owner, self._github_repo, self._github_token, nmax=1)
         self.assertEqual(len(jobs), 1)
-        job_id = jobs[0][0]
+        job_id, _, _ = jobs[0]
         logs = github_apis.get_workflow_job_logs(job_id, self._github_owner, self._github_repo, self._github_token)
         self.assertIsNotNone(logs)
 

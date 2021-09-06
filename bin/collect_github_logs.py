@@ -62,8 +62,8 @@ def _get_test_results_from(owner: str, repo: str, params: Dict[str, str],
                            target_runs: Optional[List[str]], target_jobs: Optional[List[str]],
                            extract_failed_tests_from: Any,
                            since: Optional[datetime],
-                           logger: Any) -> Dict[str, Tuple[List[Dict[str, str]], List[str]]]:
-    test_results: Dict[str, Tuple[List[Dict[str, str]], List[str]]] = {}
+                           logger: Any) -> Dict[str, Tuple[str, str, List[Dict[str, str]], List[str]]]:
+    test_results: Dict[str, Tuple[str, str, List[Dict[str, str]], List[str]]] = {}
 
     # Creates filter functions based on the specified target lists
     run_filter = _create_name_filter(target_runs)
@@ -76,11 +76,11 @@ def _get_test_results_from(owner: str, repo: str, params: Dict[str, str],
         if run_filter(run_name) and conclusion in ['success', 'failure']:
             if pr_number.isdigit():
                 # List up all the updated files between 'base' and 'head' as corresponding to this run
-                changed_files = github_apis.list_change_files_between(
-                    base, head, owner, repo, params['GITHUB_TOKEN'], logger=logger)
+                commit_date, commit_message, changed_files = \
+                    github_apis.list_change_files_between(base, head, owner, repo, params['GITHUB_TOKEN'], logger=logger)
             else:
-                changed_files = github_apis.list_change_files_from(
-                    head_sha, owner, repo, params['GITHUB_TOKEN'], logger=logger)
+                commit_date, commit_message, changed_files = \
+                    github_apis.list_change_files_from(head_sha, owner, repo, params['GITHUB_TOKEN'], logger=logger)
 
             files: List[Dict[str, str]] = []
             for file in changed_files:
@@ -88,7 +88,7 @@ def _get_test_results_from(owner: str, repo: str, params: Dict[str, str],
                 files.append({'name': filename, 'additions': additions, 'deletions': deletions, 'changes': changes})
 
             if conclusion == 'success':
-                test_results[head] = (files, [])
+                test_results[head] = (commit_date, commit_message, files, [])
             else:  # failed run case
                 jobs = github_apis.list_workflow_jobs(run_id, owner, repo, params['GITHUB_TOKEN'], logger=logger)
                 selected_jobs: List[Tuple[str, str, str]] = []
@@ -101,7 +101,7 @@ def _get_test_results_from(owner: str, repo: str, params: Dict[str, str],
 
                 all_selected_jobs_passed = len(list(filter(lambda j: j[2] == 'failure', selected_jobs))) == 0
                 if all_selected_jobs_passed:
-                    test_results[head] = (files, [])
+                    test_results[head] = (commit_date, commit_message, files, [])
                 else:
                     failed_tests = []
                     for job_id, job_name, conclusion in selected_jobs:
@@ -121,7 +121,7 @@ def _get_test_results_from(owner: str, repo: str, params: Dict[str, str],
 
                     # If we cannot detect any failed test in logs, just ignore it
                     if len(failed_tests) > 0:
-                        test_results[head] = (files, failed_tests)
+                        test_results[head] = (commit_date, commit_message, files, failed_tests)
                     else:
                         logger.info(f"No test failure found in workfolow run (owner={owner}, repo={repo}, "
                                     f"run_id={run_id} run_name='{run_name}')")
@@ -197,6 +197,26 @@ def _traverse_pull_requests(output_path: str, since: Optional[datetime], max_num
                                           since=since, logger=logger)
 
     with open(f"{output_path}/github-logs.json", "w") as output:
+
+        def _to_github_log(pr_user, commit_date, commit_message, files, tests, pr_title='', pr_body=''):
+            buf: Dict[str, Any] = {}
+
+            buf['author'] = pr_user
+            buf['commit_date'] = github_apis.format_github_datetime(commit_date, '%Y/%m/%d %H:%M:%S')
+            buf['commit_message'] = commit_message
+            buf['title'] = pr_title
+            buf['body'] = pr_body
+            buf['files'] = []
+
+            for file in files:
+                update_counts = github_utils.count_file_updates(
+                    file['name'], commit_date, [3, 14, 56],
+                    params['GITHUB_OWNER'], params['GITHUB_REPO'], params['GITHUB_TOKEN'])
+                buf['files'].append({'file': file, 'updated': update_counts})
+
+            buf['failed_tests'] = tests
+            return buf
+
         pb_title = f"Pull Reqests ({params['GITHUB_OWNER']}/{params['GITHUB_REPO']})"
         # TODO: Could we parallelize crawling jobs by users?
         for (pr_user, pr_repo), pullreqs in tqdm.tqdm(pullreqs_by_user.items(), desc=pb_title):
@@ -209,33 +229,28 @@ def _traverse_pull_requests(output_path: str, since: Optional[datetime], max_num
 
             # Merges the tests results with mainstream's ones
             user_test_results.update(test_results)
-            if len(user_test_results) == 0:
-                logger.warning(f"No valid test result found in workflows ({pr_user}/{pr_repo})")
-            else:
-                for pr_number, pr_created_at, pr_updated_at, pr_title, pr_body, pr_user, pr_repo, pr_branch in pullreqs:
-                    commits = github_apis.list_commits_for(pr_number, params['GITHUB_OWNER'], params['GITHUB_REPO'], params['GITHUB_TOKEN'],
-                                                           since=None, logger=logger)
-                    logger.info(f"pullreq#{pr_number} has {len(commits)} commits (created_at:{pr_created_at}, updated_at:{pr_updated_at})")
-                    for (commit, commit_date, commit_message) in commits:
-                        logger.info(f"commit:{commit}, commit_date:{commit_date}")
-                        if commit in user_test_results:
-                            buf: Dict[str, Any] = {}
-                            buf['author'] = pr_user
-                            buf['commit_date'] = github_apis.format_github_datetime(commit_date, '%Y/%m/%d %H:%M:%S')
-                            buf['commit_message'] = commit_message
-                            buf['title'] = pr_title
-                            buf['body'] = pr_body
-                            buf['files'] = []
-                            files, tests = user_test_results[commit]
-                            for file in files:
-                                update_counts = github_utils.count_file_updates(
-                                    file['name'], commit_date, [3, 14, 56],
-                                    params['GITHUB_OWNER'], params['GITHUB_REPO'], params['GITHUB_TOKEN'])
-                                buf['files'].append({'file': file, 'updated': update_counts})
 
-                            buf['failed_tests'] = tests
-                            output.write(json.dumps(buf))
-                            output.flush()
+            for pr_number, pr_created_at, pr_updated_at, pr_title, pr_body, pr_user, pr_repo, pr_branch in pullreqs:
+                commits = github_apis.list_commits_for(pr_number, params['GITHUB_OWNER'], params['GITHUB_REPO'], params['GITHUB_TOKEN'],
+                                                       since=None, logger=logger)
+                logger.info(f"pullreq#{pr_number} has {len(commits)} commits (created_at:{pr_created_at}, updated_at:{pr_updated_at})")
+
+                matched: Set[str] = set()
+                for (commit, commit_date, commit_message) in commits:
+                    logger.info(f"commit:{commit}, commit_date:{commit_date}")
+                    if commit in user_test_results:
+                        matched.add(commit)
+
+                        _, _, files, tests = user_test_results[commit]
+                        data = _to_github_log(pr_user, commit_date, commit_message, files, tests, pr_title, pr_body)
+                        output.write(json.dumps(data))
+                        output.flush()
+
+                for head_sha, (commit_date, commit_message, files, tests) in user_test_results.items():
+                    if head_sha not in test_results and head_sha not in matched:
+                        data = _to_github_log(pr_user, commit_date, commit_message, files, tests)
+                        output.write(json.dumps(data))
+                        output.flush()
 
 
 def _traverse_github_logs(traverse_func: Any, output_path: str, since: Optional[str], max_num_pullreqs: int, params: Dict[str, str]) -> None:

@@ -282,16 +282,28 @@ def list_repo_commits(owner: str, repo: str, token: str,
     return []
 
 
-def _list_change_files(api: str, token: str, logger: Any) -> List[Tuple[str, str, str, str]]:
+def _list_change_files(api: str, token: str, logger: Any) -> Tuple[str, str, List[Tuple[str, str, str, str]]]:
     logger = logger or _default_logger
 
-    files: List[Tuple[str, str, str, str]] = []
+    latest_page = _request_github_api(api, token, params={ 'per_page': '1' }, logger=logger)
+    assert _validate_dict_keys(latest_page, ['commits']) or \
+        _validate_dict_keys(latest_page, ['commit'])
+
+    if 'commits' in latest_page and len(latest_page['commits']) > 0:
+        latest_commit = latest_page['commits'][0]['commit']
+    elif 'commit' in latest_page:
+        latest_commit = latest_page['commit']
+
+    commit_date = latest_commit['author']['date']
+    commit_message = latest_commit['message']
+
+    files: Tuple[str, str, List[Tuple[str, str, str, str]]] = []
     npage = 1
     while True:
         params = { 'page': str(npage), 'per_page': '100' }
-        changed_files= _request_github_api(api, token, params=params, logger=logger)
+        changed_files = _request_github_api(api, token, params=params, logger=logger)
         if 'files' not in changed_files or len(changed_files['files']) == 0:
-             return files
+             return commit_date, commit_message, files
 
         for file in changed_files['files']:
             files.append((file['filename'], str(file['additions']), str(file['deletions']), str(file['changes'])))
@@ -304,14 +316,14 @@ def _list_change_files(api: str, token: str, logger: Any) -> List[Tuple[str, str
 
 # https://docs.github.com/en/rest/reference/repos#get-a-commit
 def list_change_files_from(ref: str, owner: str, repo: str, token: str,
-                           logger: Any = None) -> List[Tuple[str, str, str, str]]:
+                           logger: Any = None) -> Tuple[str, str, List[Tuple[str, str, str, str]]]:
     _assert_github_prams(owner, repo, token)
     return _list_change_files(f"repos/{owner}/{repo}/commits/{ref}", token, logger)
 
 
 # https://docs.github.com/en/rest/reference/repos#compare-two-commits
 def list_change_files_between(base: str, head: str, owner: str, repo: str, token: str,
-                              logger: Any = None) -> List[Tuple[str, str, str, str]]:
+                              logger: Any = None) -> Tuple[str, str, List[Tuple[str, str, str, str]]]:
     _assert_github_prams(owner, repo, token)
     return _list_change_files(f"repos/{owner}/{repo}/compare/{base}...{head}", token, logger)
 
