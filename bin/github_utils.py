@@ -45,6 +45,9 @@ def create_failed_test_extractor(test_failure_patterns: List[str],
     if compilation_failure_patterns is not None:
         compilation_failures = list(map(lambda p: re.compile(p), compilation_failure_patterns))
 
+    # TODO: It seems to be better to search the specified patterns from a tail to a head because
+    # the strings that represents build results (e.g., compilation/test failures)
+    # are likely to be placed in the end of logs.
     def extractor(logs: str) -> Optional[List[str]]:
         if compilation_failure_patterns is not None:
             for p in compilation_failures:
