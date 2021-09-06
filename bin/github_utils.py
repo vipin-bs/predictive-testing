@@ -85,7 +85,7 @@ def get_test_results_from(owner: str, repo: str, params: Dict[str, str],
                           target_jobs: Optional[List[str]],
                           test_failure_patterns: List[str],
                           compilation_failure_patterns: List[str],
-                          since: Optional[datetime],
+                          until: Optional[datetime], since: Optional[datetime],
                           tqdm_leave: bool,
                           logger: Any) -> Dict[str, Tuple[str, str, List[Dict[str, str]], List[str]]]:
     test_results: Dict[str, Tuple[str, str, List[Dict[str, str]], List[str]]] = {}
@@ -96,7 +96,7 @@ def get_test_results_from(owner: str, repo: str, params: Dict[str, str],
 
     extract_failed_tests_from = _create_failed_test_extractor(test_failure_patterns, compilation_failure_patterns)
 
-    runs = github_apis.list_workflow_runs(owner, repo, params['GITHUB_TOKEN'], since=since, logger=logger)
+    runs = github_apis.list_workflow_runs(owner, repo, params['GITHUB_TOKEN'], until=until, since=since, logger=logger)
     for run_id, run_name, head_sha, event, conclusion, pr_number, head, base in tqdm.tqdm(runs, desc=f"Workflow Runs ({owner}/{repo})", leave=tqdm_leave):
         logger.info(f"run_id:{run_id}, run_name:{run_name}, event:{event}, head_sha={head_sha}")
 

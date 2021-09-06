@@ -60,34 +60,58 @@ def _create_workflow_handlers(proj: str) -> Tuple[List[str], List[str], List[str
         raise ValueError(f'Unknown project type: {proj}')
 
 
-def _traverse_pull_requests(output_path: str, since: Optional[datetime], max_num_pullreqs: int,
-                            resume: bool, params: Dict[str, str],
+def _traverse_pull_requests(output_path: str,
+                            until: Optional[datetime], since: Optional[datetime],
+                            max_num_pullreqs: int, resume: bool,
+                            params: Dict[str, str],
                             logger: Any) -> None:
 
-    pullreq_file_path = f"{output_path}/pullreqs.json"
-    resume_file_path = f"{output_path}/.process-resume.txt"
+    owner = params['GITHUB_OWNER']
+    repo = params['GITHUB_REPO']
+    token = params['GITHUB_TOKEN']
+
+    # List of output file paths
+    run_meta_fpath = f"{output_path}/.run-meta.json"
+    resume_meta_fpath = f"{output_path}/.rusume-meta.lst"
+    pullreq_fpath = f"{output_path}/pullreqs.json"
 
     if not resume:
-        logger.info(f"Fetching candidate pull requests in {params['GITHUB_OWNER']}/{params['GITHUB_REPO']}...")
-        pullreqs = github_apis.list_pullreqs(params['GITHUB_OWNER'], params['GITHUB_REPO'], params['GITHUB_TOKEN'],
-                                             since=since, nmax=max_num_pullreqs, logger=logger)
+        logger.info(f"Fetching candidate pull requests in {owner}/{repo}...")
+        pullreqs = github_apis.list_pullreqs(owner, repo, token,
+                                             until=until, since=since,
+                                             nmax=max_num_pullreqs,
+                                             logger=logger)
         if len(pullreqs) == 0:
             raise RuntimeError('No valid pull request found')
 
-        # Dumps all the pull request logs to resume job
-        with open(pullreq_file_path, "w") as output:
+        with open(run_meta_fpath, "w") as output:
+            meta: Dict[str, str] = {}
+            meta['owner'] = owner
+            meta['repo'] = repo
+            meta['until'] = github_apis.to_github_datetime(datetime.now(timezone.utc))
+            if since is not None:
+                meta['since'] = github_apis.to_github_datetime(since)
+            output.write(json.dumps(meta))
+            output.flush()
+        with open(pullreq_fpath, "w") as output:
             output.write(json.dumps(pullreqs))
             output.flush()
     else:
-        if not os.path.exists(resume_file_path):
-            raise RuntimeError(f'Resume file not found in {os.path.abspath(resume_file_path)}')
+        if not os.path.exists(run_meta_fpath):
+            raise RuntimeError(f'Run meta file not found in {os.path.abspath(run_meta_fpath)}')
+        if not os.path.exists(resume_meta_fpath):
+            raise RuntimeError(f'Resume file not found in {os.path.abspath(resume_meta_fpath)}')
 
         from pathlib import Path
-        processed_user_set = set(Path(resume_file_path).read_text().split('\n'))
-        loaded_pullreqs = json.loads(Path(pullreq_file_path).read_text())
-        pullreqs = list(filter(lambda p: p[5] not in processed_user_set, loaded_pullreqs))
-        logger.info(f"{len(loaded_pullreqs)} pull requests loaded and {len(pullreqs)} ones "
-                    f"filtered by {os.path.abspath(resume_file_path)}")
+        run_meta = json.loads(Path(run_meta_fpath).read_text())
+        owner = run_meta['owner']
+        repo = run_meta['repo']
+        until = github_apis.from_github_datetime(run_meta['until'])
+        since = github_apis.from_github_datetime(run_meta['since']) if 'since' in run_meta else None
+        processed_user_set = set(Path(resume_meta_fpath).read_text().split('\n'))
+        pullreqs = list(filter(lambda p: p[5] not in processed_user_set, json.loads(Path(pullreq_fpath).read_text())))
+        logger.info("Resuming process: owner={}, repo={}, #pullreqs={}, until={}{}".format(
+            owner, repo, len(pullreqs), run_meta['until'], f", since={run_meta['since']}" if since else ""))
 
     # Groups pull requests by a user
     pullreqs_by_user: Dict[Tuple[str, str], List[Any]] = {}
@@ -103,15 +127,15 @@ def _traverse_pull_requests(output_path: str, since: Optional[datetime], max_num
         _create_workflow_handlers('spark')
 
     # Fetches test results from mainstream-side workflow jobs
-    test_results = github_utils.get_test_results_from(params['GITHUB_OWNER'], params['GITHUB_REPO'], params,
+    test_results = github_utils.get_test_results_from(owner, repo, params,
                                                       target_runs, target_jobs,
                                                       test_failure_patterns, compilation_failure_patterns,
-                                                      since=since, tqdm_leave=True,
+                                                      until=until, since=since, tqdm_leave=True,
                                                       logger=logger)
 
-    with open(f"{output_path}/github-logs.json", "a") as of, open(resume_file_path, "a") as rf:
+    with open(f"{output_path}/github-logs.json", "a") as of, open(resume_meta_fpath, "a") as rf:
         # TODO: Could we parallelize crawling jobs by users?
-        pb_title = f"Pull Reqests ({params['GITHUB_OWNER']}/{params['GITHUB_REPO']})"
+        pb_title = f"Pull Reqests ({owner}/{repo})"
         for (pr_user, pr_repo), pullreqs in tqdm.tqdm(pullreqs_by_user.items(), desc=pb_title):
             logger.info(f"pr_user:{pr_user}, pr_repo:{pr_repo}, #pullreqs:{len(pullreqs)}")
 
@@ -130,7 +154,7 @@ def _traverse_pull_requests(output_path: str, since: Optional[datetime], max_num
                 for file in files:
                     update_counts = github_utils.count_file_updates(
                         file['name'], commit_date, [3, 14, 56],
-                        params['GITHUB_OWNER'], params['GITHUB_REPO'], params['GITHUB_TOKEN'])
+                        owner, repo, token)
                     buf['files'].append({'file': file, 'updated': update_counts})
 
                 per_user_logs.append(buf)
@@ -145,15 +169,15 @@ def _traverse_pull_requests(output_path: str, since: Optional[datetime], max_num
             user_test_results = github_utils.get_test_results_from(pr_user, pr_repo, params,
                                                                    target_runs, target_jobs,
                                                                    test_failure_patterns, compilation_failure_patterns,
-                                                                   since=since, tqdm_leave=False,
+                                                                   until=until, since=since, tqdm_leave=False,
                                                                    logger=logger)
 
             # Merges the tests results with mainstream's ones
             user_test_results.update(test_results)
 
             for pr_number, pr_created_at, pr_updated_at, pr_title, pr_body, pr_user, pr_repo, pr_branch in pullreqs:
-                commits = github_apis.list_commits_for(pr_number, params['GITHUB_OWNER'], params['GITHUB_REPO'], params['GITHUB_TOKEN'],
-                                                       since=None, logger=logger)
+                commits = github_apis.list_commits_for(pr_number, owner, repo, token,
+                                                       until=until, since=since, logger=logger)
                 logger.info(f"pullreq#{pr_number} has {len(commits)} commits (created_at:{pr_created_at}, updated_at:{pr_updated_at})")
 
                 matched: Set[str] = set()
@@ -175,7 +199,7 @@ def _traverse_pull_requests(output_path: str, since: Optional[datetime], max_num
             rf.flush()
 
     # If all things done successfully, removes the resume file
-    os.remove(resume_file_path)
+    os.remove(resume_meta_fpath)
 
 
 def _to_rate_limit_msg(rate_limit: Dict[str, Any]) -> str:
@@ -185,21 +209,24 @@ def _to_rate_limit_msg(rate_limit: Dict[str, Any]) -> str:
     return f"limit={c['limit']}, used={c['used']}, remaining={c['remaining']}, reset={renewal}s"
 
 
-def _traverse_github_logs(traverse_func: Any, output_path: str, since: Optional[str], max_num_pullreqs: int,
-                          resume: bool, params: Dict[str, str]) -> None:
+def _traverse_github_logs(traverse_func: Any, output_path: str, overwrite: bool,
+                          until: Optional[str], since: Optional[str],
+                          max_num_pullreqs: int, resume: bool, params: Dict[str, str]) -> None:
     if len(output_path) == 0:
         raise ValueError("Output Path must be specified in '--output'")
     if len(params['GITHUB_TOKEN']) == 0:
         raise ValueError("GitHub token must be specified in '--github-token'")
-    if len(params['GITHUB_OWNER']) == 0:
+    if resume or len(params['GITHUB_OWNER']) == 0:
         raise ValueError("GitHub owner must be specified in '--github-owner'")
-    if len(params['GITHUB_REPO']) == 0:
+    if resume or len(params['GITHUB_REPO']) == 0:
         raise ValueError("GitHub repository must be specified in '--github-repo'")
 
     if resume and not os.path.exists(output_path):
         raise RuntimeError(f'Output path not found in {os.path.abspath(output_path)}')
     elif not resume:
         # Make an output dir in advance
+        import shutil
+        overwrite and shutil.rmtree(output_path, ignore_errors=True)
         os.mkdir(output_path)
 
     # For logger setup
@@ -208,14 +235,12 @@ def _traverse_github_logs(traverse_func: Any, output_path: str, since: Optional[
     # logger rate limit
     logger.info(f"rate_limit: {_to_rate_limit_msg(github_apis.get_rate_limit(params['GITHUB_TOKEN']))}")
 
-    # Parses a specified datetime string if possible
+    # Parses a specified datetime string if necessary
     import dateutil.parser as parser
-    if since is not None:
-        since = parser.parse(since)
-        logger.info(f"Target timestamp: since={github_apis.to_github_datetime(since)} "
-                    f"until={github_apis.to_github_datetime(datetime.now(timezone.utc))}")
+    until = parser.parse(until) if until else None
+    since = parser.parse(since) if since else None
 
-    traverse_func(output_path, since, max_num_pullreqs, resume, params, logger)
+    traverse_func(output_path, until, since, max_num_pullreqs, resume, params, logger)
 
 
 def _show_rate_limit(params: Dict[str, str]) -> None:
@@ -229,7 +254,9 @@ def main():
     from argparse import ArgumentParser
     parser = ArgumentParser()
     parser.add_argument('--output', dest='output', type=str, default='')
+    parser.add_argument('--overwrite', dest='overwrite', action='store_true')
     parser.add_argument('--max-num-pullreqs', dest='max_num_pullreqs', type=int, default=100000)
+    parser.add_argument('--until', dest='until', type=str)
     parser.add_argument('--since', dest='since', type=str)
     parser.add_argument('--github-token', dest='github_token', type=str, default='')
     parser.add_argument('--github-owner', dest='github_owner', type=str, default='')
@@ -245,9 +272,9 @@ def main():
     }
 
     if not args.show_rate_limit:
-        _traverse_github_logs(_traverse_pull_requests,
-                              args.output, args.since, args.max_num_pullreqs,
-                              args.resume, params)
+        _traverse_github_logs(_traverse_pull_requests, args.output, args.overwrite,
+                              args.until, args.since,
+                              args.max_num_pullreqs, args.resume, params)
     else:
         _show_rate_limit(params)
 

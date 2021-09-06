@@ -27,12 +27,83 @@ jobs:
           architecture: x64
       - name: Install Python packages (Python ${{ env.python }})
         run: python -m pip install -r ./bin/requirements.txt
-      - name: Run a script to collect GitHub logs in apache/spark
+      - name: Get latest workflow run status
+        uses: actions/github-script@v4
+        id: latest-workflow-status
+        with:
+          result-encoding: string
+          script: |
+            const runs = await github.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'collect-spark-logs.yml',
+              per_page: 2
+            })
+            if (runs.data.workflow_runs.length == 2) {
+              const status = runs.data.workflow_runs[1].conclusion
+              const run_id = runs.data.workflow_runs[1].id
+              return `{ 'status': '${status}', 'run_id': ${run_id} }`
+            } else {
+              return "{ 'status': 'success', 'run_id': -1 }"
+            }
+      - name: Get latest artifact archive url
+        uses: actions/github-script@v4
+        id: latest-artifact-archive-url
+        if: ${{ fromJson(steps.latest-workflow-status.outputs.result).status == 'failure' }}
+        with:
+          result-encoding: string
+          script: |
+            const artifacts = await github.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: ${{ fromJson(steps.latest-workflow-status.outputs.result).run_id }},
+              per_page: 1
+            })
+            if (artifacts.data.artifacts.length != 0) {
+              return artifacts.data.artifacts[0].archive_download_url
+            } else {
+              return ''
+            }
+      - name: Fetch latest artifact
+        if: ${{ steps.latest-artifact-archive-url.outputs.result != '' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          curl -L -H "Authorization: token $GITHUB_TOKEN" "${{ steps.latest-artifact-archive-url.outputs.result }}" -o output.zip
+          unzip -q output.zip -d latest_output
+      - name: Check if latest output exists
+        uses: andstor/file-existence-action@v1
+        id: check-if-latest-output-exists
+        with:
+          files: "latest_output/.run-meta.lst"
+      - name: Check if resume file exists
+        uses: andstor/file-existence-action@v1
+        id: check-if-resume-file-exists
+        with:
+          files: "latest_output/.resume-meta.lst"
+      # TODO: Could we merge the two entries below into one?
+      - name: Run script to collect GitHub logs since 1 month ago
+        if: ${{ steps.check-if-latest-output-exists.outputs.files_exists == 'false' }}
         env:
           GITHUB_TOKEN: ${{ secrets.LOG_CRAWLER_API_KEY }}
         run: |
           SINCE_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ" -d '1 month ago'`
-          ./bin/collect_github_logs.py --output output --github-token "${GITHUB_TOKEN}" --github-owner apache --github-repo spark --since "${SINCE_DATE}"
+          ./bin/collect_github_logs.py --github-token "${GITHUB_TOKEN}" --github-owner apache --github-repo spark --output output --overwrite --since "${SINCE_DATE}"
+      - name: Run script to collect GitHub logs since the latest run
+        if: ${{ steps.check-if-latest-output-exists.outputs.files_exists == 'true' &&
+              steps.check-if-resume-file-exists.outputs.files_exists == 'false' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.LOG_CRAWLER_API_KEY }}
+        run: |
+          SINCE_DATE=`cat output/.run-meta.json | jq --raw-output .until`
+          ./bin/collect_github_logs.py --github-token "${GITHUB_TOKEN}" --github-owner apache --github-repo spark --output output --overwrite --since "${SINCE_DATE}"
+      - name: Resume last run to collect GitHub logs
+        if: ${{ steps.check-if-resume-file-exists.outputs.files_exists == 'true' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.LOG_CRAWLER_API_KEY }}
+        run: |
+          mv latest_output output
+          ./bin/collect_github_logs.py --github-token "${GITHUB_TOKEN}" --output output --resume
       - name: Upload output as artifact
         if: always()
         uses: actions/upload-artifact@v2

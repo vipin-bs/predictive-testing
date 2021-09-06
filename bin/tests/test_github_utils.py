@@ -68,7 +68,7 @@ class GitHubUtilsTests(unittest.TestCase):
             "error.+? Compilation failed",
             "Failing because of negative scalastyle result"
         ]
-        extractor = github_utils.create_failed_test_extractor(test_failure_patterns, compilation_failure_patterns)
+        extractor = github_utils._create_failed_test_extractor(test_failure_patterns, compilation_failure_patterns)
 
         from pathlib import Path
         compilation_failure_logs_path = f"{self._test_data_path}/compilation_failures.log"

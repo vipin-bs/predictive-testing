@@ -116,19 +116,37 @@ def _always_false(d: str) -> bool:
     return False
 
 
+def _create_until_validator(until: datetime) -> Any:
+    def validator(d: str) -> bool:
+        return until < from_github_datetime(d)
+
+    return validator
+
+
 def _create_since_validator(since: datetime) -> Any:
-    def validate_with_since(d: str) -> bool:
-        return not since < from_github_datetime(d)
+    def validator(d: str) -> bool:
+        return since >= from_github_datetime(d)
 
-    return validate_with_since
+    return validator
 
 
-def _create_date_filter(since: Optional[datetime]) -> Any:
-    f = _always_false
-    if since is not None:
-        f = _create_since_validator(since)
+def _create_datetime_range_validator(until: datetime, since: datetime) -> Any:
+    def validator(d: str) -> bool:
+        return until < from_github_datetime(d) or \
+            since >= from_github_datetime(d)
 
-    return f
+    return validator
+
+
+def _create_date_filter(until: Optional[datetime], since: Optional[datetime]) -> Any:
+    if until is not None and since is not None:
+        return _create_datetime_range_validator(until, since)
+    elif until is not None:
+        return _create_until_validator(since)
+    elif since is not None:
+        return _create_since_validator(since)
+    else:
+        return _always_false
 
 
 def _validate_dict_keys(d: Any, expected_keys: List[str], logger: Any = _default_logger) -> bool:
@@ -151,14 +169,16 @@ def get_rate_limit(token: str, logger: Any = None) -> Dict[str, Any]:
 
 # https://docs.github.com/en/rest/reference/pulls#list-pull-requests
 @timeout_decorator.timeout(1800, timeout_exception=StopIteration)
-def list_pullreqs(owner: str, repo: str, token: str, since: Optional[datetime] = None, nmax: int = 100000,
+def list_pullreqs(owner: str, repo: str, token: str,
+                  until: Optional[datetime] = None, since: Optional[datetime] = None,
+                  nmax: int = 100000,
                   logger: Any = None) -> List[Tuple[str, str, str, str, str, str, str, str]]:
     _assert_github_prams(owner, repo, token)
 
     logger = logger or _default_logger
 
     pullreqs: List[Tuple[str, str, str, str, str, str, str, str]] = []
-    check_updated = _create_date_filter(since)
+    check_updated = _create_date_filter(until, since)
     rem_pages = nmax
     npage = 1
     while True:
@@ -199,14 +219,15 @@ def list_pullreqs(owner: str, repo: str, token: str, since: Optional[datetime] =
 
 # https://docs.github.com/en/rest/reference/pulls#list-commits-on-a-pull-request
 def list_commits_for(pr_number: str, owner: str, repo: str, token: str,
-                     since: Optional[datetime] = None, nmax: int = 100000,
+                     until: Optional[datetime] = None, since: Optional[datetime] = None,
+                     nmax: int = 100000,
                      logger: Any = None) -> List[Tuple[str, str, str]]:
     _assert_github_prams(owner, repo, token)
 
     logger = logger or _default_logger
 
     commits: List[Tuple[str, str, str]] = []
-    check_date = _create_date_filter(since)
+    check_date = _create_date_filter(until, since)
     rem_pages = nmax
     npage = 1
     while True:
@@ -330,7 +351,8 @@ def list_change_files_between(base: str, head: str, owner: str, repo: str, token
 
 
 # https://docs.github.com/en/rest/reference/actions#list-workflow-runs-for-a-repository
-def list_workflow_runs(owner: str, repo: str, token: str, since: Optional[datetime] = None,
+def list_workflow_runs(owner: str, repo: str, token: str,
+                       until: Optional[datetime] = None, since: Optional[datetime] = None,
                        nmax: int = 100000, logger: Any = None) -> List[Tuple[str, str, str, str, str, str, str, str]]:
     _assert_github_prams(owner, repo, token)
 
@@ -342,7 +364,7 @@ def list_workflow_runs(owner: str, repo: str, token: str, since: Optional[dateti
         return []
 
     runs: List[Tuple[str, str, str, str, str, str, str, str]] = []
-    check_updated = _create_date_filter(since)
+    check_updated = _create_date_filter(until, since)
     total_runs_count = int(latest_run['total_count'])
     num_pages = int(total_runs_count / 100) + 1
     rem_pages = nmax
