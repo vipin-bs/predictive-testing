@@ -38,6 +38,7 @@ _default_logger = _setup_default_logger()
 
 
 # The GitHub time format (UTC)
+# See: https://docs.github.com/en/rest/overview/resources-in-the-rest-api#timezones
 GITHUB_DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
 
 
