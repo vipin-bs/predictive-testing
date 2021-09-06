@@ -17,10 +17,7 @@
 # limitations under the License.
 #
 
-import re
-from typing import Any, List, Optional, Tuple
-
-import github_utils
+from typing import List, Tuple
 
 
 _target_workflow_runs = [
@@ -58,6 +55,5 @@ _compilation_failure_patterns = [
 
 
 def create_spark_workflow_handlers() -> Tuple[List[str], List[str], List[str], List[str]]:
-    failed_test_extractor = github_utils.create_failed_test_extractor(_test_failure_patterns, _compilation_failure_patterns)
     return _target_workflow_runs, _target_workflow_jobs, \
         _test_failure_patterns, _compilation_failure_patterns

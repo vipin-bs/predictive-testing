@@ -33,13 +33,24 @@ import spark_logs
 warnings.simplefilter('ignore')
 
 
-# NOTE: In case of a compilation failure, it returns None
-def _get_failed_tests(pr_user: str, pr_repo: str, job_name: str, job_id: str,
-                      extract_failed_tests_from: Any,
-                      params: Dict[str, str],
-                      logger: Any) -> Optional[List[str]]:
-   logs = github_apis.get_workflow_job_logs(job_id, pr_user, pr_repo, params['GITHUB_TOKEN'], logger=logger)
-   return extract_failed_tests_from(logs)
+def _setup_logger(logfile: str) -> Any:
+    from logging import getLogger, FileHandler, Formatter, StreamHandler, DEBUG, INFO, WARNING
+    logger = getLogger(__name__)
+    logger.setLevel(DEBUG)
+
+    formatter = Formatter('%(asctime)s.%(msecs)03d: %(message)s', '%Y-%m-%d %H:%M:%S')
+
+    fh = FileHandler(logfile)
+    fh.setLevel(INFO)
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
+
+    ch = StreamHandler()
+    ch.setLevel(WARNING)
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
+
+    return logger
 
 
 def _create_name_filter(targets: Optional[List[str]]) -> Any:
@@ -111,8 +122,9 @@ def _get_test_results_from(owner: str, repo: str, params: Dict[str, str],
                     for job_id, job_name, conclusion in selected_jobs:
                         logger.info(f"job_id:{job_id}, job_name:{job_name}, conclusion:{conclusion}")
                         if conclusion == 'failure':
-                            tests = _get_failed_tests(owner, repo, job_name, job_id, extract_failed_tests_from,
-                                                      params, logger=logger)
+                            # NOTE: In case of a compilation failure, it returns None
+                            logs = github_apis.get_workflow_job_logs(job_id, owner, repo, params['GITHUB_TOKEN'], logger=logger)
+                            tests = extract_failed_tests_from(logs)
                             if tests is not None:
                                 if len(tests) > 0:
                                     failed_tests.extend(tests)
@@ -142,33 +154,6 @@ def _create_workflow_handlers(proj: str) -> Tuple[List[str], List[str], List[str
         return spark_logs.create_spark_workflow_handlers()
     else:
         raise ValueError(f'Unknown project type: {proj}')
-
-
-def _to_rate_limit_msg(rate_limit: Dict[str, Any]) -> str:
-    import time
-    c = rate_limit['resources']['core']
-    renewal = c['reset'] - int(time.time())
-    return f"limit={c['limit']}, used={c['used']}, remaining={c['remaining']}, reset={renewal}s"
-
-
-def _setup_logger(logfile: str) -> Any:
-    from logging import getLogger, FileHandler, Formatter, StreamHandler, DEBUG, INFO, WARNING
-    logger = getLogger(__name__)
-    logger.setLevel(DEBUG)
-
-    formatter = Formatter('%(asctime)s.%(msecs)03d: %(message)s', '%Y-%m-%d %H:%M:%S')
-
-    fh = FileHandler(logfile)
-    fh.setLevel(INFO)
-    fh.setFormatter(formatter)
-    logger.addHandler(fh)
-
-    ch = StreamHandler()
-    ch.setLevel(WARNING)
-    ch.setFormatter(formatter)
-    logger.addHandler(ch)
-
-    return logger
 
 
 def _traverse_pull_requests(output_path: str, since: Optional[datetime], max_num_pullreqs: int, params: Dict[str, str], logger: Any) -> None:
@@ -258,6 +243,13 @@ def _traverse_pull_requests(output_path: str, since: Optional[datetime], max_num
                         data = _to_github_log(pr_user, commit_date, commit_message, files, tests)
                         output.write(json.dumps(data))
                         output.flush()
+
+
+def _to_rate_limit_msg(rate_limit: Dict[str, Any]) -> str:
+    import time
+    c = rate_limit['resources']['core']
+    renewal = c['reset'] - int(time.time())
+    return f"limit={c['limit']}, used={c['used']}, remaining={c['remaining']}, reset={renewal}s"
 
 
 def _traverse_github_logs(traverse_func: Any, output_path: str, since: Optional[str], max_num_pullreqs: int, params: Dict[str, str]) -> None:
