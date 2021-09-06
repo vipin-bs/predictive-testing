@@ -36,7 +36,4 @@ fi
 
 exec python3 -u ./bin/run-tests.py \
   --root-path ${FWDIR}/bin \
-  --data ${FWDIR}/bin/tests/resources "$@" \
-  --github-token "${GITHUB_TOKEN}" \
-  --github-owner "${GITHUB_OWNER}" \
-  --github-repo "${GITHUB_REPO}"
+  --data ${FWDIR}/bin/tests/resources "$@"

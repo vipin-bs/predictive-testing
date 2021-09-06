@@ -51,10 +51,7 @@ def run_individual_python_test(target_dir, test_name, python_exec, params):
     env = dict(os.environ)
     env.update({
         'PYTHONPATH': params["PREDICTIVE_TESTING_PATH"],
-        'PREDICTIVE_TESTING_TESTDATA': params["PREDICTIVE_TESTING_TESTDATA"],
-        "PREDICTIVE_TESTING_GITHUB_TOKEN": params["PREDICTIVE_TESTING_GITHUB_TOKEN"],
-        "PREDICTIVE_TESTING_GITHUB_OWNER": params["PREDICTIVE_TESTING_GITHUB_OWNER"],
-        "PREDICTIVE_TESTING_GITHUB_REPO": params["PREDICTIVE_TESTING_GITHUB_REPO"]
+        'PREDICTIVE_TESTING_TESTDATA': params["PREDICTIVE_TESTING_TESTDATA"]
     })
 
     # Create a unique temp directory under 'target/' for each run. The TMPDIR variable is
@@ -167,11 +164,6 @@ def parse_opts():
         help="A comma-separated list of Python executables to test against (default: %(default)s)"
     )
 
-    # Some information to access GitHub REST APIs
-    parser.add_argument("--github-token", type=str, default='')
-    parser.add_argument("--github-owner", type=str, default='')
-    parser.add_argument("--github-repo", type=str, default='')
-
     parser.add_argument(
         "-p", "--parallelism", type=int, default=4,
         help="The number of suites to test in parallel (default %(default)d)"
@@ -203,10 +195,7 @@ def main():
 
     params = {
         "PREDICTIVE_TESTING_PATH": opts.root_path,
-        "PREDICTIVE_TESTING_TESTDATA": opts.data,
-        "PREDICTIVE_TESTING_GITHUB_TOKEN": opts.github_token,
-        "PREDICTIVE_TESTING_GITHUB_OWNER": opts.github_owner,
-        "PREDICTIVE_TESTING_GITHUB_REPO": opts.github_repo
+        "PREDICTIVE_TESTING_TESTDATA": opts.data
     }
 
     if opts.verbose:

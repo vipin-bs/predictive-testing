@@ -29,7 +29,7 @@ warnings.simplefilter('ignore')
 env = dict(os.environ)
 github_access_disabled = False
 if 'GITHUB_TOKEN' not in env:
-    github_token_not_specified = True
+    github_access_disabled = True
 
 @unittest.skipIf(
     github_access_disabled,
