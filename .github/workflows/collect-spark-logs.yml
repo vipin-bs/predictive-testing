@@ -38,4 +38,12 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: spark-github-logs
-          path: ./output/*
+          path: |
+            ./output/*.json
+            ./output/*.log
+      - name: Upload resume file as artifact
+        if: failure()
+        uses: actions/upload-artifact@v2
+        with:
+          name: resume-file
+          path: ./output/.process-resume.txt

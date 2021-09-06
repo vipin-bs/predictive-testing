@@ -40,7 +40,7 @@ def _setup_logger(logfile: str) -> Any:
 
     formatter = Formatter('%(asctime)s.%(msecs)03d: %(message)s', '%Y-%m-%d %H:%M:%S')
 
-    fh = FileHandler(logfile)
+    fh = FileHandler(logfile, 'a')
     fh.setLevel(INFO)
     fh.setFormatter(formatter)
     logger.addHandler(fh)
@@ -156,17 +156,34 @@ def _create_workflow_handlers(proj: str) -> Tuple[List[str], List[str], List[str
         raise ValueError(f'Unknown project type: {proj}')
 
 
-def _traverse_pull_requests(output_path: str, since: Optional[datetime], max_num_pullreqs: int, params: Dict[str, str], logger: Any) -> None:
-    logger.info(f"Fetching candidate pull requests in {params['GITHUB_OWNER']}/{params['GITHUB_REPO']}...")
-    pullreqs = github_apis.list_pullreqs(params['GITHUB_OWNER'], params['GITHUB_REPO'], params['GITHUB_TOKEN'],
-                                         since=since, nmax=max_num_pullreqs, logger=logger)
-    if len(pullreqs) == 0:
-        raise RuntimeError('No valid pull request found')
+def _traverse_pull_requests(output_path: str, since: Optional[datetime], max_num_pullreqs: int,
+                            resume: bool, params: Dict[str, str],
+                            logger: Any) -> None:
 
-    # Dumps all the pull request logs to resume job
-    with open(f"{output_path}/pullreqs.json", "w") as output:
-        output.write(json.dumps(pullreqs))
-        output.flush()
+    pullreq_file_path = f"{output_path}/pullreqs.json"
+    resume_file_path = f"{output_path}/.process-resume.txt"
+
+    if not resume:
+        logger.info(f"Fetching candidate pull requests in {params['GITHUB_OWNER']}/{params['GITHUB_REPO']}...")
+        pullreqs = github_apis.list_pullreqs(params['GITHUB_OWNER'], params['GITHUB_REPO'], params['GITHUB_TOKEN'],
+                                             since=since, nmax=max_num_pullreqs, logger=logger)
+        if len(pullreqs) == 0:
+            raise RuntimeError('No valid pull request found')
+
+        # Dumps all the pull request logs to resume job
+        with open(pullreq_file_path, "w") as output:
+            output.write(json.dumps(pullreqs))
+            output.flush()
+    else:
+        if not os.path.exists(resume_file_path):
+            raise RuntimeError(f'Resume file not found in {os.path.abspath(resume_file_path)}')
+
+        from pathlib import Path
+        processed_user_set = set(Path(resume_file_path).read_text().split('\n'))
+        loaded_pullreqs = json.loads(Path(pullreq_file_path).read_text())
+        pullreqs = list(filter(lambda p: p[5] not in processed_user_set, loaded_pullreqs))
+        logger.info(f"{len(loaded_pullreqs)} pull requests loaded and {len(pullreqs)} ones "
+                    f"filtered by {os.path.abspath(resume_file_path)}")
 
     # Groups pull requests by a user
     pullreqs_by_user: Dict[Tuple[str, str], List[Any]] = {}
@@ -187,31 +204,37 @@ def _traverse_pull_requests(output_path: str, since: Optional[datetime], max_num
                                           test_failure_patterns, compilation_failure_patterns,
                                           since=since, logger=logger)
 
-    with open(f"{output_path}/github-logs.json", "w") as output:
-
-        def _to_github_log(pr_user, commit_date, commit_message, files, tests, pr_title='', pr_body=''):
-            buf: Dict[str, Any] = {}
-
-            buf['author'] = pr_user
-            buf['commit_date'] = github_apis.format_github_datetime(commit_date, '%Y/%m/%d %H:%M:%S')
-            buf['commit_message'] = commit_message
-            buf['title'] = pr_title
-            buf['body'] = pr_body
-            buf['files'] = []
-
-            for file in files:
-                update_counts = github_utils.count_file_updates(
-                    file['name'], commit_date, [3, 14, 56],
-                    params['GITHUB_OWNER'], params['GITHUB_REPO'], params['GITHUB_TOKEN'])
-                buf['files'].append({'file': file, 'updated': update_counts})
-
-            buf['failed_tests'] = tests
-            return buf
-
-        pb_title = f"Pull Reqests ({params['GITHUB_OWNER']}/{params['GITHUB_REPO']})"
+    with open(f"{output_path}/github-logs.json", "a") as of, open(resume_file_path, "a") as rf:
         # TODO: Could we parallelize crawling jobs by users?
+        pb_title = f"Pull Reqests ({params['GITHUB_OWNER']}/{params['GITHUB_REPO']})"
         for (pr_user, pr_repo), pullreqs in tqdm.tqdm(pullreqs_by_user.items(), desc=pb_title):
             logger.info(f"pr_user:{pr_user}, pr_repo:{pr_repo}, #pullreqs:{len(pullreqs)}")
+
+            # Per-user buffer to write github logs
+            per_user_logs: List[Dict[str, Any]] = []
+
+            def _write(pr_user, commit_date, commit_message, files, tests, pr_title='', pr_body=''):
+                buf: Dict[str, Any] = {}
+                buf['author'] = pr_user
+                buf['commit_date'] = github_apis.format_github_datetime(commit_date, '%Y/%m/%d %H:%M:%S')
+                buf['commit_message'] = commit_message
+                buf['title'] = pr_title
+                buf['body'] = pr_body
+                buf['failed_tests'] = tests
+                buf['files'] = []
+                for file in files:
+                    update_counts = github_utils.count_file_updates(
+                        file['name'], commit_date, [3, 14, 56],
+                        params['GITHUB_OWNER'], params['GITHUB_REPO'], params['GITHUB_TOKEN'])
+                    buf['files'].append({'file': file, 'updated': update_counts})
+
+                per_user_logs.append(buf)
+
+            def _flush():
+                for log in per_user_logs:
+                    of.write(json.dumps(log))
+
+                of.flush()
 
             # Fetches test results from folk-side workflow jobs
             user_test_results = _get_test_results_from(pr_user, pr_repo, params,
@@ -231,18 +254,22 @@ def _traverse_pull_requests(output_path: str, since: Optional[datetime], max_num
                 for (commit, commit_date, commit_message) in commits:
                     logger.info(f"commit:{commit}, commit_date:{commit_date}")
                     if commit in user_test_results:
+                        _, _, files, tests = user_test_results[commit]
+                        _write(pr_user, commit_date, commit_message, files, tests, pr_title, pr_body)
                         matched.add(commit)
 
-                        _, _, files, tests = user_test_results[commit]
-                        data = _to_github_log(pr_user, commit_date, commit_message, files, tests, pr_title, pr_body)
-                        output.write(json.dumps(data))
-                        output.flush()
-
+                # Writes left entries into the output file
                 for head_sha, (commit_date, commit_message, files, tests) in user_test_results.items():
                     if head_sha not in test_results and head_sha not in matched:
-                        data = _to_github_log(pr_user, commit_date, commit_message, files, tests)
-                        output.write(json.dumps(data))
-                        output.flush()
+                        _write(pr_user, commit_date, commit_message, files, tests)
+
+            _flush()
+
+            rf.write(f"{pr_user}\n")
+            rf.flush()
+
+    # If all things done successfully, removes the resume file
+    os.remove(resume_file_path)
 
 
 def _to_rate_limit_msg(rate_limit: Dict[str, Any]) -> str:
@@ -252,7 +279,8 @@ def _to_rate_limit_msg(rate_limit: Dict[str, Any]) -> str:
     return f"limit={c['limit']}, used={c['used']}, remaining={c['remaining']}, reset={renewal}s"
 
 
-def _traverse_github_logs(traverse_func: Any, output_path: str, since: Optional[str], max_num_pullreqs: int, params: Dict[str, str]) -> None:
+def _traverse_github_logs(traverse_func: Any, output_path: str, since: Optional[str], max_num_pullreqs: int,
+                          resume: bool, params: Dict[str, str]) -> None:
     if len(output_path) == 0:
         raise ValueError("Output Path must be specified in '--output'")
     if len(params['GITHUB_TOKEN']) == 0:
@@ -262,8 +290,8 @@ def _traverse_github_logs(traverse_func: Any, output_path: str, since: Optional[
     if len(params['GITHUB_REPO']) == 0:
         raise ValueError("GitHub repository must be specified in '--github-repo'")
 
-    # Make an output dir in advance
-    os.mkdir(output_path)
+    # Make an output dir in advance (skip it if 'resume' enabled)
+    resume or os.mkdir(output_path)
 
     # For logger setup
     logger = _setup_logger(f'{output_path}/debug-info.log')
@@ -278,7 +306,7 @@ def _traverse_github_logs(traverse_func: Any, output_path: str, since: Optional[
         logger.info(f"Target timestamp: since={github_apis.to_github_datetime(since)} "
                     f"until={github_apis.to_github_datetime(datetime.now(timezone.utc))}")
 
-    traverse_func(output_path, since, max_num_pullreqs, params, logger)
+    traverse_func(output_path, since, max_num_pullreqs, resume, params, logger)
 
 
 def _show_rate_limit(params: Dict[str, str]) -> None:
@@ -297,6 +325,7 @@ def main():
     parser.add_argument('--github-token', dest='github_token', type=str, default='')
     parser.add_argument('--github-owner', dest='github_owner', type=str, default='')
     parser.add_argument('--github-repo', dest='github_repo', type=str, default='')
+    parser.add_argument('--resume', dest='resume', action='store_true')
     parser.add_argument('--show-rate-limit', dest='show_rate_limit', action='store_true')
     args = parser.parse_args()
 
@@ -309,7 +338,7 @@ def main():
     if not args.show_rate_limit:
         _traverse_github_logs(_traverse_pull_requests,
                               args.output, args.since, args.max_num_pullreqs,
-                              params)
+                              args.resume, params)
     else:
         _show_rate_limit(params)
 
