@@ -40,7 +40,7 @@ def _setup_logger(logfile: str) -> Any:
 
     formatter = Formatter('%(asctime)s.%(msecs)03d: %(message)s', '%Y-%m-%d %H:%M:%S')
 
-    fh = FileHandler(logfile, 'a')
+    fh = FileHandler(logfile, mode='a')
     fh.setLevel(INFO)
     fh.setFormatter(formatter)
     logger.addHandler(fh)
@@ -51,102 +51,6 @@ def _setup_logger(logfile: str) -> Any:
     logger.addHandler(ch)
 
     return logger
-
-
-def _create_name_filter(targets: Optional[List[str]]) -> Any:
-    if targets is not None:
-        def name_filter(name: str) -> bool:
-            for target in targets:
-              if name.find(target) != -1:
-                  return True
-            return False
-
-        return name_filter
-    else:
-        def pass_thru(name: str) -> bool:
-            return True
-
-        return pass_thru
-
-
-def _get_test_results_from(owner: str, repo: str, params: Dict[str, str],
-                           target_runs: Optional[List[str]],
-                           target_jobs: Optional[List[str]],
-                           test_failure_patterns: List[str],
-                           compilation_failure_patterns: List[str],
-                           since: Optional[datetime],
-                           logger: Any) -> Dict[str, Tuple[str, str, List[Dict[str, str]], List[str]]]:
-    test_results: Dict[str, Tuple[str, str, List[Dict[str, str]], List[str]]] = {}
-
-    # Creates filter functions based on the specified target lists
-    run_filter = _create_name_filter(target_runs)
-    job_filter = _create_name_filter(target_jobs)
-
-    extract_failed_tests_from = github_utils.create_failed_test_extractor(test_failure_patterns, compilation_failure_patterns)
-
-    runs = github_apis.list_workflow_runs(owner, repo, params['GITHUB_TOKEN'], since=since, logger=logger)
-    for run_id, run_name, head_sha, event, conclusion, pr_number, head, base in tqdm.tqdm(runs, desc=f"Workflow Runs ({owner}/{repo})", leave=False):
-        logger.info(f"run_id:{run_id}, run_name:{run_name}, event:{event}, head_sha={head_sha}")
-
-        if run_filter(run_name) and conclusion in ['success', 'failure']:
-            if pr_number.isdigit():
-                # List up all the updated files between 'base' and 'head' as corresponding to this run
-                commit_date, commit_message, changed_files = \
-                    github_apis.list_change_files_between(base, head, owner, repo, params['GITHUB_TOKEN'], logger=logger)
-            else:
-                commit_date, commit_message, changed_files = \
-                    github_apis.list_change_files_from(head_sha, owner, repo, params['GITHUB_TOKEN'], logger=logger)
-
-            files: List[Dict[str, str]] = []
-            for file in changed_files:
-                filename, additions, deletions, changes = file
-                files.append({'name': filename, 'additions': additions, 'deletions': deletions, 'changes': changes})
-
-            if conclusion == 'success':
-                test_results[head] = (commit_date, commit_message, files, [])
-            else:  # failed run case
-                jobs = github_apis.list_workflow_jobs(run_id, owner, repo, params['GITHUB_TOKEN'], logger=logger)
-                selected_jobs: List[Tuple[str, str, str]] = []
-                for job in jobs:
-                    job_id, job_name, conclusion = job
-                    if job_filter(job_name):
-                        selected_jobs.append(job)
-                    else:
-                        logger.info(f"Job (run_id/job_id:{job_id}/{run_id}, name:'{run_name}':'{job_name}') skipped")
-
-                all_selected_jobs_passed = len(list(filter(lambda j: j[2] == 'failure', selected_jobs))) == 0
-                if all_selected_jobs_passed:
-                    test_results[head] = (commit_date, commit_message, files, [])
-                else:
-                    failed_tests = []
-                    for job_id, job_name, conclusion in selected_jobs:
-                        logger.info(f"job_id:{job_id}, job_name:{job_name}, conclusion:{conclusion}")
-                        if conclusion == 'failure':
-                            # NOTE: In case of a compilation failure, it returns None
-                            logs = github_apis.get_workflow_job_logs(job_id, owner, repo, params['GITHUB_TOKEN'], logger=logger)
-                            tests = extract_failed_tests_from(logs)
-                            if tests is not None:
-                                if len(tests) > 0:
-                                    failed_tests.extend(tests)
-                                else:
-                                    logger.warning(f"Cannot find any test failure in workfolow job (owner={owner}, repo={repo}, "
-                                                   f"run_id={run_id} job_name='{job_name}')")
-                            else:
-                                # If `tests` is None, it represents a compilation failure
-                                logger.info(f"Compilation failure found: job_id={job_id}")
-
-                    # If we cannot detect any failed test in logs, just ignore it
-                    if len(failed_tests) > 0:
-                        test_results[head] = (commit_date, commit_message, files, failed_tests)
-                    else:
-                        logger.info(f"No test failure found in workfolow run (owner={owner}, repo={repo}, "
-                                    f"run_id={run_id} run_name='{run_name}')")
-
-        else:
-            logger.info(f"Run (run_id:{run_id}, run_name:'{run_name}', event={event}, conclusion={conclusion}) skipped")
-
-    logger.info(f"{len(test_results)} test results found in workflows ({owner}/{repo})")
-    return test_results
 
 
 def _create_workflow_handlers(proj: str) -> Tuple[List[str], List[str], List[str], List[str]]:
@@ -199,10 +103,11 @@ def _traverse_pull_requests(output_path: str, since: Optional[datetime], max_num
         _create_workflow_handlers('spark')
 
     # Fetches test results from mainstream-side workflow jobs
-    test_results = _get_test_results_from(params['GITHUB_OWNER'], params['GITHUB_REPO'], params,
-                                          target_runs, target_jobs,
-                                          test_failure_patterns, compilation_failure_patterns,
-                                          since=since, logger=logger)
+    test_results = github_utils.get_test_results_from(params['GITHUB_OWNER'], params['GITHUB_REPO'], params,
+                                                      target_runs, target_jobs,
+                                                      test_failure_patterns, compilation_failure_patterns,
+                                                      since=since, tqdm_leave=True,
+                                                      logger=logger)
 
     with open(f"{output_path}/github-logs.json", "a") as of, open(resume_file_path, "a") as rf:
         # TODO: Could we parallelize crawling jobs by users?
@@ -237,10 +142,11 @@ def _traverse_pull_requests(output_path: str, since: Optional[datetime], max_num
                 of.flush()
 
             # Fetches test results from folk-side workflow jobs
-            user_test_results = _get_test_results_from(pr_user, pr_repo, params,
-                                                       target_runs, target_jobs,
-                                                       test_failure_patterns, compilation_failure_patterns,
-                                                       since=since, logger=logger)
+            user_test_results = github_utils.get_test_results_from(pr_user, pr_repo, params,
+                                                                   target_runs, target_jobs,
+                                                                   test_failure_patterns, compilation_failure_patterns,
+                                                                   since=since, tqdm_leave=False,
+                                                                   logger=logger)
 
             # Merges the tests results with mainstream's ones
             user_test_results.update(test_results)
@@ -290,8 +196,11 @@ def _traverse_github_logs(traverse_func: Any, output_path: str, since: Optional[
     if len(params['GITHUB_REPO']) == 0:
         raise ValueError("GitHub repository must be specified in '--github-repo'")
 
-    # Make an output dir in advance (skip it if 'resume' enabled)
-    resume or os.mkdir(output_path)
+    if resume and not os.path.exists(output_path):
+        raise RuntimeError(f'Output path not found in {os.path.abspath(output_path)}')
+    elif not resume:
+        # Make an output dir in advance
+        os.mkdir(output_path)
 
     # For logger setup
     logger = _setup_logger(f'{output_path}/debug-info.log')
