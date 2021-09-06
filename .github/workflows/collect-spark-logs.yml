@@ -33,15 +33,9 @@ jobs:
         run: |
           SINCE_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ" -d '1 month ago'`
           ./bin/collect_github_logs.py --output output --github-token "${GITHUB_TOKEN}" --github-owner apache --github-repo spark --since "${SINCE_DATE}"
-      - name: Upload collected logs as artifact
-        if: success()
+      - name: Upload output as artifact
+        if: always()
         uses: actions/upload-artifact@v2
         with:
           name: spark-github-logs
           path: ./output/*
-      - name: Upload INFO logs as artifact
-        if: failure()
-        uses: actions/upload-artifact@v2
-        with:
-          name: debug-logs
-          path: ./output/debug-info.log
