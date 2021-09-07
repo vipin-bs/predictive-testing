@@ -18,26 +18,20 @@
 import os
 import unittest
 
-import build_deps
+import callgraph
 import javaclass
 
 
-class BuildDepTests(unittest.TestCase):
+class CallGraphTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
         _resource_path = os.getenv("PREDICTIVE_TESTING_TESTDATA")
         cls._java_class_test_path = f"{_resource_path}/java-class-test-project"
 
-    def test_select_handlers_from_file_type(self):
-        list_files, list_test_files, extract_refs = build_deps._select_handlers_from_file_type("java")
-        self.assertEqual(list_files, javaclass.list_classes)
-        self.assertEqual(list_test_files, javaclass.list_test_classes)
-        self.assertEqual(extract_refs, javaclass.extract_refs)
-
     def test_build_call_graphs(self):
         class_path = self._java_class_test_path
-        adj_list, rev_adj_list = build_deps._build_call_graphs(
+        adj_list, rev_adj_list = callgraph.build_call_graphs(
             [class_path], 'io.github.maropu', javaclass.list_classes, javaclass.list_test_classes,
             javaclass.extract_refs)
 
@@ -67,14 +61,14 @@ class BuildDepTests(unittest.TestCase):
 
     def test_select_subgraph(self):
         g = { 'A': ['B'], 'B': ['A', 'C'], 'C': ['D'], 'D': ['E'], 'E': ['A'] }
-        subgraph, subnodes = build_deps._select_subgraph(['A'], g, depth=2)
+        subgraph, subnodes = callgraph._select_subgraph(['A'], g, depth=2)
         self.assertEqual(sorted(map(lambda kv: (kv[0], sorted(kv[1])), subgraph.items())),
             [('A', ['B']), ('B', ['A', 'C'])])
         self.assertEqual(sorted(subnodes), ['A', 'B', 'C'])
 
     def test_generate_graph(self):
         edges = { 'A': ['B'], 'B': ['A', 'C'] }
-        g = build_deps._generate_graph(['A', 'B', 'C'], ['A'], edges)
+        g = callgraph._generate_graph(['A', 'B', 'C'], ['A'], edges)
         def normalize(s):
             return s.replace(' ', '').replace('\n', '')
         expected = f"""
