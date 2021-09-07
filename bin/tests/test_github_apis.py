@@ -21,6 +21,7 @@ import warnings
 from datetime import datetime, timezone
 
 import github_apis
+import github_utils
 
 
 # Suppress warinig messages in REST APIs
@@ -65,7 +66,7 @@ class GitHubApiTests(unittest.TestCase):
         self.assertTrue(github_apis._validate_dict_keys({ 'k1': 'v1', 'k2': 'v2', 'k3': 'v3' }, ['k1', 'k2']))
 
     def _assertIsDateTime(self, t: str) -> None:
-        self.assertTrue(type(github_apis.from_github_datetime(t)) is datetime)
+        self.assertTrue(type(github_utils.from_github_datetime(t)) is datetime)
 
     def test_list_pullreqs(self):
         pullreqs = github_apis.list_pullreqs(self._github_owner, self._github_repo, self._github_token, nmax=1)
@@ -170,14 +171,6 @@ class GitHubApiTests(unittest.TestCase):
         job_id, _, _ = jobs[0]
         logs = github_apis.get_workflow_job_logs(job_id, self._github_owner, self._github_repo, self._github_token)
         self.assertIsNotNone(logs)
-
-    def test_github_datetime(self):
-        import dateutil.parser as parser
-        self.assertEqual(github_apis.from_github_datetime('2019-10-29T05:31:29Z'),
-                         parser.parse('2019-10-29T05:31:29Z'))
-        self.assertEqual(github_apis.format_github_datetime('2019-10-29T05:31:29Z', '%Y/%m/%d'), '2019/10/29')
-        self.assertEqual(github_apis.to_github_datetime(datetime.strptime('2021-08-04', '%Y-%m-%d')),
-                         '2021-08-04T00:00:00Z')
 
     def test_list_contributors_stats(self):
         contributors = github_apis.list_contributors_stats(self._github_owner, self._github_repo, self._github_token)

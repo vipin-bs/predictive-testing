@@ -8,7 +8,7 @@ on:
   # - cron: '0 */2 * * *'
 
 jobs:
-  collect-spark-logs:
+  crawl-spark-logs:
     runs-on: ubuntu-latest
     env:
       python: 3.6
@@ -36,7 +36,7 @@ jobs:
             const runs = await github.actions.listWorkflowRuns({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              workflow_id: 'collect-spark-logs.yml',
+              workflow_id: 'crawl-spark-logs.yml',
               per_page: 2
             })
             if (runs.data.workflow_runs.length == 2) {

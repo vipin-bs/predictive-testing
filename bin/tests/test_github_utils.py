@@ -18,6 +18,7 @@
 import os
 import unittest
 import warnings
+from datetime import datetime
 
 import github_utils
 
@@ -47,6 +48,14 @@ class GitHubUtilsTests(unittest.TestCase):
         # Test data root path
         _resource_path = os.getenv("PREDICTIVE_TESTING_TESTDATA")
         cls._test_data_path = f"{_resource_path}/spark-logs"
+
+    def test_github_datetime(self):
+        import dateutil.parser as parser
+        self.assertEqual(github_utils.from_github_datetime('2019-10-29T05:31:29Z'),
+                         parser.parse('2019-10-29T05:31:29Z'))
+        self.assertEqual(github_utils.format_github_datetime('2019-10-29T05:31:29Z', '%Y/%m/%d'), '2019/10/29')
+        self.assertEqual(github_utils.to_github_datetime(datetime.strptime('2021-08-04', '%Y-%m-%d')),
+                         '2021-08-04T00:00:00Z')
 
     def test_count_file_updates(self):
         update_counts = github_utils.count_file_updates(
