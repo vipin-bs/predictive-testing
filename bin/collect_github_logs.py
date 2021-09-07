@@ -88,9 +88,9 @@ def _traverse_pull_requests(output_path: str,
             meta: Dict[str, str] = {}
             meta['owner'] = owner
             meta['repo'] = repo
-            meta['until'] = github_apis.to_github_datetime(datetime.now(timezone.utc))
+            meta['until'] = github_utils.to_github_datetime(datetime.now(timezone.utc))
             if since is not None:
-                meta['since'] = github_apis.to_github_datetime(since)
+                meta['since'] = github_utils.to_github_datetime(since)
             output.write(json.dumps(meta))
             output.flush()
         with open(pullreq_fpath, "w") as output:
@@ -106,8 +106,8 @@ def _traverse_pull_requests(output_path: str,
         run_meta = json.loads(Path(run_meta_fpath).read_text())
         owner = run_meta['owner']
         repo = run_meta['repo']
-        until = github_apis.from_github_datetime(run_meta['until'])
-        since = github_apis.from_github_datetime(run_meta['since']) if 'since' in run_meta else None
+        until = github_utils.from_github_datetime(run_meta['until'])
+        since = github_utils.from_github_datetime(run_meta['since']) if 'since' in run_meta else None
         processed_user_set = set(Path(resume_meta_fpath).read_text().split('\n'))
         pullreqs = list(filter(lambda p: p[5] not in processed_user_set, json.loads(Path(pullreq_fpath).read_text())))
         logger.info("Resuming process: owner={}, repo={}, #pullreqs={}, until={}{}".format(
@@ -148,7 +148,7 @@ def _traverse_pull_requests(output_path: str,
                 def _write(pr_user, commit_date, commit_message, files, tests, pr_title='', pr_body=''):
                     buf: Dict[str, Any] = {}
                     buf['author'] = pr_user
-                    buf['commit_date'] = github_apis.format_github_datetime(commit_date, '%Y/%m/%d %H:%M:%S')
+                    buf['commit_date'] = github_utils.format_github_datetime(commit_date, '%Y/%m/%d %H:%M:%S')
                     buf['commit_message'] = commit_message
                     buf['title'] = pr_title
                     buf['body'] = pr_body

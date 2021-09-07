@@ -24,6 +24,8 @@ import timeout_decorator
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+import github_utils
+
 
 def _setup_default_logger() -> Any:
     from logging import getLogger, NullHandler, DEBUG
@@ -35,24 +37,6 @@ def _setup_default_logger() -> Any:
 
 
 _default_logger = _setup_default_logger()
-
-
-# The GitHub time format (UTC)
-# See: https://docs.github.com/en/rest/overview/resources-in-the-rest-api#timezones
-GITHUB_DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
-
-
-def from_github_datetime(d: str) -> datetime:
-    # Parses GitHub timestamp string into timezone-aware datetime
-    return datetime.strptime(d, GITHUB_DATETIME_FORMAT).replace(tzinfo=timezone.utc)
-
-
-def format_github_datetime(d: str, format: str) -> str:
-    return from_github_datetime(d).strftime(format)
-
-
-def to_github_datetime(d: datetime) -> str:
-    return d.strftime(GITHUB_DATETIME_FORMAT)
 
 
 def _to_debug_msg(ret: Any) -> str:
@@ -118,22 +102,22 @@ def _always_false(d: str) -> bool:
 
 def _create_until_validator(until: datetime) -> Any:
     def validator(d: str) -> bool:
-        return until < from_github_datetime(d)
+        return until < github_utils.from_github_datetime(d)
 
     return validator
 
 
 def _create_since_validator(since: datetime) -> Any:
     def validator(d: str) -> bool:
-        return since >= from_github_datetime(d)
+        return since >= github_utils.from_github_datetime(d)
 
     return validator
 
 
 def _create_datetime_range_validator(until: datetime, since: datetime) -> Any:
     def validator(d: str) -> bool:
-        return until < from_github_datetime(d) or \
-            since >= from_github_datetime(d)
+        return until < github_utils.from_github_datetime(d) or \
+            since >= github_utils.from_github_datetime(d)
 
     return validator
 

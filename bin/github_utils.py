@@ -18,17 +18,36 @@
 #
 
 import tqdm
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 import github_apis
 
+
+# The GitHub time format (UTC)
+# See: https://docs.github.com/en/rest/overview/resources-in-the-rest-api#timezones
+GITHUB_DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
+
+
+def from_github_datetime(d: str) -> datetime:
+    # Parses GitHub timestamp string into timezone-aware datetime
+    return datetime.strptime(d, GITHUB_DATETIME_FORMAT).replace(tzinfo=timezone.utc)
+
+
+def format_github_datetime(d: str, format: str) -> str:
+    return from_github_datetime(d).strftime(format)
+
+
+def to_github_datetime(d: datetime) -> str:
+    return d.strftime(GITHUB_DATETIME_FORMAT)
+
+
 def count_file_updates(path: str, base_date: str, days: List[int], owner: str, repo: str,
                        token: str, logger: Any = None) -> List[int]:
     update_counts: List[int] = []
-    base = github_apis.from_github_datetime(base_date)
+    base = from_github_datetime(base_date)
     for day in days:
-        since_date = github_apis.to_github_datetime(base - timedelta(day))
+        since_date = to_github_datetime(base - timedelta(day))
         file_commits = github_apis.list_repo_commits(
             owner, repo, token, path=path, since=since_date, until=base_date,
             logger=logger)
