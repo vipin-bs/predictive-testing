@@ -75,35 +75,37 @@ jobs:
         uses: andstor/file-existence-action@v1
         id: check-if-latest-output-exists
         with:
-          files: "latest_output/.run-meta.lst"
+          files: "latest_output/.run-meta.json"
       - name: Check if resume file exists
         uses: andstor/file-existence-action@v1
         id: check-if-resume-file-exists
         with:
           files: "latest_output/.resume-meta.lst"
-      # TODO: Could we merge the two entries below into one?
-      - name: Run script to collect GitHub logs since 1 month ago
-        if: ${{ steps.check-if-latest-output-exists.outputs.files_exists == 'false' }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.LOG_CRAWLER_API_KEY }}
+      - name: Set a default value for `--since` option
+        if: ${{ steps.check-if-latest-output-exists.outputs.files_exists == 'false' &&
+          steps.check-if-resume-file-exists.outputs.files_exists == 'false' }}
         run: |
           SINCE_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ" -d '1 month ago'`
-          ./bin/collect_github_logs.py --github-token "${GITHUB_TOKEN}" --github-owner apache --github-repo spark --output output --overwrite --since "${SINCE_DATE}"
-      - name: Run script to collect GitHub logs since the latest run
+          echo "SINCE_DATE=${SINCE_DATE}" >> $GITHUB_ENV
+      - name: Compute `--since` option value form the latest run datetime
         if: ${{ steps.check-if-latest-output-exists.outputs.files_exists == 'true' &&
-              steps.check-if-resume-file-exists.outputs.files_exists == 'false' }}
+          steps.check-if-resume-file-exists.outputs.files_exists == 'false' }}
+        run: |
+          SINCE_DATE=`cat output/.run-meta.json | jq --raw-output .until`
+          echo "SINCE_DATE=${SINCE_DATE}" >> $GITHUB_ENV
+      - name: Run script to collect GitHub logs
+        if: ${{ steps.check-if-resume-file-exists.outputs.files_exists == 'false' }}
         env:
           GITHUB_TOKEN: ${{ secrets.LOG_CRAWLER_API_KEY }}
         run: |
-          SINCE_DATE=`cat output/.run-meta.json | jq --raw-output .until`
-          ./bin/collect_github_logs.py --github-token "${GITHUB_TOKEN}" --github-owner apache --github-repo spark --output output --overwrite --since "${SINCE_DATE}"
+          ./bin/crawl-github-logs.py --github-token "${GITHUB_TOKEN}" --github-owner apache --github-repo spark --output output --overwrite --since "${SINCE_DATE}"
       - name: Resume last run to collect GitHub logs
         if: ${{ steps.check-if-resume-file-exists.outputs.files_exists == 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.LOG_CRAWLER_API_KEY }}
         run: |
           mv latest_output output
-          ./bin/collect_github_logs.py --github-token "${GITHUB_TOKEN}" --output output --resume
+          ./bin/crawl-github-logs.py --github-token "${GITHUB_TOKEN}" --output output --resume
       - name: Upload output as artifact
         if: always()
         uses: actions/upload-artifact@v2
