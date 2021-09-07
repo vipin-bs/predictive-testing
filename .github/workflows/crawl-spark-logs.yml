@@ -1,4 +1,4 @@
-name: Collect Spark GitHub logs
+name: Crawling Spark GitHub logs
 
 on:
   schedule:
@@ -37,16 +37,14 @@ jobs:
               per_page: 2
             })
             if (runs.data.workflow_runs.length == 2) {
-              const status = runs.data.workflow_runs[1].conclusion
-              const run_id = runs.data.workflow_runs[1].id
-              return `{ 'status': '${status}', 'run_id': ${run_id} }`
+              return runs.data.workflow_runs[1].id
             } else {
-              return "{ 'status': 'success', 'run_id': -1 }"
+              return -1
             }
       - name: Get latest artifact archive url
         uses: actions/github-script@v4
         id: latest-artifact-archive-url
-        if: ${{ fromJson(steps.latest-workflow-status.outputs.result).status == 'failure' }}
+        if: ${{ steps.latest-workflow-status.outputs.result != -1 }}
         with:
           result-encoding: string
           script: |
