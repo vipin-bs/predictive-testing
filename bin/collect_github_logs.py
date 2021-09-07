@@ -72,7 +72,7 @@ def _traverse_pull_requests(output_path: str,
 
     # List of output file paths
     run_meta_fpath = f"{output_path}/.run-meta.json"
-    resume_meta_fpath = f"{output_path}/.rusume-meta.lst"
+    resume_meta_fpath = f"{output_path}/.resume-meta.lst"
     pullreq_fpath = f"{output_path}/pullreqs.json"
 
     if not resume:
@@ -127,79 +127,87 @@ def _traverse_pull_requests(output_path: str,
         _create_workflow_handlers('spark')
 
     # Fetches test results from mainstream-side workflow jobs
-    test_results = github_utils.get_test_results_from(owner, repo, params,
-                                                      target_runs, target_jobs,
-                                                      test_failure_patterns, compilation_failure_patterns,
-                                                      until=until, since=since, tqdm_leave=True,
-                                                      logger=logger)
+    # TODO: Skip this now
+    test_results: Dict[str, Tuple[str, str, List[Dict[str, str]], List[str]]] = {}
+    # test_results = github_utils.get_test_results_from(owner, repo, params,
+    #                                                   target_runs, target_jobs,
+    #                                                   test_failure_patterns, compilation_failure_patterns,
+    #                                                   until=until, since=since, tqdm_leave=True,
+    #                                                   logger=logger)
 
-    with open(f"{output_path}/github-logs.json", "a") as of, open(resume_meta_fpath, "a") as rf:
-        # TODO: Could we parallelize crawling jobs by users?
-        pb_title = f"Pull Reqests ({owner}/{repo})"
-        for (pr_user, pr_repo), pullreqs in tqdm.tqdm(pullreqs_by_user.items(), desc=pb_title):
-            logger.info(f"pr_user:{pr_user}, pr_repo:{pr_repo}, #pullreqs:{len(pullreqs)}")
+    try:
+        with open(f"{output_path}/github-logs.json", "a") as of, open(resume_meta_fpath, "a") as rf:
+            # TODO: Could we parallelize crawling jobs by users?
+            pb_title = f"Pull Reqests ({owner}/{repo})"
+            for (pr_user, pr_repo), pullreqs in tqdm.tqdm(pullreqs_by_user.items(), desc=pb_title):
+                logger.info(f"pr_user:{pr_user}, pr_repo:{pr_repo}, #pullreqs:{len(pullreqs)}")
 
-            # Per-user buffer to write github logs
-            per_user_logs: List[Dict[str, Any]] = []
+                # Per-user buffer to write github logs
+                per_user_logs: List[Dict[str, Any]] = []
 
-            def _write(pr_user, commit_date, commit_message, files, tests, pr_title='', pr_body=''):
-                buf: Dict[str, Any] = {}
-                buf['author'] = pr_user
-                buf['commit_date'] = github_apis.format_github_datetime(commit_date, '%Y/%m/%d %H:%M:%S')
-                buf['commit_message'] = commit_message
-                buf['title'] = pr_title
-                buf['body'] = pr_body
-                buf['failed_tests'] = tests
-                buf['files'] = []
-                for file in files:
-                    update_counts = github_utils.count_file_updates(
-                        file['name'], commit_date, [3, 14, 56],
-                        owner, repo, token)
-                    buf['files'].append({'file': file, 'updated': update_counts})
+                def _write(pr_user, commit_date, commit_message, files, tests, pr_title='', pr_body=''):
+                    buf: Dict[str, Any] = {}
+                    buf['author'] = pr_user
+                    buf['commit_date'] = github_apis.format_github_datetime(commit_date, '%Y/%m/%d %H:%M:%S')
+                    buf['commit_message'] = commit_message
+                    buf['title'] = pr_title
+                    buf['body'] = pr_body
+                    buf['failed_tests'] = tests
+                    buf['files'] = []
+                    for file in files:
+                        update_counts = github_utils.count_file_updates(
+                            file['name'], commit_date, [3, 14, 56],
+                            owner, repo, token)
+                        buf['files'].append({'file': file, 'updated': update_counts})
 
-                per_user_logs.append(buf)
+                    per_user_logs.append(buf)
 
-            def _flush():
-                for log in per_user_logs:
-                    of.write(json.dumps(log))
+                def _flush():
+                    for log in per_user_logs:
+                        of.write(json.dumps(log))
 
-                of.flush()
+                    of.flush()
 
-            # Fetches test results from folk-side workflow jobs
-            user_test_results = github_utils.get_test_results_from(pr_user, pr_repo, params,
-                                                                   target_runs, target_jobs,
-                                                                   test_failure_patterns, compilation_failure_patterns,
-                                                                   until=until, since=since, tqdm_leave=False,
-                                                                   logger=logger)
+                # Fetches test results from folk-side workflow jobs
+                user_test_results = github_utils.get_test_results_from(pr_user, pr_repo, params,
+                                                                       target_runs, target_jobs,
+                                                                       test_failure_patterns, compilation_failure_patterns,
+                                                                       until=until, since=since, tqdm_leave=False,
+                                                                       logger=logger)
 
-            # Merges the tests results with mainstream's ones
-            user_test_results.update(test_results)
+                # Merges the tests results with mainstream's ones
+                user_test_results.update(test_results)
 
-            for pr_number, pr_created_at, pr_updated_at, pr_title, pr_body, pr_user, pr_repo, pr_branch in pullreqs:
-                commits = github_apis.list_commits_for(pr_number, owner, repo, token,
-                                                       until=until, since=since, logger=logger)
-                logger.info(f"pullreq#{pr_number} has {len(commits)} commits (created_at:{pr_created_at}, updated_at:{pr_updated_at})")
+                for pr_number, pr_created_at, pr_updated_at, pr_title, pr_body, pr_user, pr_repo, pr_branch in pullreqs:
+                    commits = github_apis.list_commits_for(pr_number, owner, repo, token,
+                                                           until=until, since=since, logger=logger)
+                    logger.info(f"pullreq#{pr_number} has {len(commits)} commits (created_at:{pr_created_at}, updated_at:{pr_updated_at})")
 
-                matched: Set[str] = set()
-                for (commit, commit_date, commit_message) in commits:
-                    logger.info(f"commit:{commit}, commit_date:{commit_date}")
-                    if commit in user_test_results:
-                        _, _, files, tests = user_test_results[commit]
-                        _write(pr_user, commit_date, commit_message, files, tests, pr_title, pr_body)
-                        matched.add(commit)
+                    matched: Set[str] = set()
+                    for (commit, commit_date, commit_message) in commits:
+                        logger.info(f"commit:{commit}, commit_date:{commit_date}")
+                        if commit in user_test_results:
+                            _, _, files, tests = user_test_results[commit]
+                            _write(pr_user, commit_date, commit_message, files, tests, pr_title, pr_body)
+                            matched.add(commit)
 
-                # Writes left entries into the output file
-                for head_sha, (commit_date, commit_message, files, tests) in user_test_results.items():
-                    if head_sha not in test_results and head_sha not in matched:
-                        _write(pr_user, commit_date, commit_message, files, tests)
+                    # Writes left entries into the output file
+                    for head_sha, (commit_date, commit_message, files, tests) in user_test_results.items():
+                        if head_sha not in test_results and head_sha not in matched:
+                            _write(pr_user, commit_date, commit_message, files, tests)
 
-            _flush()
+                _flush()
 
-            rf.write(f"{pr_user}\n")
-            rf.flush()
+                rf.write(f"{pr_user}\n")
+                rf.flush()
 
-    # If all things done successfully, removes the resume file
-    os.remove(resume_meta_fpath)
+    except Exception as e:
+        logger.info(f"{e.__class__}: {e}")
+        logger.warning("Crawling logs failed, but you can resume it by '--resume' option")
+
+    else:
+        # If all things done successfully, removes the resume file
+        os.remove(resume_meta_fpath)
 
 
 def _to_rate_limit_msg(rate_limit: Dict[str, Any]) -> str:
@@ -216,9 +224,9 @@ def _traverse_github_logs(traverse_func: Any, output_path: str, overwrite: bool,
         raise ValueError("Output Path must be specified in '--output'")
     if len(params['GITHUB_TOKEN']) == 0:
         raise ValueError("GitHub token must be specified in '--github-token'")
-    if resume or len(params['GITHUB_OWNER']) == 0:
+    if not resume and len(params['GITHUB_OWNER']) == 0:
         raise ValueError("GitHub owner must be specified in '--github-owner'")
-    if resume or len(params['GITHUB_REPO']) == 0:
+    if not resume and len(params['GITHUB_REPO']) == 0:
         raise ValueError("GitHub repository must be specified in '--github-repo'")
 
     if resume and not os.path.exists(output_path):
