@@ -174,27 +174,24 @@ def list_pullreqs(owner: str, repo: str, token: str,
         params = { 'page': str(npage), 'per_page': str(per_page), 'state': 'all', 'sort': 'updated', 'direction': 'desc' }
         prs = _request_github_api(f"repos/{owner}/{repo}/pulls", token, params=params, logger=logger)
         for pullreq in prs:
-            expected_keys = ['number', 'created_at', 'updated_at', 'title', 'body', 'user', 'head']
-            if not _validate_dict_keys(pullreq, expected_keys, logger=logger):
+            pr = PullRequest.parse_obj(pullreq)
+            if check_updated(pr.updated_at):
                 return pullreqs
 
-            if check_updated(pullreq['updated_at']):
-                return pullreqs
-
-            if pullreq['head']['repo'] is not None and pullreq['head']['repo']['name'] != '':
-                pr_number = str(pullreq['number'])
-                pr_created_at = pullreq['created_at']
-                pr_updated_at = pullreq['updated_at']
-                pr_title = pullreq['title']
-                pr_body = pullreq['body']
-                pr_user = pullreq['user']['login']
-                pr_repo = pullreq['head']['repo']['name']
-                pr_branch = pullreq['head']['ref']
+            if pr.head.repo is not None:
+                pr_number = str(pr.number)
+                pr_created_at = pr.created_at
+                pr_updated_at = pr.updated_at
+                pr_title = pr.title
+                pr_body = pr.body
+                pr_user = pr.user.login
+                pr_repo = pr.head.repo.name
+                pr_branch = pr.head.ref
                 pullreqs.append((pr_number, pr_created_at, pr_updated_at, pr_title, pr_body,
                                  pr_user, pr_repo, pr_branch))
             else:
-                logger.warning(f"repository not found: pr_number={pullreq['number']}, "
-                               f"pr_user={pullreq['user']['login']}")
+                logger.warning(f"repository not found: pr_number={str(pr.number)}, "
+                               f"pr_user={pr.user.login}")
 
         rem_pages -= per_page
         npage += 1
@@ -437,8 +434,11 @@ def list_contributors_stats(owner: str, repo: str, token: str, logger: Any = Non
 
     logger = logger or _default_logger
 
-    cs = _request_github_api(f"repos/{owner}/{repo}/stats/contributors", token, logger=logger)
-    cs = ContributorStats.parse_obj({ 'stats': cs })
-    contributors = list(map(lambda x: (x.author.login, x.total), cs.stats))
+    contributors: List[Tuple[str, int]] = []
+    stats = _request_github_api(f"repos/{owner}/{repo}/stats/contributors", token, logger=logger)
+    for stat in stats:
+        stat = ContributorStat.parse_obj(stat)
+        contributors.append((stat.author.login, stat.total))
+
     res = sorted(contributors, key=lambda c: c[1], reverse=True)  # Sorted by 'total'
     return res

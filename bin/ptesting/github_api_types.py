@@ -17,8 +17,10 @@
 # limitations under the License.
 #
 
-from pydantic import BaseModel, Field
-from typing import List
+from pydantic import BaseModel, Field, validator
+from typing import List, Optional
+
+from ptesting import github_utils
 
 """
 Type validation classes for Github REST APIs
@@ -44,14 +46,46 @@ class RateLimits(BaseModel):
     rate: RateLimit
 
 
-class Author(BaseModel):
+class User(BaseModel):
     login: str = Field(min_length=1, max_length=39)
 
 
+class Repository(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+
+
+class Head(BaseModel):
+    repo: Optional[Repository]
+    ref: str = Field(min_length=1)
+    sha: str = Field(min_length=40, max_length=40)
+
+
+def _validate_datetime(v):
+    try:
+        github_utils.from_github_datetime(v)
+    except:
+        raise ValueError(f"Failed to parse input datetime string: {v}")
+    return v
+
+
+class PullRequest(BaseModel):
+    number: int = Field(ge=0)
+    created_at: str
+    updated_at: str
+    title: str = Field(min_length=1, max_length=256)
+    body: str = Field(min_length=1, max_length=65536)
+    user: User
+    head: Head
+
+    @validator("created_at")
+    def validate_created_at(cls, v):
+        return _validate_datetime(v)
+
+    @validator("updated_at")
+    def validate_updated_at(cls, v):
+        return _validate_datetime(v)
+
+
 class ContributorStat(BaseModel):
-    author: Author
+    author: User
     total: int = Field(ge=1)
-
-
-class ContributorStats(BaseModel):
-    stats: List[ContributorStat]
