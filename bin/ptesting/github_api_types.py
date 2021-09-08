@@ -55,7 +55,7 @@ class Repository(BaseModel):
 
 
 class Head(BaseModel):
-    repo: Optional[Repository]
+    repo: Optional[Repository] = None
     ref: str = Field(min_length=1)
     sha: str = Field(min_length=40, max_length=40)
 
@@ -103,6 +103,13 @@ class Commit(BaseModel):
 class PullRequestCommit(BaseModel):
     sha: str = Field(min_length=40, max_length=40)
     commit: Commit
+
+
+class RepoCommit(BaseModel):
+    sha: str = Field(min_length=40, max_length=40)
+    commit: Commit
+    author: Optional[User] = None
+    committer: Optional[User] = None
 
 
 class ContributorStat(BaseModel):

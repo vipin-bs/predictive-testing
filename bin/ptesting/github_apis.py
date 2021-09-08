@@ -264,19 +264,14 @@ def list_repo_commits(owner: str, repo: str, token: str,
         file_commits = _request_github_api(f"repos/{owner}/{repo}/commits", token,
                                            params=params, logger=logger)
         for commit in file_commits:
-            if not _validate_dict_keys(commit, ['sha', 'author', 'commit'], logger=logger):
-                return commits
-
-            sha = commit['sha']
-            commit_date = commit['commit']['author']['date']
-            commit_message = commit['commit']['message']
+            c = RepoCommit.parse_obj(commit)
             commit_user = ''
-            if commit['author'] is not None:
-                commit_user = commit['author']['login']
-            elif commit['committer'] is not None:
-                commit_user = commit['committer']['login']
+            if c.author is not None:
+                commit_user = c.author.login
+            elif c.committer is not None:
+                commit_user = c.committer.login
 
-            commits.append((sha, commit_user, commit_date, commit_message))
+            commits.append((c.sha, commit_user, c.commit.author.date, c.commit.message))
 
         rem_pages -= per_page
         npage += 1
