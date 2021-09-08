@@ -181,8 +181,7 @@ class GitHubApiTests(unittest.TestCase):
         rate_limit = github_apis.get_rate_limit(self._github_token)
         self.assertTrue(github_apis._validate_dict_keys(rate_limit, ['resources', 'rate']))
         self.assertTrue(github_apis._validate_dict_keys(
-            rate_limit['resources'],
-            ['core', 'search', 'graphql', 'integration_manifest', 'source_import', 'code_scanning_upload']))
+            rate_limit['resources'], ['core', 'search', 'graphql']))
 
 
 if __name__ == "__main__":

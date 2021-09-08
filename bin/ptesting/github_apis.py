@@ -424,9 +424,9 @@ def list_workflow_jobs(run_id: str, owner: str, repo: str, token: str, nmax: int
 def get_workflow_job_logs(job_id: str, owner: str, repo: str, token: str, logger: Any = None) -> str:
     _assert_github_prams(owner, repo, token)
     try:
-        api = f'repos/{owner}/{repo}/actions/jobs/{job_id}/logs'
-        return _request_github_api(api, token, pass_thru=True)
+        return _request_github_api(f'repos/{owner}/{repo}/actions/jobs/{job_id}/logs', token, pass_thru=True)
     except:
+        logger = logger or _default_logger
         logger.warning(f"Job logs (job_id={job_id}) not found in {owner}/{repo}")
         return ''
 
