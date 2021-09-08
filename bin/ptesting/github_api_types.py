@@ -26,6 +26,13 @@ from ptesting import github_utils
 Type validation classes for Github REST APIs
 """
 
+def _validate_datetime(v):
+    try:
+        github_utils.from_github_datetime(v)
+    except:
+        raise ValueError(f"Failed to parse input datetime string: {v}")
+    return v
+
 
 class RateLimit(BaseModel):
     limit: int = Field(ge=0)
@@ -50,32 +57,34 @@ class User(BaseModel):
     login: str = Field(min_length=1, max_length=39)
 
 
+class Author(BaseModel):
+    name: str = Field(min_length=1, max_length=39)
+    date: str
+
+    @validator("date")
+    def validate_date(cls, v):
+        return _validate_datetime(v)
+
+
 class Repository(BaseModel):
     name: str = Field(min_length=1, max_length=100)
 
 
-class Head(BaseModel):
+class Reference(BaseModel):
     repo: Optional[Repository] = None
     ref: str = Field(min_length=1)
     sha: str = Field(min_length=40, max_length=40)
 
 
-def _validate_datetime(v):
-    try:
-        github_utils.from_github_datetime(v)
-    except:
-        raise ValueError(f"Failed to parse input datetime string: {v}")
-    return v
-
-
 class PullRequest(BaseModel):
     number: int = Field(ge=0)
-    created_at: str
-    updated_at: str
-    title: str = Field(min_length=1, max_length=256)
-    body: str = Field(min_length=1, max_length=65536)
-    user: User
-    head: Head
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+    title: Optional[str] = Field(min_length=1, max_length=256)
+    body: Optional[str] = Field(min_length=1, max_length=65536)
+    user: Optional[User] = None
+    head: Reference
+    base: Reference
 
     @validator("created_at")
     def validate_created_at(cls, v):
@@ -83,15 +92,6 @@ class PullRequest(BaseModel):
 
     @validator("updated_at")
     def validate_updated_at(cls, v):
-        return _validate_datetime(v)
-
-
-class Author(BaseModel):
-    name: str = Field(min_length=1, max_length=39)
-    date: str
-
-    @validator("date")
-    def validate_date(cls, v):
         return _validate_datetime(v)
 
 
@@ -121,6 +121,61 @@ class ChangedFiles(BaseModel):
 class FileCommits(BaseModel):
     commit: Optional[Commit] = None
     commits: Optional[List[RepoCommit]] = None
+
+
+class WorkflowRun(BaseModel):
+    id: int = FileCommits(ge=1)
+    name: str = FileCommits(min_length=1)
+    head_sha: str = FileCommits(min_length=40, max_length=40)
+    event: str = FileCommits(min_length=1)
+    status: str
+    conclusion: Optional[str] = None
+    updated_at: str
+    pull_requests: List[PullRequest] = []
+
+    @validator("status")
+    def validate_status(cls, v):
+        expected = ['waiting', 'requested', 'completed', 'in_progress', 'queued']
+        if v not in expected:
+            raise ValueError(f"'status' must be in [{','.join(expected)}], "
+                             f"but '{v}' found")
+        return v
+
+    @validator("conclusion")
+    def validate_conclusion(cls, v):
+        expected = ['success', 'failure', 'skipped', 'cancelled']
+        if not (v is None or v in expected):
+            raise ValueError(f"'conclusion' must be in [{','.join(expected)}], "
+                             f"but '{v}' found")
+        return v
+
+    @validator("updated_at")
+    def validate_udpated_at(cls, v):
+        return _validate_datetime(v)
+
+
+class WorkflowRuns(BaseModel):
+    total_count: int = FileCommits(ge=0)
+    workflow_runs: List[WorkflowRun]
+
+
+class WorkflowJob(BaseModel):
+    id: int = FileCommits(ge=1)
+    name: str = FileCommits(min_length=1)
+    conclusion: str
+
+    @validator("conclusion")
+    def validate_conclusion(cls, v):
+        expected = ['success', 'failure', 'skipped', 'cancelled']
+        if v not in expected:
+            raise ValueError(f"'conclusion' must be in [{','.join(expected)}], "
+                             f"but '{v}' found")
+        return v
+
+
+class WorkflowJobs(BaseModel):
+    total_count: int = FileCommits(ge=0)
+    workflow_runs: List[WorkflowJob] = []
 
 
 class ContributorStat(BaseModel):

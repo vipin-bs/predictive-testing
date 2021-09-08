@@ -134,20 +134,6 @@ def _create_date_filter(until: Optional[datetime], since: Optional[datetime]) ->
         return _always_false
 
 
-def _validate_dict_keys(d: Any, expected_keys: List[str], logger: Any = _default_logger) -> bool:
-    if type(d) is not dict:
-        logger.warning(f"Expected type is 'dict', but '{type(d).__name__}' found")
-        return False
-    else:
-        nonexistent_keys = list(filter(lambda k: k not in d, expected_keys))
-        if len(nonexistent_keys) != 0:
-            logger.warning(f"Expected keys ({','.join(nonexistent_keys)}) are not found "
-                           f"in {','.join(d.keys())} ")
-            return False
-
-    return True
-
-
 # https://docs.github.com/en/rest/reference/rate-limit#get-rate-limit-status-for-the-authenticated-user
 def get_rate_limit(token: str, logger: Any = None) -> Dict[str, Any]:
     rl = _request_github_api(f"rate_limit", token)
@@ -334,36 +320,31 @@ def list_workflow_runs(owner: str, repo: str, token: str,
 
     api = f'repos/{owner}/{repo}/actions/runs'
     latest_run = _request_github_api(api, token, params={ 'per_page': '1' }, logger=logger)
-    if not _validate_dict_keys(latest_run, ['total_count', 'workflow_runs'], logger=logger):
-        return []
+    wruns = WorkflowRuns.parse_obj(latest_run)
 
     runs: List[Tuple[str, str, str, str, str, str, str, str]] = []
     check_updated = _create_date_filter(until, since)
-    total_runs_count = int(latest_run['total_count'])
-    num_pages = int(total_runs_count / 100) + 1
+    num_pages = int(wruns.total_count / 100) + 1
     rem_pages = nmax
     for page in range(0, num_pages):
         per_page = 100 if rem_pages >= 100 else rem_pages
         params = { 'page': str(page), 'per_page': str(per_page) }
         wruns = _request_github_api(api, token=token, params=params, logger=logger)
         for run in wruns['workflow_runs']:
-            expected_keys = ['id', 'name', 'event', 'status', 'conclusion', 'updated_at', 'pull_requests']
-            if not _validate_dict_keys(run, expected_keys, logger=logger):
+            run = WorkflowRun.parse_obj(run)
+            if check_updated(run.updated_at):
                 return runs
 
-            if check_updated(run['updated_at']):
-                return runs
-
-            if run['status'] == 'completed':
-                if len(run['pull_requests']) == 0:
+            if run.status == 'completed':
+                if len(run.pull_requests) == 0:
                     pr_number, pr_head, pr_base = '', '', ''
                 else:
-                    pr = run['pull_requests'][0]
-                    pr_number = str(pr['number'])
-                    pr_head = pr['head']['sha']
-                    pr_base = pr['base']['sha']
+                    pr = run.pull_requests[0]
+                    pr_number = str(pr.number)
+                    pr_head = pr.head.sha
+                    pr_base = pr.base.sha
 
-                runs.append((str(run['id']), run['name'], run['head_sha'], run['event'], run['conclusion'],
+                runs.append((str(run.id), run.name, run.head_sha, run.event, run.conclusion,
                              pr_number, pr_head, pr_base))
 
         rem_pages -= per_page
@@ -382,22 +363,18 @@ def list_workflow_jobs(run_id: str, owner: str, repo: str, token: str, nmax: int
 
     api = f'repos/{owner}/{repo}/actions/runs/{run_id}/jobs'
     latest_job = _request_github_api(api, token, params={ 'per_page': '1' }, logger=logger)
-    if not _validate_dict_keys(latest_job, ['total_count', 'jobs'], logger=logger):
-        return []
+    wjobs = WorkflowJobs.parse_obj(latest_job)
 
     jobs: List[Tuple[str, str, str]] = []
-    total_jobs_count = int(latest_job['total_count'])
-    num_pages = int(total_jobs_count / 100) + 1
+    num_pages = int(wjobs.total_count / 100) + 1
     rem_pages = nmax
     for page in range(0, num_pages):
         per_page = 100 if rem_pages >= 100 else rem_pages
         params = { 'page': str(page), 'per_page': str(per_page) }
         wjobs = _request_github_api(api, token=token, params=params, logger=logger)
         for job in wjobs['jobs']:
-            if not _validate_dict_keys(job, ['id', 'name', 'conclusion'], logger=logger):
-                return jobs
-
-            jobs.append((str(job['id']), job['name'], job['conclusion']))
+            job = WorkflowJob.parse_obj(job)
+            jobs.append((str(job.id), job.name, job.conclusion))
 
         rem_pages -= per_page
         if len(wjobs) == 0 or rem_pages == 0:
