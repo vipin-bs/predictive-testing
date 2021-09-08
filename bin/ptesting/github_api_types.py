@@ -24,6 +24,26 @@ from typing import List
 Type validation classes for Github REST APIs
 """
 
+
+class RateLimit(BaseModel):
+    limit: int = Field(ge=0)
+    remaining: int = Field(ge=0)
+    reset: int = Field(ge=0)
+    used: int = Field(ge=0)
+
+
+class ResourceLimit(BaseModel):
+    core: RateLimit
+    search: RateLimit
+    graphql: RateLimit
+    graphql: RateLimit
+
+
+class RateLimits(BaseModel):
+    resources: ResourceLimit
+    rate: RateLimit
+
+
 class Author(BaseModel):
     login: str = Field(min_length=1, max_length=39)
 

@@ -148,8 +148,11 @@ def _validate_dict_keys(d: Any, expected_keys: List[str], logger: Any = _default
     return True
 
 
+# https://docs.github.com/en/rest/reference/rate-limit#get-rate-limit-status-for-the-authenticated-user
 def get_rate_limit(token: str, logger: Any = None) -> Dict[str, Any]:
-    return _request_github_api(f"rate_limit", token)
+    rl = _request_github_api(f"rate_limit", token)
+    rl = RateLimits.parse_obj(rl)
+    return rl.dict()
 
 
 # https://docs.github.com/en/rest/reference/pulls#list-pull-requests
