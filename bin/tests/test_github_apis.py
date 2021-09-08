@@ -59,12 +59,6 @@ class GitHubApiTests(unittest.TestCase):
         self.assertEqual(github_apis._to_debug_msg([1, 3, 5]), 'list length:3')
         self.assertEqual(github_apis._to_debug_msg({ 'k1': 'v1', 'k2': 'v2' }), 'top-level keys:k1,k2')
 
-    def test_validate_dict_keys(self):
-        self.assertFalse(github_apis._validate_dict_keys([1, 3, 5], ['k1', 'k2']))
-        self.assertFalse(github_apis._validate_dict_keys({ 'k1': 'v1', 'k3': 'v3', 'k4': 'v4' }, ['k1', 'k2', 'k5']))
-        self.assertTrue(github_apis._validate_dict_keys({ 'k1': 'v1', 'k2': 'v2' }, ['k1', 'k2']))
-        self.assertTrue(github_apis._validate_dict_keys({ 'k1': 'v1', 'k2': 'v2', 'k3': 'v3' }, ['k1', 'k2']))
-
     def _assertIsDateTime(self, t: str) -> None:
         self.assertTrue(type(github_utils.from_github_datetime(t)) is datetime)
 
@@ -179,9 +173,8 @@ class GitHubApiTests(unittest.TestCase):
 
     def test_get_rate_limit(self):
         rate_limit = github_apis.get_rate_limit(self._github_token)
-        self.assertTrue(github_apis._validate_dict_keys(rate_limit, ['resources', 'rate']))
-        self.assertTrue(github_apis._validate_dict_keys(
-            rate_limit['resources'], ['core', 'search', 'graphql']))
+        self.assertTrue(set(rate_limit.keys()), set(['resources', 'rate']))
+        self.assertTrue(set(rate_limit['resources'].keys()), set(['core', 'search', 'graphql']))
 
 
 if __name__ == "__main__":

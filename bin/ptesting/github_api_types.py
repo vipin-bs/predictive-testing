@@ -45,7 +45,6 @@ class ResourceLimit(BaseModel):
     core: RateLimit
     search: RateLimit
     graphql: RateLimit
-    graphql: RateLimit
 
 
 class RateLimits(BaseModel):
