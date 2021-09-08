@@ -1,8 +1,5 @@
 [![License](http://img.shields.io/:license-Apache_v2-blue.svg)](https://github.com/maropu/predictive-testing/blob/master/LICENSE)
-[![Tests](https://github.com/maropu/predictive-testing/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/maropu/predictive-testing/actions/workflows/tests.yml)
-<!---
-[![Coverage Status](https://coveralls.io/repos/github/maropu/predictive-testing/badge.svg?branch=master)](https://coveralls.io/github/maropu/predictive-testing?branch=master)
--->
+[![Run tests](https://github.com/maropu/predictive-testing/actions/workflows/tests.yml/badge.svg)](https://github.com/maropu/predictive-testing/actions/workflows/tests.yml)
 
 XXX
 
