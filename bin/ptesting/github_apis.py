@@ -221,7 +221,7 @@ def list_commits_for(pr_number: str, owner: str, repo: str, token: str,
         pr_commits = _request_github_api(f"repos/{owner}/{repo}/pulls/{pr_number}/commits", token,
                                          params=params, logger=logger)
         for commit in pr_commits:
-            c = PullRequestCommit.parse_obj(commit)
+            c = RepoCommit.parse_obj(commit)
             commit_date = c.commit.author.date
             if check_date(commit_date):
                 return commits
@@ -286,27 +286,23 @@ def _list_change_files(api: str, token: str, logger: Any) -> Tuple[str, str, Lis
     logger = logger or _default_logger
 
     latest_page = _request_github_api(api, token, params={ 'per_page': '1' }, logger=logger)
-    assert _validate_dict_keys(latest_page, ['commits']) or \
-        _validate_dict_keys(latest_page, ['commit'])
-
-    if 'commits' in latest_page and len(latest_page['commits']) > 0:
-        latest_commit = latest_page['commits'][0]['commit']
-    elif 'commit' in latest_page:
-        latest_commit = latest_page['commit']
-
-    commit_date = latest_commit['author']['date']
-    commit_message = latest_commit['message']
+    fc = FileCommits.parse_obj(latest_page)
+    latest_commit = fc.commits[0].commit if fc.commits is not None and len(fc.commits) > 0 \
+        else fc.commit
+    commit_date = latest_commit.author.date
+    commit_message = latest_commit.message
 
     files: Tuple[str, str, List[Tuple[str, str, str, str]]] = []
     npage = 1
     while True:
         params = { 'page': str(npage), 'per_page': '100' }
         changed_files = _request_github_api(api, token, params=params, logger=logger)
-        if 'files' not in changed_files or len(changed_files['files']) == 0:
-             return commit_date, commit_message, files
+        cf = ChangedFiles.parse_obj(changed_files)
+        for f in cf.files:
+            files.append((f.filename, str(f.additions), str(f.deletions), str(f.changes)))
 
-        for file in changed_files['files']:
-            files.append((file['filename'], str(file['additions']), str(file['deletions']), str(file['changes'])))
+        if len(cf.files) < 100:
+             return commit_date, commit_message, files
 
         npage += 1
 

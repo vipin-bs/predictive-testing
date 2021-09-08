@@ -100,16 +100,27 @@ class Commit(BaseModel):
     message: str = Field(min_length=1)
 
 
-class PullRequestCommit(BaseModel):
-    sha: str = Field(min_length=40, max_length=40)
-    commit: Commit
-
-
 class RepoCommit(BaseModel):
     sha: str = Field(min_length=40, max_length=40)
     commit: Commit
     author: Optional[User] = None
     committer: Optional[User] = None
+
+
+class ChangedFile(BaseModel):
+    filename: str = Field(min_length=1)
+    additions: int = Field(ge=0)
+    deletions: int = Field(ge=0)
+    changes: int = Field(ge=0)
+
+
+class ChangedFiles(BaseModel):
+    files: List[ChangedFile] = []
+
+
+class FileCommits(BaseModel):
+    commit: Optional[Commit] = None
+    commits: Optional[List[RepoCommit]] = None
 
 
 class ContributorStat(BaseModel):
