@@ -55,8 +55,7 @@ jobs:
               per_page: 1
             })
             if (artifacts.data.artifacts.length != 0) {
-              // return artifacts.data.artifacts[0].archive_download_url
-              return ''
+              return artifacts.data.artifacts[0].archive_download_url
             } else {
               return ''
             }
