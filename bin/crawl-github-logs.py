@@ -24,9 +24,9 @@ import warnings
 from typing import Any, Dict, List, Optional, Set, Tuple
 from datetime import datetime, timezone
 
-import github_apis
-import github_utils
-import spark_logs
+from ptesting import github_apis
+from ptesting import github_utils
+from ptesting import spark_logs
 
 
 # Suppress warinig messages in REST APIs

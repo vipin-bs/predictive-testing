@@ -24,7 +24,7 @@ import timeout_decorator
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-import github_utils
+from ptesting import github_utils
 
 
 def _setup_default_logger() -> Any:

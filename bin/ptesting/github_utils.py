@@ -21,7 +21,7 @@ import tqdm
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
-import github_apis
+from ptesting import github_apis
 
 
 # The GitHub time format (UTC)

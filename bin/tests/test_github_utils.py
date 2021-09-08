@@ -20,7 +20,7 @@ import unittest
 import warnings
 from datetime import datetime
 
-import github_utils
+from ptesting import github_utils
 
 
 # Suppress warinig messages in REST APIs

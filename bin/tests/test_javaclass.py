@@ -18,7 +18,7 @@
 import os
 import unittest
 
-import javaclass
+from ptesting import javaclass
 
 
 class JavaClassTests(unittest.TestCase):

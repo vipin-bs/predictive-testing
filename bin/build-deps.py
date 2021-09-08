@@ -25,8 +25,8 @@ import os
 import pickle
 from typing import Any, Dict
 
-import callgraph
-import javaclass
+from ptesting import callgraph
+from ptesting import javaclass
 
 
 def _setup_logger():

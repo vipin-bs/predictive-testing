@@ -18,8 +18,8 @@
 import os
 import unittest
 
-import callgraph
-import javaclass
+from ptesting import callgraph
+from ptesting import javaclass
 
 
 class CallGraphTests(unittest.TestCase):

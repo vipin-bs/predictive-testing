@@ -20,7 +20,7 @@
 FWDIR="$(cd "`dirname $0`"/..; pwd)"
 cd "$FWDIR"
 
-if [ -z "$CONDA_DISABLED" ]; then
+if [ ! -z "$CONDA_ENABLED" ]; then
   # Activate a conda virtual env
   . ./bin/conda.sh && activate_conda_virtual_env "${FWDIR}" "predictive-testing"
 fi
@@ -35,5 +35,4 @@ fi
 # ./bin/lint-python || exit -1
 
 exec python3 -u ./bin/run-tests.py \
-  --root-path ${FWDIR}/bin \
-  --data ${FWDIR}/bin/tests/resources "$@"
+  --root-path ${FWDIR}/bin --data ${FWDIR}/bin/tests/resources "$@"
