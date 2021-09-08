@@ -175,10 +175,7 @@ class GitHubApiTests(unittest.TestCase):
     def test_list_contributors_stats(self):
         contributors = github_apis.list_contributors_stats(self._github_owner, self._github_repo, self._github_token)
         self.assertEqual(len(contributors), 100)
-        self.assertEqual(contributors[0:3], [
-            ('rxin', '1179'),
-            ('cloud-fan', '923'),
-            ('HyukjinKwon', '839')])
+        self.assertEqual(contributors[0:3], [('rxin', 1179), ('cloud-fan', 923), ('HyukjinKwon', 839)])
 
     def test_get_rate_limit(self):
         rate_limit = github_apis.get_rate_limit(self._github_token)

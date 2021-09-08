@@ -25,6 +25,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from ptesting import github_utils
+from ptesting.github_api_types import *
 
 
 def _setup_default_logger() -> Any:
@@ -428,18 +429,13 @@ def get_workflow_job_logs(job_id: str, owner: str, repo: str, token: str, logger
 
 
 # https://docs.github.com/en/rest/reference/repos#get-all-contributor-commit-activity
-def list_contributors_stats(owner: str, repo: str, token: str, logger: Any = None) -> List[Tuple[str, str]]:
+def list_contributors_stats(owner: str, repo: str, token: str, logger: Any = None) -> List[Tuple[str, int]]:
     _assert_github_prams(owner, repo, token)
 
     logger = logger or _default_logger
 
-    contributors: List[Tuple[str, str]] = []
-    stats = _request_github_api(f"repos/{owner}/{repo}/stats/contributors", token, logger=logger)
-    for stat in stats:
-        if not _validate_dict_keys(stat, ['author', 'total'], logger=logger):
-            return []
-
-        contributors.append((stat['author']['login'], str(stat['total'])))
-
-    res = sorted(contributors, key=lambda c: int(c[1]), reverse=True)  # Sorted by 'total'
+    cs = _request_github_api(f"repos/{owner}/{repo}/stats/contributors", token, logger=logger)
+    cs = ContributorStats.parse_obj({ 'stats': cs })
+    contributors = list(map(lambda x: (x.author.login, x.total), cs.stats))
+    res = sorted(contributors, key=lambda c: c[1], reverse=True)  # Sorted by 'total'
     return res
