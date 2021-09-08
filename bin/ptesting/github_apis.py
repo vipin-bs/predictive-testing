@@ -221,14 +221,12 @@ def list_commits_for(pr_number: str, owner: str, repo: str, token: str,
         pr_commits = _request_github_api(f"repos/{owner}/{repo}/pulls/{pr_number}/commits", token,
                                          params=params, logger=logger)
         for commit in pr_commits:
-            if not _validate_dict_keys(commit, ['sha', 'commit'], logger=logger):
-                return commits
-
-            commit_date = commit['commit']['author']['date']
+            c = PullRequestCommit.parse_obj(commit)
+            commit_date = c.commit.author.date
             if check_date(commit_date):
                 return commits
 
-            commits.append((commit['sha'], commit_date, commit['commit']['message']))
+            commits.append((c.sha, commit_date, c.commit.message))
 
         rem_pages -= per_page
         npage += 1

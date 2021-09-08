@@ -86,6 +86,25 @@ class PullRequest(BaseModel):
         return _validate_datetime(v)
 
 
+class Author(BaseModel):
+    name: str = Field(min_length=1, max_length=39)
+    date: str
+
+    @validator("date")
+    def validate_date(cls, v):
+        return _validate_datetime(v)
+
+
+class Commit(BaseModel):
+    author: Author
+    message: str = Field(min_length=1)
+
+
+class PullRequestCommit(BaseModel):
+    sha: str = Field(min_length=40, max_length=40)
+    commit: Commit
+
+
 class ContributorStat(BaseModel):
     author: User
     total: int = Field(ge=1)
