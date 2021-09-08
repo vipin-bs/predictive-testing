@@ -47,9 +47,9 @@ _logger = _setup_logger()
 # Sets output names for call graphs
 env = dict(os.environ)
 CALL_GRAPH_NAME = env['CALL_GRAPH_NAME'] if 'CALL_GRAPH_NAME' in env \
-    else 'call_graph'
+    else 'dep-graph'
 REV_CALL_GRAPH_NAME = env['REV_CALL_GRAPH_NAME'] if 'REV_CALL_GRAPH_NAME' in env \
-    else 'rev_call_graph'
+    else 'rev-dep-graph'
 
 
 def _select_handlers_from_file_type(type: str) -> Any:
@@ -91,6 +91,19 @@ def _analyze_build_deps(root_paths: str,
     _write_data_as(REV_CALL_GRAPH_NAME, output_path, rev_adj_list)
 
 
+def _list_test_files(root_paths: str, target_package: str, list_test_files: Any) -> None:
+    if len(root_paths) == 0:
+        raise ValueError("At least one path must be specified in '--root-paths'")
+    if len(target_package) == 0:
+        raise ValueError("Target package must be specified in '--target-package'")
+
+    test_classes: List[str] = []
+    for p in root_paths.split(','):
+        test_classes.extend(map(lambda x: x[0], list_test_files(p, target_package)))
+
+    print("\n".join(set(test_classes)))
+
+
 def main():
     # Parses command-line arguments
     from argparse import ArgumentParser
@@ -105,9 +118,12 @@ def main():
     parser.add_argument('--depth', dest='depth', type=int, required=False, default=3)
     args = parser.parse_args()
 
-    if args.command == 'analyze':
+    if args.command in ['analyze', 'list']:
         list_files, list_test_files, extract_refs = _select_handlers_from_file_type(args.file_type)
-        _analyze_build_deps(args.root_paths, args.output, args.target_package, list_files, list_test_files, extract_refs)
+        if args.command == 'analyze':
+            _analyze_build_deps(args.root_paths, args.output, args.target_package, list_files, list_test_files, extract_refs)
+        else:
+            _list_test_files(args.root_paths, args.target_package, list_test_files)
     elif args.command == 'visualize':
         callgraph.generate_call_graph(args.graph, args.targets, args.depth)
     else:

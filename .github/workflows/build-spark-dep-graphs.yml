@@ -1,0 +1,63 @@
+name: Build Spark class dependency graphs
+
+on:
+  push:
+    branches:
+      - master
+  # schedule:
+  # - cron: '0 */2 * * *'
+
+jobs:
+  build-spark-dep-graphs:
+    runs-on: ubuntu-latest
+    env:
+      python: 3.6
+      java: 1.8
+    strategy:
+      fail-fast: false
+    steps:
+      - name: Checkout predictive-testing repository
+        uses: actions/checkout@v2
+        # In order to fetch changed files
+        with:
+          fetch-depth: 0
+      - name: Checkout Spark repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          repository: apache/spark
+          ref: master
+          path: spark-master
+      - name: Generate output path by using Spark HEAD commit sha
+        run: |
+          OUTPUT_PATH=spark-dep-graphs-`git rev-parse HEAD`
+          echo "OUTPUT_PATH=${OUTPUT_PATH}" >> $GITHUB_ENV
+      - name: Install Python ${{ env.python }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.python }}
+          architecture: x64
+      - name: Install Python packages (Python ${{ env.python }})
+        run: python -m pip install -r ./bin/requirements.txt
+      - name: Install JDK ${{ env.java }}
+        uses: actions/setup-java@v1
+        with:
+          java-version: ${{ env.java }}
+      - name: Build with Maven
+        run: |
+          export MAVEN_OPTS="-Xss64m -Xmx2g -XX:ReservedCodeCacheSize=1g -Dorg.slf4j.simpleLogger.defaultLogLevel=WARN"
+          export MAVEN_CLI_OPTS="--no-transfer-progress"
+          export JAVA_VERSION=${{ env.java }}
+          cd spark-master && ./build/mvn $MAVEN_CLI_OPTS -DskipTests -Pyarn -Pmesos -Pkubernetes -Phive -Phive-thriftserver -Phadoop-cloud -Djava.version=$JAVA_VERSION test-compile
+      - name: Analyze Spark class dependencies
+        run: |
+          ./bin/analyze-spark-deps.sh ./spark-master $OUTPUT_PATH
+      - name: List up test classes
+        run: |
+          ./bin/build-deps.py --command list --file-type java --target-package org.apache.spark --root-paths ./spark-master >> $OUTPUT_PATH/test-classes.lst
+      - name: Upload output as artifact
+        if: success()
+        uses: actions/upload-artifact@v2
+        with:
+          name: spark-dep-graphs
+          path: ./spark-dep-graphs-*
