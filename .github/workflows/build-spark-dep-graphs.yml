@@ -25,9 +25,9 @@ jobs:
           repository: apache/spark
           ref: master
           path: spark-master
-      - name: Generate output path by using Spark HEAD commit sha
+      - name: Generate output name by using Spark HEAD commit sha
         run: |
-          OUTPUT_NAME=spark-dep-graphs-`date '+%Y%m%d%H%M'`-`git rev-parse HEAD`
+          OUTPUT_NAME=spark-dep-graphs-`date '+%Y%m%d%H%M'`-`git rev-parse --short HEAD`
           echo "OUTPUT_NAME=${OUTPUT_NAME}" >> $GITHUB_ENV
       - name: Install Python ${{ env.python }}
         uses: actions/setup-python@v2
@@ -49,28 +49,25 @@ jobs:
       - name: Analyze Spark class dependencies
         run: |
           ./bin/analyze-spark-deps.sh ./spark-master "${{ env.OUTPUT_NAME }}"
-      - name: List up test classes
-        run: |
-          ./bin/build-deps.py --command list --file-type java --target-package org.apache.spark --root-paths ./spark-master >> "${{ env.OUTPUT_NAME }}"/test-classes.lst
       - name: Upload output as artifact
         if: success()
         uses: actions/upload-artifact@v2
         with:
           name: spark-dep-graphs
           path: ${{ env.OUTPUT_NAME }}
-      - name: Put output in models/spark
+      - name: Locate output in indexes/spark
         run: |
-          mv "${{ env.OUTPUT_NAME }}" models/spark/
+          mv "${{ env.OUTPUT_NAME }}" indexes/spark/
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: Adds `models/spark/${{ env.OUTPUT_NAME }}`
+          commit-message: Adds `indexes/spark/${{ env.OUTPUT_NAME }}`
           committer: GitHub <noreply@github.com>
           author: ${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>
           signoff: false
           branch: build-spark-dep-graphs-pullreq
           delete-branch: true
-          title: 'Adds `models/spark/${{ env.OUTPUT_NAME }}`'
+          title: 'Adds `indexes/spark/${{ env.OUTPUT_NAME }}`'
           body: |
-            Automated changes by the `${{ github.job}}` workflow (run_id=${{ github.run_id }})
+            Automated changes by the `${{ github.job}}` workflow (run_id=${{ github.run_id }}).

@@ -18,11 +18,11 @@
 import os
 import unittest
 
-from ptesting import callgraph
+from ptesting import depgraph
 from ptesting import javaclass
 
 
-class CallGraphTests(unittest.TestCase):
+class DepGraphTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -31,7 +31,7 @@ class CallGraphTests(unittest.TestCase):
 
     def test_build_call_graphs(self):
         class_path = self._java_class_test_path
-        adj_list, rev_adj_list = callgraph.build_call_graphs(
+        adj_list, rev_adj_list, test_files = depgraph.build_dependency_graphs(
             [class_path], 'io.github.maropu', javaclass.list_classes, javaclass.list_test_classes,
             javaclass.extract_refs)
 
@@ -59,16 +59,21 @@ class CallGraphTests(unittest.TestCase):
             ('io/github/maropu/TestClassC', ['io/github/maropu/MainClass']),
         ])
 
+        self.assertEqual(set(test_files), set([
+            'io/github/maropu/TestClassSuite',
+            'io/github/maropu/MainClassSuite'
+        ]))
+
     def test_select_subgraph(self):
         g = { 'A': ['B'], 'B': ['A', 'C'], 'C': ['D'], 'D': ['E'], 'E': ['A'] }
-        subgraph, subnodes = callgraph._select_subgraph(['A'], g, depth=2)
+        subgraph, subnodes = depgraph.select_subgraph(['A'], g, depth=2)
         self.assertEqual(sorted(map(lambda kv: (kv[0], sorted(kv[1])), subgraph.items())),
             [('A', ['B']), ('B', ['A', 'C'])])
         self.assertEqual(sorted(subnodes), ['A', 'B', 'C'])
 
     def test_generate_graph(self):
         edges = { 'A': ['B'], 'B': ['A', 'C'] }
-        g = callgraph._generate_graph(['A', 'B', 'C'], ['A'], edges)
+        g = depgraph.generate_graph(['A', 'B', 'C'], ['A'], edges)
         def normalize(s):
             return s.replace(' ', '').replace('\n', '')
         expected = f"""

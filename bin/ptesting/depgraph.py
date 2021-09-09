@@ -19,26 +19,13 @@
 
 import os
 import pickle
-from typing import Any, Dict, List, Set
+from typing import Any, Dict, List, Set, Tuple
 from functools import reduce
 
 
-def _setup_logger() -> Any:
-    from logging import getLogger, NullHandler, DEBUG
-    logger = getLogger(__name__)
-    logger.setLevel(DEBUG)
-    logger.addHandler(NullHandler())
-    logger.propagate = False
-    return logger
-
-
-_logger = _setup_logger()
-
-
-def build_call_graphs(root_paths: List[str],
-                      target_package: str,
-                      list_files: Any, list_test_files: Any,
-                      extract_refs: Any):
+def build_dependency_graphs(root_paths: List[str], target_package: str,
+                            list_files: Any, list_test_files: Any,
+                            extract_refs: Any) -> Tuple[Dict[str, List[str]], Dict[str, List[str]], List[str]]:
     adj_list: Dict[str, Set[str]] = {}
     rev_adj_list: Dict[str, Set[str]] = {}
 
@@ -48,9 +35,6 @@ def build_call_graphs(root_paths: List[str],
     all_files = [*files, *test_files]
     if len(all_files) == 0:
         raise RuntimeError(f"No file found in [{', '.join(root_paths)}]")
-
-    _logger.info(f"{len(all_files)} files ({len(test_files)} test files included) "
-                 f"found in {','.join(root_paths)}")
 
     import tqdm
     n_files = len(all_files)
@@ -70,10 +54,11 @@ def build_call_graphs(root_paths: List[str],
     def to_graph(g: Dict[str, Set[str]]) -> Dict[str, List[str]]:
         return { k: list(v) for k, v in g.items() }
 
-    return to_graph(adj_list), to_graph(rev_adj_list)
+    return to_graph(adj_list), to_graph(rev_adj_list), \
+        list(map(lambda x: x[0], test_files))
 
 
-def _generate_graph(nodes: List[str], targets: List[str], edges: Dict[str, List[str]]) -> str:
+def generate_graph(nodes: List[str], targets: List[str], edges: Dict[str, List[str]]) -> str:
     # TODO: Normalize node strings
     def ns(s: str) -> str:
         return s.replace('/', '.')
@@ -104,9 +89,8 @@ def _generate_graph(nodes: List[str], targets: List[str], edges: Dict[str, List[
     """
 
 
-def _select_subgraph(targets: List[str], edges: Dict[str, List[str]], depth: int):
-    import json
-    print(json.dumps(edges, indent=4))
+def select_subgraph(targets: List[str], edges: Dict[str, List[str]],
+                    depth: int) -> Tuple[Dict[str, List[str]], List[str]]:
     subgraph = {}
     visited_nodes = set()
     keys = targets
@@ -125,21 +109,3 @@ def _select_subgraph(targets: List[str], edges: Dict[str, List[str]], depth: int
         visited_nodes.update(keys)
 
     return subgraph, list(visited_nodes)
-
-
-def generate_call_graph(path: str, targets: str, depth: int) -> None:
-    if len(path) == 0:
-        raise ValueError("Path of call graph must be specified in '--graph'")
-    if not os.path.isfile(path):
-        raise ValueError("File must be specified in '--graph'")
-    if len(targets) == 0:
-        raise ValueError("At least one target must be specified in '--targets'")
-    if depth <= 0:
-        raise ValueError("'depth' must be positive")
-
-    with open(path, mode='rb') as f:
-        call_graph = pickle.load(f)
-
-    target_nodes = targets.replace(".", "/").split(",")
-    subgraph, subnodes = _select_subgraph(target_nodes, call_graph, depth)
-    print(_generate_graph(subnodes, target_nodes, subgraph))
