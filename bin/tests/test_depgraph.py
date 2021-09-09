@@ -65,17 +65,19 @@ class DepGraphTests(unittest.TestCase):
         ]))
 
     def test_select_subgraph(self):
-        g = { 'A': ['B'], 'B': ['A', 'C'], 'C': ['D'], 'D': ['E'], 'E': ['A'] }
+        g = {'A': ['B'], 'B': ['A', 'C'], 'C': ['D'], 'D': ['E'], 'E': ['A']}
         subgraph, subnodes = depgraph.select_subgraph(['A'], g, depth=2)
         self.assertEqual(sorted(map(lambda kv: (kv[0], sorted(kv[1])), subgraph.items())),
-            [('A', ['B']), ('B', ['A', 'C'])])
+                         [('A', ['B']), ('B', ['A', 'C'])])
         self.assertEqual(sorted(subnodes), ['A', 'B', 'C'])
 
     def test_generate_graph(self):
-        edges = { 'A': ['B'], 'B': ['A', 'C'] }
+        edges = {'A': ['B'], 'B': ['A', 'C']}
         g = depgraph.generate_graph(['A', 'B', 'C'], ['A'], edges)
+
         def normalize(s):
             return s.replace(' ', '').replace('\n', '')
+
         expected = f"""
             digraph {{
                 graph [pad="0.5", nodesep="0.5", ranksep="2", fontname="Helvetica"];

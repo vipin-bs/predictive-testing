@@ -32,7 +32,7 @@ if [[ "$PYTHON_VERSION_CHECK" == "True" ]]; then
 fi
 
 # Static code analysis before running unit tests
-# ./bin/lint-python || exit -1
+./bin/lint-python || exit -1
 
 exec python3 -u ./bin/run-tests.py \
   --root-path ${FWDIR}/bin --data ${FWDIR}/bin/tests/resources "$@"

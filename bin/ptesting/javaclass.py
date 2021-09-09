@@ -21,27 +21,26 @@
 Helper functions to analyze java class files
 """
 
-import pickle
 import re
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 
 # Compiled regex patterns
 RE_IS_TEST_CLASS = re.compile('Suite|Spec')
 
 
-def _exec_subprocess(cmd: str, raise_error=True):
+def _exec_subprocess(cmd: str, raise_error: bool = True) -> Tuple[Any, Any, Any]:
     import subprocess
     child = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = child.communicate()
     rt = child.returncode
     if rt != 0 and raise_error:
-        raise RuntimeError(f"command return code is not 0. got {rt}. stderr = {stderr}")
+        raise RuntimeError(f"command return code is not 0. got {rt}. stderr = {stderr}")  # type: ignore
 
     return stdout, stderr, rt
 
 
-def _get_cmd_path(cmd: str):
+def _get_cmd_path(cmd: str) -> Any:
     from shutil import which
     if which(cmd) is None:
         raise RuntimeError(f"Could not find '{cmd}' executable")
@@ -63,7 +62,7 @@ def _list_class_files(root: str, p: str) -> List[str]:
 
 
 def _is_test_class(path: str) -> bool:
-    return RE_IS_TEST_CLASS.search(path)
+    return RE_IS_TEST_CLASS.search(path) is not None
 
 
 def list_classes(root: str, target_package: str) -> List[Tuple[str, str]]:
@@ -77,7 +76,7 @@ def list_classes(root: str, target_package: str) -> List[Tuple[str, str]]:
     return qualified_classes
 
 
-def list_test_classes(root: str, target_package) -> List[Tuple[str, str]]:
+def list_test_classes(root: str, target_package: str) -> List[Tuple[str, str]]:
     test_classes = list(filter(lambda c: _is_test_class(c), _list_class_files(root, '*.class')))
     qualified_test_classes = []
     for path in test_classes:

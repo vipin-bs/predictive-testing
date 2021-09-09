@@ -145,7 +145,7 @@ def _traverse_pull_requests(output_path: str,
                 # Per-user buffer to write github logs
                 per_user_logs: List[Dict[str, Any]] = []
 
-                def _write(pr_user, commit_date, commit_message, files, tests, pr_title='', pr_body=''):
+                def _write(pr_user, commit_date, commit_message, files, tests, pr_title='', pr_body=''):  # type: ignore
                     buf: Dict[str, Any] = {}
                     buf['author'] = pr_user
                     buf['commit_date'] = github_utils.format_github_datetime(commit_date, '%Y/%m/%d %H:%M:%S')
@@ -162,7 +162,7 @@ def _traverse_pull_requests(output_path: str,
 
                     per_user_logs.append(buf)
 
-                def _flush():
+                def _flush() -> None:
                     for log in per_user_logs:
                         of.write(json.dumps(log))
 
@@ -171,7 +171,8 @@ def _traverse_pull_requests(output_path: str,
                 # Fetches test results from folk-side workflow jobs
                 user_test_results = github_utils.get_test_results_from(pr_user, pr_repo, params,
                                                                        target_runs, target_jobs,
-                                                                       test_failure_patterns, compilation_failure_patterns,
+                                                                       test_failure_patterns,
+                                                                       compilation_failure_patterns,
                                                                        until=until, since=since, tqdm_leave=False,
                                                                        logger=logger)
 
@@ -181,7 +182,8 @@ def _traverse_pull_requests(output_path: str,
                 for pr_number, pr_created_at, pr_updated_at, pr_title, pr_body, pr_user, pr_repo, pr_branch in pullreqs:
                     commits = github_apis.list_commits_for(pr_number, owner, repo, token,
                                                            until=until, since=since, logger=logger)
-                    logger.info(f"pullreq#{pr_number} has {len(commits)} commits (created_at:{pr_created_at}, updated_at:{pr_updated_at})")
+                    logger.info(f"pullreq#{pr_number} has {len(commits)} commits (created_at:{pr_created_at}, "
+                                f"updated_at:{pr_updated_at})")
 
                     matched: Set[str] = set()
                     for (commit, commit_date, commit_message) in commits:
@@ -232,9 +234,11 @@ def _traverse_github_logs(traverse_func: Any, output_path: str, overwrite: bool,
     if resume and not os.path.exists(output_path):
         raise RuntimeError(f'Output path not found in {os.path.abspath(output_path)}')
     elif not resume:
+        if overwrite:
+            import shutil
+            shutil.rmtree(output_path, ignore_errors=True)
+
         # Make an output dir in advance
-        import shutil
-        overwrite and shutil.rmtree(output_path, ignore_errors=True)
         os.mkdir(output_path)
 
     # For logger setup
@@ -244,7 +248,7 @@ def _traverse_github_logs(traverse_func: Any, output_path: str, overwrite: bool,
     logger.info(f"rate_limit: {_to_rate_limit_msg(github_apis.get_rate_limit(params['GITHUB_TOKEN']))}")
 
     # Parses a specified datetime string if necessary
-    import dateutil.parser as parser
+    import dateutil.parser as parser  # type: ignore
     until = parser.parse(until) if until else None
     since = parser.parse(since) if since else None
 
@@ -257,7 +261,7 @@ def _show_rate_limit(params: Dict[str, str]) -> None:
     print(_to_rate_limit_msg(rate_limit))
 
 
-def main():
+def main() -> None:
     # Parses command-line arguments
     from argparse import ArgumentParser
     parser = ArgumentParser()

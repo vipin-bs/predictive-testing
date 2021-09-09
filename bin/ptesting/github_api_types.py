@@ -26,7 +26,8 @@ from ptesting import github_utils
 Type validation classes for Github REST APIs
 """
 
-def _validate_datetime(v):
+
+def _validate_datetime(v: str) -> str:
     try:
         github_utils.from_github_datetime(v)
     except:
@@ -61,7 +62,7 @@ class Author(BaseModel):
     date: str
 
     @validator("date")
-    def validate_date(cls, v):
+    def validate_date(cls, v: str) -> str:
         return _validate_datetime(v)
 
 
@@ -86,11 +87,11 @@ class PullRequest(BaseModel):
     base: Reference
 
     @validator("created_at")
-    def validate_created_at(cls, v):
+    def validate_created_at(cls, v: str) -> str:
         return _validate_datetime(v)
 
     @validator("updated_at")
-    def validate_updated_at(cls, v):
+    def validate_updated_at(cls, v: str) -> str:
         return _validate_datetime(v)
 
 
@@ -123,17 +124,17 @@ class FileCommits(BaseModel):
 
 
 class WorkflowRun(BaseModel):
-    id: int = FileCommits(ge=1)
-    name: str = FileCommits(min_length=1)
-    head_sha: str = FileCommits(min_length=40, max_length=40)
-    event: str = FileCommits(min_length=1)
+    id: int = Field(ge=1)
+    name: str = Field(min_length=1)
+    head_sha: str = Field(min_length=40, max_length=40)
+    event: str = Field(min_length=1)
     status: str
     conclusion: Optional[str] = None
     updated_at: str
     pull_requests: List[PullRequest] = []
 
     @validator("status")
-    def validate_status(cls, v):
+    def validate_status(cls, v: str) -> str:
         expected = ['waiting', 'requested', 'completed', 'in_progress', 'queued']
         if v not in expected:
             raise ValueError(f"'status' must be in [{','.join(expected)}], "
@@ -141,7 +142,7 @@ class WorkflowRun(BaseModel):
         return v
 
     @validator("conclusion")
-    def validate_conclusion(cls, v):
+    def validate_conclusion(cls, v: str) -> str:
         expected = ['success', 'failure', 'skipped', 'cancelled', 'startup_failure']
         if not (v is None or v in expected):
             raise ValueError(f"'conclusion' must be in [{','.join(expected)}], "
@@ -149,22 +150,22 @@ class WorkflowRun(BaseModel):
         return v
 
     @validator("updated_at")
-    def validate_udpated_at(cls, v):
+    def validate_udpated_at(cls, v: str) -> str:
         return _validate_datetime(v)
 
 
 class WorkflowRuns(BaseModel):
-    total_count: int = FileCommits(ge=0)
+    total_count: int = Field(ge=0)
     workflow_runs: List[WorkflowRun]
 
 
 class WorkflowJob(BaseModel):
-    id: int = FileCommits(ge=1)
-    name: str = FileCommits(min_length=1)
+    id: int = Field(ge=1)
+    name: str = Field(min_length=1)
     conclusion: str
 
     @validator("conclusion")
-    def validate_conclusion(cls, v):
+    def validate_conclusion(cls, v: str) -> str:
         expected = ['success', 'failure', 'skipped', 'cancelled', 'startup_failure']
         if v not in expected:
             raise ValueError(f"'conclusion' must be in [{','.join(expected)}], "
@@ -173,7 +174,7 @@ class WorkflowJob(BaseModel):
 
 
 class WorkflowJobs(BaseModel):
-    total_count: int = FileCommits(ge=0)
+    total_count: int = Field(ge=0)
     workflow_runs: List[WorkflowJob] = []
 
 

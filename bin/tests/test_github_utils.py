@@ -32,6 +32,7 @@ github_access_disabled = False
 if 'GITHUB_TOKEN' not in env:
     github_access_disabled = True
 
+
 @unittest.skipIf(
     github_access_disabled,
     "envs 'GITHUB_TOKEN' must be defined to test 'github_apis'")

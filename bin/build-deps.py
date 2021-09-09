@@ -52,9 +52,11 @@ def _analyze_build_deps(output_path: str, overwrite: bool, root_paths: str, targ
     if len(target_package) == 0:
         raise ValueError("Target package must be specified in '--target-package'")
 
+    if overwrite:
+        import shutil
+        shutil.rmtree(output_path, ignore_errors=True)
+
     # Make an output dir in advance
-    import shutil
-    overwrite and shutil.rmtree(output_path, ignore_errors=True)
     os.mkdir(output_path)
 
     adj_list, rev_adj_list, test_files = depgraph.build_dependency_graphs(
@@ -83,7 +85,7 @@ def _generate_dependency_graph(path: str, targets: str, depth: int) -> str:
     return depgraph.generate_graph(subnodes, target_nodes, subgraph)
 
 
-def main():
+def main() -> None:
     # Parses command-line arguments
     from argparse import ArgumentParser
     parser = ArgumentParser()

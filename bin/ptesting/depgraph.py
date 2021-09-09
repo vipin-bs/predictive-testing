@@ -17,8 +17,6 @@
 # limitations under the License.
 #
 
-import os
-import pickle
 from typing import Any, Dict, List, Set, Tuple
 from functools import reduce
 
@@ -30,8 +28,8 @@ def build_dependency_graphs(root_paths: List[str], target_package: str,
     rev_adj_list: Dict[str, Set[str]] = {}
 
     # Collects class files from given paths
-    files = reduce(lambda x, y: x.extend(y), [ list_files(p, target_package) for p in root_paths])
-    test_files = reduce(lambda x, y: x.extend(y), [ list_test_files(p, target_package) for p in root_paths])
+    files = reduce(lambda x, y: x.extend(y), [list_files(p, target_package) for p in root_paths])
+    test_files = reduce(lambda x, y: x.extend(y), [list_test_files(p, target_package) for p in root_paths])
     all_files = [*files, *test_files]
     if len(all_files) == 0:
         raise RuntimeError(f"No file found in [{', '.join(root_paths)}]")
@@ -52,7 +50,7 @@ def build_dependency_graphs(root_paths: List[str], target_package: str,
         adj_list[node] = refs
 
     def to_graph(g: Dict[str, Set[str]]) -> Dict[str, List[str]]:
-        return { k: list(v) for k, v in g.items() }
+        return {k: list(v) for k, v in g.items()}
 
     return to_graph(adj_list), to_graph(rev_adj_list), \
         list(map(lambda x: x[0], test_files))
@@ -65,10 +63,10 @@ def generate_graph(nodes: List[str], targets: List[str], edges: Dict[str, List[s
 
     node_entries = []
     for node in nodes:
-      if node in targets:
-          node_entries.append(f"\"{ns(node)}\" [shape=\"oval\"];")
-      else:
-          node_entries.append(f"\"{ns(node)}\";")
+        if node in targets:
+            node_entries.append(f"\"{ns(node)}\" [shape=\"oval\"];")
+        else:
+            node_entries.append(f"\"{ns(node)}\";")
 
     edge_entries = []
     for key, values in edges.items():

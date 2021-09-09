@@ -32,7 +32,8 @@ _target_workflow_jobs = [
     'pyspark-pandas-slow',
     'core, unsafe, kvstore, avro, network-common, network-shuffle, repl, launcher, examples, sketch, graphx',
     'catalyst, hive-thriftserver',
-    'streaming, sql-kafka-0-10, streaming-kafka-0-10, mllib-local, mllib, yarn, mesos, kubernetes, hadoop-cloud, spark-ganglia-lgpl',
+    'streaming, sql-kafka-0-10, streaming-kafka-0-10, mllib-local, mllib, yarn, mesos, kubernetes, '
+    'hadoop-cloud, spark-ganglia-lgpl',
     'hive - slow tests',
     'hive - other tests',
     'sql - slow tests',

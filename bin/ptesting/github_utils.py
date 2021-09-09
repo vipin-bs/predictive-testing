@@ -67,7 +67,7 @@ def _create_failed_test_extractor(test_failure_patterns: List[str],
     # TODO: It seems to be better to search the specified patterns from a tail to a head because
     # the strings that represents build results (e.g., compilation/test failures)
     # are likely to be placed in the end of logs.
-    def extractor(logs: str) -> Optional[List[str]]:
+    def extractor(logs: str) -> Optional[List[str]]:  # type: ignore
         if compilation_failure_patterns is not None:
             for p in compilation_failures:
                 if p.search(logs) is not None:
@@ -86,9 +86,9 @@ def _create_failed_test_extractor(test_failure_patterns: List[str],
 def _create_name_filter(targets: Optional[List[str]]) -> Any:
     if targets is not None:
         def name_filter(name: str) -> bool:
-            for target in targets:
-              if name.find(target) != -1:
-                  return True
+            for target in targets:  # type: ignore
+                if name.find(target) != -1:
+                    return True
             return False
 
         return name_filter
@@ -116,14 +116,16 @@ def get_test_results_from(owner: str, repo: str, params: Dict[str, str],
     extract_failed_tests_from = _create_failed_test_extractor(test_failure_patterns, compilation_failure_patterns)
 
     runs = github_apis.list_workflow_runs(owner, repo, params['GITHUB_TOKEN'], until=until, since=since, logger=logger)
-    for run_id, run_name, head_sha, event, conclusion, pr_number, head, base in tqdm.tqdm(runs, desc=f"Workflow Runs ({owner}/{repo})", leave=tqdm_leave):
+    for run_id, run_name, head_sha, event, conclusion, pr_number, head, base \
+            in tqdm.tqdm(runs, desc=f"Workflow Runs ({owner}/{repo})", leave=tqdm_leave):
         logger.info(f"run_id:{run_id}, run_name:{run_name}, event:{event}, head_sha={head_sha}")
 
         if run_filter(run_name) and conclusion in ['success', 'failure']:
             if pr_number.isdigit():
                 # List up all the updated files between 'base' and 'head' as corresponding to this run
                 commit_date, commit_message, changed_files = \
-                    github_apis.list_change_files_between(base, head, owner, repo, params['GITHUB_TOKEN'], logger=logger)
+                    github_apis.list_change_files_between(base, head, owner, repo, params['GITHUB_TOKEN'],
+                                                          logger=logger)
             else:
                 commit_date, commit_message, changed_files = \
                     github_apis.list_change_files_from(head_sha, owner, repo, params['GITHUB_TOKEN'], logger=logger)
@@ -154,14 +156,15 @@ def get_test_results_from(owner: str, repo: str, params: Dict[str, str],
                         logger.info(f"job_id:{job_id}, job_name:{job_name}, conclusion:{conclusion}")
                         if conclusion == 'failure':
                             # NOTE: In case of a compilation failure, it returns None
-                            logs = github_apis.get_workflow_job_logs(job_id, owner, repo, params['GITHUB_TOKEN'], logger=logger)
+                            logs = github_apis.get_workflow_job_logs(
+                                job_id, owner, repo, params['GITHUB_TOKEN'], logger=logger)
                             tests = extract_failed_tests_from(logs)
                             if tests is not None:
                                 if len(tests) > 0:
                                     failed_tests.extend(tests)
                                 else:
-                                    logger.warning(f"Cannot find any test failure in workfolow job (owner={owner}, repo={repo}, "
-                                                   f"run_id={run_id} job_name='{job_name}')")
+                                    logger.warning(f"Cannot find any test failure in workfolow job (owner={owner}, "
+                                                   f"repo={repo}, run_id={run_id} job_name='{job_name}')")
                             else:
                                 # If `tests` is None, it represents a compilation failure
                                 logger.info(f"Compilation failure found: job_id={job_id}")

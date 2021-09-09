@@ -18,11 +18,11 @@
 #
 
 import json
-import requests
+import requests  # type: ignore
 import retrying
 import timeout_decorator
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple, Union
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
 
 from ptesting import github_utils
 from ptesting.github_api_types import *
@@ -67,7 +67,10 @@ def _retry_if_timeout(caught: Any) -> Any:
                 wrap_exception=False)
 def _request_github_api(api: str, token: str, params: Dict[str, str] = {}, pass_thru: bool = False,
                         logger: Any = _default_logger) -> Any:
-    headers = { 'Accept': 'application/vnd.github.v3+json', 'Authorization': f'Token {token}', 'User-Agent': 'github-apis' }
+    headers = {
+        'Accept': 'application/vnd.github.v3+json',
+        'Authorization': f'Token {token}', 'User-Agent': 'github-apis'
+    }
     ret = requests.get(f'https://api.github.com/{api}', timeout=10, headers=headers, params=params, verify=False)
     if ret.status_code != 200:
         error_msg = "{} request (params={}) failed because: {}"
@@ -89,8 +92,8 @@ def _request_github_api(api: str, token: str, params: Dict[str, str] = {}, pass_
         return ret.text
 
 
-def _assert_github_prams(owner, repo, token):
-    def is_valid_str(s):
+def _assert_github_prams(owner: str, repo: str, token: str) -> None:
+    def is_valid_str(s: str) -> bool:
         return type(s) is str and len(s) > 0
 
     assert is_valid_str(owner) and is_valid_str(repo) and is_valid_str(token), \
@@ -127,9 +130,9 @@ def _create_date_filter(until: Optional[datetime], since: Optional[datetime]) ->
     if until is not None and since is not None:
         return _create_datetime_range_validator(until, since)
     elif until is not None:
-        return _create_until_validator(since)
+        return _create_until_validator(since)  # type: ignore
     elif since is not None:
-        return _create_since_validator(since)
+        return _create_since_validator(since)  # type: ignore
     else:
         return _always_false
 
@@ -157,7 +160,7 @@ def list_pullreqs(owner: str, repo: str, token: str,
     npage = 1
     while True:
         per_page = 100 if rem_pages >= 100 else rem_pages
-        params = { 'page': str(npage), 'per_page': str(per_page), 'state': 'all', 'sort': 'updated', 'direction': 'desc' }
+        params = {'page': str(npage), 'per_page': str(per_page), 'state': 'all', 'sort': 'updated', 'direction': 'desc'}
         prs = _request_github_api(f"repos/{owner}/{repo}/pulls", token, params=params, logger=logger)
         for pullreq in prs:
             pr = PullRequest.parse_obj(pullreq)
@@ -170,13 +173,13 @@ def list_pullreqs(owner: str, repo: str, token: str,
                 pr_updated_at = pr.updated_at
                 pr_title = pr.title
                 pr_body = pr.body
-                pr_user = pr.user.login
+                pr_user = pr.user.login  # type: ignore
                 pr_repo = pr.head.repo.name
                 pr_branch = pr.head.ref
-                pullreqs.append((pr_number, pr_created_at, pr_updated_at, pr_title, pr_body,
+                pullreqs.append((pr_number, pr_created_at, pr_updated_at, pr_title, pr_body,  # type: ignore
                                  pr_user, pr_repo, pr_branch))
             else:
-                logger.warning(f"repository not found: pr_number={str(pr.number)}, "
+                logger.warning(f"repository not found: pr_number={str(pr.number)}, "  # type: ignore
                                f"pr_user={pr.user.login}")
 
         rem_pages -= per_page
@@ -203,7 +206,7 @@ def list_commits_for(pr_number: str, owner: str, repo: str, token: str,
     npage = 1
     while True:
         per_page = 100 if rem_pages >= 100 else rem_pages
-        params = { 'page': str(npage), 'per_page': str(per_page) }
+        params = {'page': str(npage), 'per_page': str(per_page)}
         pr_commits = _request_github_api(f"repos/{owner}/{repo}/pulls/{pr_number}/commits", token,
                                          params=params, logger=logger)
         for commit in pr_commits:
@@ -245,7 +248,7 @@ def list_repo_commits(owner: str, repo: str, token: str,
     npage = 1
     while True:
         per_page = 100 if rem_pages >= 100 else rem_pages
-        params = { 'page': str(npage), 'per_page': str(per_page) }
+        params = {'page': str(npage), 'per_page': str(per_page)}
         params.update(extra_params)
         file_commits = _request_github_api(f"repos/{owner}/{repo}/commits", token,
                                            params=params, logger=logger)
@@ -271,24 +274,24 @@ def list_repo_commits(owner: str, repo: str, token: str,
 def _list_change_files(api: str, token: str, logger: Any) -> Tuple[str, str, List[Tuple[str, str, str, str]]]:
     logger = logger or _default_logger
 
-    latest_page = _request_github_api(api, token, params={ 'per_page': '1' }, logger=logger)
+    latest_page = _request_github_api(api, token, params={'per_page': '1'}, logger=logger)
     fc = FileCommits.parse_obj(latest_page)
     latest_commit = fc.commits[0].commit if fc.commits is not None and len(fc.commits) > 0 \
         else fc.commit
-    commit_date = latest_commit.author.date
-    commit_message = latest_commit.message
+    commit_date = latest_commit.author.date  # type: ignore
+    commit_message = latest_commit.message  # type: ignore
 
-    files: Tuple[str, str, List[Tuple[str, str, str, str]]] = []
+    files: List[Tuple[str, str, List[Tuple[str, str, str, str]]]] = []
     npage = 1
     while True:
-        params = { 'page': str(npage), 'per_page': '100' }
+        params = {'page': str(npage), 'per_page': '100'}
         changed_files = _request_github_api(api, token, params=params, logger=logger)
         cf = ChangedFiles.parse_obj(changed_files)
         for f in cf.files:
-            files.append((f.filename, str(f.additions), str(f.deletions), str(f.changes)))
+            files.append((f.filename, str(f.additions), str(f.deletions), str(f.changes)))  # type: ignore
 
         if len(cf.files) < 100:
-             return commit_date, commit_message, files
+            return commit_date, commit_message, files  # type: ignore
 
         npage += 1
 
@@ -319,7 +322,7 @@ def list_workflow_runs(owner: str, repo: str, token: str,
     logger = logger or _default_logger
 
     api = f'repos/{owner}/{repo}/actions/runs'
-    latest_run = _request_github_api(api, token, params={ 'per_page': '1' }, logger=logger)
+    latest_run = _request_github_api(api, token, params={'per_page': '1'}, logger=logger)
     wruns = WorkflowRuns.parse_obj(latest_run)
 
     runs: List[Tuple[str, str, str, str, str, str, str, str]] = []
@@ -328,9 +331,9 @@ def list_workflow_runs(owner: str, repo: str, token: str,
     rem_pages = nmax
     for page in range(0, num_pages):
         per_page = 100 if rem_pages >= 100 else rem_pages
-        params = { 'page': str(page), 'per_page': str(per_page) }
+        params = {'page': str(page), 'per_page': str(per_page)}
         wruns = _request_github_api(api, token=token, params=params, logger=logger)
-        for run in wruns['workflow_runs']:
+        for run in wruns['workflow_runs']:  # type: ignore
             run = WorkflowRun.parse_obj(run)
             if check_updated(run.updated_at):
                 return runs
@@ -348,7 +351,7 @@ def list_workflow_runs(owner: str, repo: str, token: str,
                              pr_number, pr_head, pr_base))
 
         rem_pages -= per_page
-        if len(wruns) == 0 or rem_pages == 0:
+        if len(wruns['workflow_runs']) == 0 or rem_pages == 0:  # type: ignore
             return runs
 
     return runs
@@ -362,7 +365,7 @@ def list_workflow_jobs(run_id: str, owner: str, repo: str, token: str, nmax: int
     logger = logger or _default_logger
 
     api = f'repos/{owner}/{repo}/actions/runs/{run_id}/jobs'
-    latest_job = _request_github_api(api, token, params={ 'per_page': '1' }, logger=logger)
+    latest_job = _request_github_api(api, token, params={'per_page': '1'}, logger=logger)
     wjobs = WorkflowJobs.parse_obj(latest_job)
 
     jobs: List[Tuple[str, str, str]] = []
@@ -370,14 +373,14 @@ def list_workflow_jobs(run_id: str, owner: str, repo: str, token: str, nmax: int
     rem_pages = nmax
     for page in range(0, num_pages):
         per_page = 100 if rem_pages >= 100 else rem_pages
-        params = { 'page': str(page), 'per_page': str(per_page) }
+        params = {'page': str(page), 'per_page': str(per_page)}
         wjobs = _request_github_api(api, token=token, params=params, logger=logger)
-        for job in wjobs['jobs']:
+        for job in wjobs['jobs']:  # type: ignore
             job = WorkflowJob.parse_obj(job)
             jobs.append((str(job.id), job.name, job.conclusion))
 
         rem_pages -= per_page
-        if len(wjobs) == 0 or rem_pages == 0:
+        if len(wjobs['jobs']) == 0 or rem_pages == 0:  # type: ignore
             return jobs
 
     return jobs
