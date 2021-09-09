@@ -93,7 +93,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.LOG_CRAWLER_API_KEY }}
         run: |
-          ./bin/crawl-github-logs.py --github-token "${GITHUB_TOKEN}" --github-owner apache --github-repo spark --output output --overwrite --since "${SINCE_DATE}"
+          ./bin/crawl-github-logs.py --github-token "${GITHUB_TOKEN}" --github-owner apache --github-repo spark --output output --overwrite --since "${{ env.SINCE_DATE }}"
       - name: Resume last run to collect GitHub logs
         if: ${{ steps.check-if-resume-file-exists.outputs.files_exists == 'true' }}
         env:

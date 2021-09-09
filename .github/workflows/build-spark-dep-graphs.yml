@@ -51,10 +51,10 @@ jobs:
           cd spark-master && ./build/mvn $MAVEN_CLI_OPTS -DskipTests -Pyarn -Pmesos -Pkubernetes -Phive -Phive-thriftserver -Phadoop-cloud -Djava.version=$JAVA_VERSION test-compile
       - name: Analyze Spark class dependencies
         run: |
-          ./bin/analyze-spark-deps.sh ./spark-master $OUTPUT_PATH
+          ./bin/analyze-spark-deps.sh ./spark-master "${{ env.OUTPUT_PATH }}"
       - name: List up test classes
         run: |
-          ./bin/build-deps.py --command list --file-type java --target-package org.apache.spark --root-paths ./spark-master >> $OUTPUT_PATH/test-classes.lst
+          ./bin/build-deps.py --command list --file-type java --target-package org.apache.spark --root-paths ./spark-master >> "${{ env.OUTPUT_PATH }}"/test-classes.lst
       - name: Upload output as artifact
         if: success()
         uses: actions/upload-artifact@v2
