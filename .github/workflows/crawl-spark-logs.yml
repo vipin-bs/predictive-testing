@@ -2,8 +2,13 @@ name: Crawling Spark GitHub logs
 
 on:
   schedule:
-  - cron: '0 */2 * * *'
-
+   - cron: '0 */2 * * *'
+  workflow_dispatch:
+    inputs:
+      sinceDate:
+        description: 'Since date'
+        default: '1 month ago'
+        required: true
 jobs:
   crawl-spark-logs:
     runs-on: ubuntu-latest
@@ -27,6 +32,7 @@ jobs:
       - name: Get latest workflow run status
         uses: actions/github-script@v4
         id: latest-workflow-status
+        if: ${{ github.event_name == 'schedule' }}
         with:
           result-encoding: string
           script: |
@@ -76,14 +82,22 @@ jobs:
         id: check-if-resume-file-exists
         with:
           files: "latest_output/.resume-meta.lst"
+      - name: Use `sinceDate` for `--since` option
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          echo "${{ github.event_name }}"
+          SINCE_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ" -d '${{ github.event.inputs.sinceDate }}'`
+          echo "SINCE_DATE=${SINCE_DATE}" >> $GITHUB_ENV
       - name: Set a default value for `--since` option
-        if: ${{ steps.check-if-latest-output-exists.outputs.files_exists == 'false' &&
+        if: ${{ github.event_name == 'schedule' &&
+          steps.check-if-latest-output-exists.outputs.files_exists == 'false' &&
           steps.check-if-resume-file-exists.outputs.files_exists == 'false' }}
         run: |
-          SINCE_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ" -d '3 month ago'`
+          SINCE_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ" -d '2 month ago'`
           echo "SINCE_DATE=${SINCE_DATE}" >> $GITHUB_ENV
       - name: Compute `--since` option value form the latest run datetime
-        if: ${{ steps.check-if-latest-output-exists.outputs.files_exists == 'true' &&
+        if: ${{ github.event_name == 'schedule' &&
+          steps.check-if-latest-output-exists.outputs.files_exists == 'true' &&
           steps.check-if-resume-file-exists.outputs.files_exists == 'false' }}
         run: |
           SINCE_DATE=`cat output/.run-meta.json | jq --raw-output .until`
