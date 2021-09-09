@@ -142,7 +142,7 @@ class WorkflowRun(BaseModel):
 
     @validator("conclusion")
     def validate_conclusion(cls, v):
-        expected = ['success', 'failure', 'skipped', 'cancelled']
+        expected = ['success', 'failure', 'skipped', 'cancelled', 'startup_failure']
         if not (v is None or v in expected):
             raise ValueError(f"'conclusion' must be in [{','.join(expected)}], "
                              f"but '{v}' found")
@@ -165,7 +165,7 @@ class WorkflowJob(BaseModel):
 
     @validator("conclusion")
     def validate_conclusion(cls, v):
-        expected = ['success', 'failure', 'skipped', 'cancelled']
+        expected = ['success', 'failure', 'skipped', 'cancelled', 'startup_failure']
         if v not in expected:
             raise ValueError(f"'conclusion' must be in [{','.join(expected)}], "
                              f"but '{v}' found")
