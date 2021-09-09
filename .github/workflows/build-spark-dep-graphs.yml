@@ -1,12 +1,9 @@
 name: Build Spark class dependency graphs
 
 on:
-  push:
-    branches:
-      - master
-  # schedule:
-  # - cron: '0 */2 * * *'
-
+  workflow_dispatch:
+  schedule:
+   - cron: '0 0 * * 0'
 jobs:
   build-spark-dep-graphs:
     runs-on: ubuntu-latest
@@ -30,7 +27,7 @@ jobs:
           path: spark-master
       - name: Generate output path by using Spark HEAD commit sha
         run: |
-          OUTPUT_PATH=spark-dep-graphs-`git rev-parse HEAD`
+          OUTPUT_PATH=spark-dep-graphs-`date '+%Y%m%d%H%M'`-`git rev-parse HEAD`
           echo "OUTPUT_PATH=${OUTPUT_PATH}" >> $GITHUB_ENV
       - name: Install Python ${{ env.python }}
         uses: actions/setup-python@v2

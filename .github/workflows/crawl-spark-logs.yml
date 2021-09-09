@@ -1,14 +1,14 @@
 name: Crawling Spark GitHub logs
 
 on:
-  schedule:
-   - cron: '0 */2 * * *'
   workflow_dispatch:
     inputs:
       sinceDate:
         description: 'Since date'
         default: '1 month ago'
         required: true
+  schedule:
+   - cron: '0 */2 * * *'
 jobs:
   crawl-spark-logs:
     runs-on: ubuntu-latest
