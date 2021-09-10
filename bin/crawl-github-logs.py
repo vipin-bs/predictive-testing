@@ -132,18 +132,18 @@ def _traverse_pull_requests(output_path: str,
     target_runs, target_jobs, test_failure_patterns, compilation_failure_patterns = \
         _create_workflow_handlers('spark')
 
-    # Fetches test results from mainstream-side workflow jobs
-    # TODO: Skip this now
-    test_results: Dict[str, Tuple[str, str, List[Dict[str, str]], List[str]]] = {}
-    # test_results = github_utils.get_test_results_from(owner, repo, params,
-    #                                                   target_runs, target_jobs,
-    #                                                   test_failure_patterns, compilation_failure_patterns,
-    #                                                   until=until, since=since,
-    #                                                   resume_path=wrun_resume_path, tqdm_leave=True,
-    #                                                   logger=logger)
-
     try:
         with open(f"{output_path}/github-logs.json", "a") as of, open(resume_meta_fpath, "a") as rf:
+            # Fetches test results from mainstream-side workflow jobs
+            # TODO: Skip this now (Needs to resume this task)
+            test_results: Dict[str, Tuple[str, str, List[Dict[str, str]], List[str]]] = {}
+            # test_results = github_utils.get_test_results_from(owner, repo, params,
+            #                                                   target_runs, target_jobs,
+            #                                                   test_failure_patterns, compilation_failure_patterns,
+            #                                                   until=until, since=since,
+            #                                                   resume_path=wrun_resume_path, tqdm_leave=True,
+            #                                                   logger=logger)
+
             # TODO: Could we parallelize crawling jobs by users?
             pb_title = f"Pull Reqests ({owner}/{repo})"
             for (pr_user, pr_repo), pullreqs in tqdm.tqdm(pullreqs_by_user.items(), desc=pb_title):
