@@ -162,12 +162,12 @@ class WorkflowRuns(BaseModel):
 class WorkflowJob(BaseModel):
     id: int = Field(ge=1)
     name: str = Field(min_length=1)
-    conclusion: str
+    conclusion: Optional[str] = None
 
     @validator("conclusion")
     def validate_conclusion(cls, v: str) -> str:
         expected = ['success', 'failure', 'skipped', 'cancelled', 'startup_failure']
-        if v not in expected:
+        if not (v is None or v in expected):
             raise ValueError(f"'conclusion' must be in [{','.join(expected)}], "
                              f"but '{v}' found")
         return v
