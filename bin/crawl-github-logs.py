@@ -35,7 +35,7 @@ warnings.simplefilter('ignore')
 
 
 def _setup_logger(logfile: str) -> Any:
-    from logging import getLogger, FileHandler, Formatter, StreamHandler, DEBUG, INFO, WARNING
+    from logging import getLogger, FileHandler, Formatter, StreamHandler, DEBUG, ERROR, INFO
     logger = getLogger(__name__)
     logger.setLevel(DEBUG)
 
@@ -47,7 +47,7 @@ def _setup_logger(logfile: str) -> Any:
     logger.addHandler(fh)
 
     ch = StreamHandler()
-    ch.setLevel(WARNING)
+    ch.setLevel(ERROR)
     ch.setFormatter(formatter)
     logger.addHandler(ch)
 
