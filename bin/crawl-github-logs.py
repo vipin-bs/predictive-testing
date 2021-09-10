@@ -20,7 +20,6 @@
 import json
 import os
 import shutil
-import time
 import tqdm
 import warnings
 from typing import Any, Dict, List, Optional, Set, Tuple
@@ -62,15 +61,8 @@ def _create_workflow_handlers(proj: str) -> Tuple[List[str], List[str], List[str
         raise ValueError(f'Unknown project type: {proj}')
 
 
-def _get_rate_limit(github_token: str) -> Tuple[int, int, int, int]:
-    rate_limit = github_apis.get_rate_limit(github_token)
-    c = rate_limit['resources']['core']
-    renewal = c['reset'] - int(time.time())
-    return c['limit'], c['used'], c['remaining'], renewal
-
-
 def _rate_limit_msg(github_token: str) -> str:
-    limit, used, remaining, reset = _get_rate_limit(github_token)
+    limit, used, remaining, reset = github_utils.get_rate_limit(github_token)
     return f"limit={limit}, used={used}, remaining={remaining}, reset={reset}s"
 
 
@@ -227,7 +219,8 @@ def _traverse_pull_requests(output_path: str,
 
                     except RuntimeError as e:
                         if sleep_if_limit_exceeded and str(e).find('API rate limit exceeded') != -1:
-                            _, _, _, renewal = _get_rate_limit(params['GITHUB_TOKEN'])
+                            import time
+                            _, _, _, renewal = github_utils.get_rate_limit(params['GITHUB_TOKEN'])
                             logger.info(f"API rate limit exceeded, so this process sleeps for {renewal}s")
                             time.sleep(renewal + 16)
                         else:

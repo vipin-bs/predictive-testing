@@ -218,5 +218,13 @@ def get_test_results_from(owner: str, repo: str, params: Dict[str, str],
     return test_results
 
 
+def get_rate_limit(github_token: str) -> Tuple[int, int, int, int]:
+    import time
+    rate_limit = github_apis.get_rate_limit(github_token)
+    c = rate_limit['resources']['core']
+    renewal = c['reset'] - int(time.time())
+    return c['limit'], c['used'], c['remaining'], renewal
+
+
 def trim_text(s: str, max_num: int) -> str:
     return s[0:max_num] + '...' if len(s) > max_num else s
