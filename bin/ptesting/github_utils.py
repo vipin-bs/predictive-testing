@@ -123,7 +123,7 @@ def get_test_results_from(owner: str, repo: str, params: Dict[str, str],
     import json
     from pathlib import Path
     user_resume_path = f"{resume_path}/{owner}"
-    wrun_fpath = f"{user_resume_path}/workflow_runs.json"
+    wrun_fpath = f"{user_resume_path}/workflow-runs.json"
     test_result_fpath = f"{user_resume_path}/test-results.json"
     resume_meta_fpath = f"{user_resume_path}/resume-meta.lst"
     if os.path.exists(wrun_fpath) and os.path.exists(test_result_fpath) \
