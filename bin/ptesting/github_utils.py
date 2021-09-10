@@ -135,8 +135,16 @@ def get_test_results_from(owner: str, repo: str, params: Dict[str, str],
         shutil.rmtree(user_resume_path, ignore_errors=True)
         os.mkdir(user_resume_path)
 
-        workflow_runs = github_apis.list_workflow_runs(
+        workflow_runs = []
+        wruns = github_apis.list_workflow_runs(
             owner, repo, params['GITHUB_TOKEN'], until=until, since=since, logger=logger)
+        for wrun in wruns:
+            run_id, run_name, _, _, conclusion, _, _, _ = wrun
+            if run_filter(run_name) and conclusion in ['success', 'failure']:
+                workflow_runs.append(wrun)
+            else:
+                logger.info(f"Run (run_id={run_id}, run_name='{run_name}') skipped")
+
         with open(wrun_fpath, "w") as f:
             f.write(json.dumps(workflow_runs))
             f.flush()
@@ -146,64 +154,60 @@ def get_test_results_from(owner: str, repo: str, params: Dict[str, str],
                 in tqdm.tqdm(workflow_runs, desc=f"Workflow Runs ({owner}/{repo})", leave=tqdm_leave):
             logger.info(f"run_id:{run_id}, run_name:{run_name}, event:{event}, head_sha={head_sha}")
 
-            if run_filter(run_name) and conclusion in ['success', 'failure']:
-                if pr_number.isdigit():
-                    # List up all the updated files between 'base' and 'head' as corresponding to this run
-                    commit_date, commit_message, changed_files = \
-                        github_apis.list_change_files_between(base, head, owner, repo, params['GITHUB_TOKEN'],
-                                                              logger=logger)
-                else:
-                    commit_date, commit_message, changed_files = \
-                        github_apis.list_change_files_from(head_sha, owner, repo, params['GITHUB_TOKEN'], logger=logger)
-
-                files: List[Dict[str, str]] = []
-                for file in changed_files:
-                    filename, additions, deletions, changes = file
-                    files.append({'name': filename, 'additions': additions, 'deletions': deletions, 'changes': changes})
-
-                if conclusion == 'success':
-                    test_results[head] = (commit_date, commit_message, files, [])
-                else:  # failed run case
-                    jobs = github_apis.list_workflow_jobs(run_id, owner, repo, params['GITHUB_TOKEN'], logger=logger)
-                    selected_jobs: List[Tuple[str, str, str]] = []
-                    for job in jobs:
-                        job_id, job_name, conclusion = job
-                        if job_filter(job_name):
-                            selected_jobs.append(job)
-                        else:
-                            logger.info(f"Job (run_id={run_id}, job_id={job_id}) skipped")
-
-                    all_selected_jobs_passed = len(list(filter(lambda j: j[2] == 'failure', selected_jobs))) == 0
-                    if all_selected_jobs_passed:
-                        test_results[head] = (commit_date, commit_message, files, [])
-                    else:
-                        failed_tests = []
-                        for job_id, job_name, conclusion in selected_jobs:
-                            logger.info(f"job_id:{job_id}, job_name:{job_name}, conclusion:{conclusion}")
-                            if conclusion == 'failure':
-                                # NOTE: In case of a compilation failure, it returns None
-                                logs = github_apis.get_workflow_job_logs(
-                                    job_id, owner, repo, params['GITHUB_TOKEN'], logger=logger)
-                                tests = extract_failed_tests_from(logs)
-                                if tests is not None:
-                                    if len(tests) > 0:
-                                        failed_tests.extend(tests)
-                                    else:
-                                        logger.warning(f"Cannot find any test failure in workfolow job (owner={owner}, "
-                                                       f"repo={repo}, run_id={run_id} job_name='{job_name}')")
-                                else:
-                                    # If `tests` is None, it represents a compilation failure
-                                    logger.info(f"Compilation failure found: job_id={job_id}")
-
-                        # If we cannot detect any failed test in logs, just ignore it
-                        if len(failed_tests) > 0:
-                            test_results[head] = (commit_date, commit_message, files, failed_tests)
-                        else:
-                            logger.info(f"No test failure found in workfolow run (owner={owner}, repo={repo}, "
-                                        f"run_id={run_id} run_name='{run_name}')")
-
+            if pr_number.isdigit():
+                # List up all the updated files between 'base' and 'head' as corresponding to this run
+                commit_date, commit_message, changed_files = \
+                    github_apis.list_change_files_between(base, head, owner, repo, params['GITHUB_TOKEN'],
+                                                          logger=logger)
             else:
-                logger.info(f"Run (run_id={run_id}, run_name='{run_name}') skipped")
+                commit_date, commit_message, changed_files = \
+                    github_apis.list_change_files_from(head_sha, owner, repo, params['GITHUB_TOKEN'], logger=logger)
+
+            files: List[Dict[str, str]] = []
+            for file in changed_files:
+                filename, additions, deletions, changes = file
+                files.append({'name': filename, 'additions': additions, 'deletions': deletions, 'changes': changes})
+
+            if conclusion == 'success':
+                test_results[head] = (commit_date, commit_message, files, [])
+            else:  # failed run case
+                jobs = github_apis.list_workflow_jobs(run_id, owner, repo, params['GITHUB_TOKEN'], logger=logger)
+                selected_jobs: List[Tuple[str, str, str]] = []
+                for job in jobs:
+                    job_id, job_name, conclusion = job
+                    if job_filter(job_name):
+                        selected_jobs.append(job)
+                    else:
+                        logger.info(f"Job (run_id={run_id}, job_id={job_id}) skipped")
+
+                all_selected_jobs_passed = len(list(filter(lambda j: j[2] == 'failure', selected_jobs))) == 0
+                if all_selected_jobs_passed:
+                    test_results[head] = (commit_date, commit_message, files, [])
+                else:
+                    failed_tests = []
+                    for job_id, job_name, conclusion in selected_jobs:
+                        logger.info(f"job_id:{job_id}, job_name:{job_name}, conclusion:{conclusion}")
+                        if conclusion == 'failure':
+                            # NOTE: In case of a compilation failure, it returns None
+                            logs = github_apis.get_workflow_job_logs(
+                                job_id, owner, repo, params['GITHUB_TOKEN'], logger=logger)
+                            tests = extract_failed_tests_from(logs)
+                            if tests is not None:
+                                if len(tests) > 0:
+                                    failed_tests.extend(tests)
+                                else:
+                                    logger.warning(f"Cannot find any test failure in workfolow job (owner={owner}, "
+                                                   f"repo={repo}, run_id={run_id} job_name='{job_name}')")
+                            else:
+                                # If `tests` is None, it represents a compilation failure
+                                logger.info(f"Compilation failure found: job_id={job_id}")
+
+                    # If we cannot detect any failed test in logs, just ignore it
+                    if len(failed_tests) > 0:
+                        test_results[head] = (commit_date, commit_message, files, failed_tests)
+                    else:
+                        logger.info(f"No test failure found in workfolow run (owner={owner}, repo={repo}, "
+                                    f"run_id={run_id} run_name='{run_name}')")
 
             # Writes the current snapshot of `test_results`
             with open(test_result_fpath, "w") as f:
