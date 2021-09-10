@@ -19,6 +19,7 @@
 
 import json
 import os
+import shutil
 import tqdm
 import warnings
 from typing import Any, Dict, List, Optional, Set, Tuple
@@ -75,6 +76,11 @@ def _traverse_pull_requests(output_path: str,
     resume_meta_fpath = f"{output_path}/.resume-meta.lst"
     pullreq_fpath = f"{output_path}/pullreqs.json"
 
+    # Makes a resume dir for workflow runs if it does not exists
+    wrun_resume_path = f"{output_path}/.resume-workflow-runs"
+    if not os.path.exists(wrun_resume_path):
+        os.mkdir(wrun_resume_path)
+
     if not resume:
         logger.info(f"Fetching candidate pull requests in {owner}/{repo}...")
         pullreqs = github_apis.list_pullreqs(owner, repo, token,
@@ -84,18 +90,18 @@ def _traverse_pull_requests(output_path: str,
         if len(pullreqs) == 0:
             raise RuntimeError('No valid pull request found')
 
-        with open(run_meta_fpath, "w") as output:
+        with open(run_meta_fpath, "w") as f:
             meta: Dict[str, str] = {}
             meta['owner'] = owner
             meta['repo'] = repo
             meta['until'] = github_utils.to_github_datetime(datetime.now(timezone.utc))
             if since is not None:
                 meta['since'] = github_utils.to_github_datetime(since)
-            output.write(json.dumps(meta))
-            output.flush()
-        with open(pullreq_fpath, "w") as output:
-            output.write(json.dumps(pullreqs))
-            output.flush()
+            f.write(json.dumps(meta))
+            f.flush()
+        with open(pullreq_fpath, "w") as f:
+            f.write(json.dumps(pullreqs))
+            f.flush()
     else:
         if not os.path.exists(run_meta_fpath):
             raise RuntimeError(f'Run meta file not found in {os.path.abspath(run_meta_fpath)}')
@@ -132,7 +138,8 @@ def _traverse_pull_requests(output_path: str,
     # test_results = github_utils.get_test_results_from(owner, repo, params,
     #                                                   target_runs, target_jobs,
     #                                                   test_failure_patterns, compilation_failure_patterns,
-    #                                                   until=until, since=since, tqdm_leave=True,
+    #                                                   until=until, since=since,
+    #                                                   resume_path=wrun_resume_path, tqdm_leave=True,
     #                                                   logger=logger)
 
     try:
@@ -173,7 +180,8 @@ def _traverse_pull_requests(output_path: str,
                                                                        target_runs, target_jobs,
                                                                        test_failure_patterns,
                                                                        compilation_failure_patterns,
-                                                                       until=until, since=since, tqdm_leave=False,
+                                                                       until=until, since=since,
+                                                                       resume_path=wrun_resume_path, tqdm_leave=False,
                                                                        logger=logger)
 
                 # Merges the tests results with mainstream's ones
@@ -200,6 +208,7 @@ def _traverse_pull_requests(output_path: str,
 
                 _flush()
 
+                # Writes a flag indicating run completion
                 rf.write(f"{pr_user}\n")
                 rf.flush()
 
@@ -208,7 +217,8 @@ def _traverse_pull_requests(output_path: str,
         logger.warning("Crawling logs failed, but you can resume it by '--resume' option")
 
     else:
-        # If all things done successfully, removes the resume file
+        # If all things done successfully, removes the resume file/dir
+        shutil.rmtree(wrun_resume_path, ignore_errors=True)
         os.remove(resume_meta_fpath)
 
 
@@ -235,7 +245,6 @@ def _traverse_github_logs(traverse_func: Any, output_path: str, overwrite: bool,
         raise RuntimeError(f'Output path not found in {os.path.abspath(output_path)}')
     elif not resume:
         if overwrite:
-            import shutil
             shutil.rmtree(output_path, ignore_errors=True)
 
         # Make an output dir in advance
