@@ -130,7 +130,7 @@ def get_test_results_from(owner: str, repo: str, params: Dict[str, str],
             and os.path.exists(resume_meta_fpath):
         processed_wrun_set = set(Path(resume_meta_fpath).read_text().split('\n'))
         workflow_runs = list(filter(lambda r: r[0] not in processed_wrun_set, json.loads(Path(wrun_fpath).read_text())))
-        test_results = json.loads(Path(wrun_fpath).read_text())
+        test_results = json.loads(Path(test_result_fpath).read_text())
     else:
         shutil.rmtree(user_resume_path, ignore_errors=True)
         os.mkdir(user_resume_path)
