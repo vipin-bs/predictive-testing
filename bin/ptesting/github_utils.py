@@ -124,10 +124,13 @@ def get_test_results_from(owner: str, repo: str, params: Dict[str, str],
     from pathlib import Path
     user_resume_path = f"{resume_path}/{owner}"
     wrun_fpath = f"{user_resume_path}/workflow_runs.json"
+    test_result_fpath = f"{user_resume_path}/test-results.json"
     resume_meta_fpath = f"{user_resume_path}/resume-meta.lst"
-    if os.path.exists(wrun_fpath) and os.path.exists(resume_meta_fpath):
+    if os.path.exists(wrun_fpath) and os.path.exists(test_result_fpath) \
+            and os.path.exists(resume_meta_fpath):
         processed_wrun_set = set(Path(resume_meta_fpath).read_text().split('\n'))
         workflow_runs = list(filter(lambda r: r[0] not in processed_wrun_set, json.loads(Path(wrun_fpath).read_text())))
+        test_results = json.loads(Path(wrun_fpath).read_text())
     else:
         shutil.rmtree(user_resume_path, ignore_errors=True)
         os.mkdir(user_resume_path)
@@ -201,6 +204,11 @@ def get_test_results_from(owner: str, repo: str, params: Dict[str, str],
 
             else:
                 logger.info(f"Run (run_id={run_id}, run_name='{run_name}') skipped")
+
+            # Writes the current snapshot of `test_results`
+            with open(test_result_fpath, "w") as f:
+                f.write(json.dumps(test_results))
+                f.flush()
 
             # Writes a flag indicating run completion
             rf.write(f"{run_id}\n")
