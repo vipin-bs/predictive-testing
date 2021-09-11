@@ -17,6 +17,8 @@
 # limitations under the License.
 #
 
+# TODO: Replaces the current GitHub v3 API with v4 one (GraphQL)
+
 import json
 import requests  # type: ignore
 import retrying
