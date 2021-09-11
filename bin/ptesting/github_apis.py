@@ -58,13 +58,17 @@ def _to_error_msg(text: str) -> str:
         return text
 
 
+def is_rate_limit_exceeded(msg: str) -> bool:
+    return msg.find('API rate limit exceeded') != -1
+
+
 # For a list of requests's exceptions, see:
 # https://docs.python-requests.org/en/latest/user/quickstart/#errors-and-exceptions
-def _retry_if_timeout(caught: Any) -> Any:
+def _retry_if_timeout(caught: Exception) -> bool:
     return isinstance(caught, requests.exceptions.Timeout)
 
 
-@retrying.retry(stop_max_attempt_number=4, wait_exponential_multiplier=1000, wait_exponential_max=4000,
+@retrying.retry(stop_max_attempt_number=3, wait_exponential_multiplier=1000, wait_exponential_max=4000,
                 retry_on_exception=_retry_if_timeout,
                 wrap_exception=False)
 def _request_github_api(api: str, token: str, params: Dict[str, str] = {}, pass_thru: bool = False,
@@ -76,9 +80,8 @@ def _request_github_api(api: str, token: str, params: Dict[str, str] = {}, pass_
     ret = requests.get(f'https://api.github.com/{api}', timeout=10, headers=headers, params=params, verify=False)
     if ret.status_code != 200:
         error_msg = "{} request (params={}) failed because: {}"
-        if ret.status_code == 403 and ret.text.find('API rate limit exceeded') != -1:
-            error_msg = error_msg.format(
-                api, str(params), 'the GitHub API rate limit exceeded')
+        if ret.status_code == 403 and is_rate_limit_exceeded(ret.text):
+            error_msg = error_msg.format(api, str(params), 'the GitHub API rate limit exceeded')
         else:
             error_msg = error_msg.format(
                 api, str(params), f"status_code={ret.status_code}, msg='{_to_error_msg(ret.text)}'")

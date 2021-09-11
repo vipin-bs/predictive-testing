@@ -22,7 +22,7 @@ import os
 import shutil
 import tqdm
 import warnings
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from datetime import datetime, timezone
 
 from ptesting import github_apis
@@ -67,16 +67,11 @@ def _rate_limit_msg(github_token: str) -> str:
 
 
 def _traverse_pull_requests(output_path: str,
+                            owner: str, repo: str, token: str,
                             until: Optional[datetime], since: Optional[datetime],
                             max_num_pullreqs: int, resume: bool,
                             sleep_if_limit_exceeded: bool,
-                            params: Dict[str, str],
                             logger: Any) -> None:
-
-    owner = params['GITHUB_OWNER']
-    repo = params['GITHUB_REPO']
-    token = params['GITHUB_TOKEN']
-
     # List of output file paths
     run_meta_fpath = f"{output_path}/.run-meta.json"
     resume_meta_fpath = f"{output_path}/.resume-meta.lst"
@@ -141,95 +136,39 @@ def _traverse_pull_requests(output_path: str,
     try:
         with open(f"{output_path}/github-logs.json", "a") as of, open(resume_meta_fpath, "a") as rf:
             # Fetches test results from mainstream-side workflow jobs
-            test_results = github_utils.get_test_results_from(owner, repo, params,
-                                                              target_runs, target_jobs,
-                                                              test_failure_patterns, compilation_failure_patterns,
-                                                              until=until, since=since,
-                                                              resume_path=wrun_resume_path,
-                                                              tqdm_leave=True,
-                                                              logger=logger)
+            repo_test_results = github_utils.get_test_results_from(owner, repo, token,
+                                                                   target_runs, target_jobs,
+                                                                   test_failure_patterns, compilation_failure_patterns,
+                                                                   until=until, since=since,
+                                                                   resume_path=wrun_resume_path,
+                                                                   tqdm_leave=True,
+                                                                   logger=logger)
 
             # TODO: Could we parallelize crawling jobs by users?
             pb_title = f"Pull Reqests ({owner}/{repo})"
             for (pr_user, pr_repo), pullreqs in tqdm.tqdm(pullreqs_by_user.items(), desc=pb_title):
                 logger.info(f"pr_user:{pr_user}, pr_repo:{pr_repo}, #pullreqs:{len(pullreqs)}")
 
-                finished = False
-                while not finished:
-                    try:
-                        # Per-user buffer to write github logs
-                        per_user_logs: List[Dict[str, Any]] = []
+                # Fetches test results from folk-side workflow jobs
+                user_test_results = github_utils.get_test_results_from(pr_user, pr_repo, token,
+                                                                       target_runs, target_jobs,
+                                                                       test_failure_patterns,
+                                                                       compilation_failure_patterns,
+                                                                       until=until, since=since,
+                                                                       resume_path=wrun_resume_path,
+                                                                       tqdm_leave=False,
+                                                                       logger=logger)
 
-                        def _write(pr_user, commit_date, commit_message, files, tests,  # type: ignore
-                                   pr_title='', pr_body=''):
-                            buf: Dict[str, Any] = {}
-                            buf['author'] = pr_user
-                            buf['commit_date'] = github_utils.format_github_datetime(commit_date, '%Y/%m/%d %H:%M:%S')
-                            buf['commit_message'] = commit_message
-                            buf['title'] = pr_title
-                            buf['body'] = pr_body
-                            buf['failed_tests'] = tests
-                            buf['files'] = []
-                            for file in files:
-                                update_counts = github_utils.count_file_updates(
-                                    file['name'], commit_date, [3, 14, 56],
-                                    owner, repo, token)
-                                buf['files'].append({'file': file, 'updated': update_counts})
+                # Merges the tests results with mainstream's repository ones
+                user_test_results.update(repo_test_results)
+                per_user_logs = github_utils.generate_commit_logs(owner, repo, token, until, since,
+                                                                  pullreqs, repo_test_results, user_test_results,
+                                                                  sleep_if_limit_exceeded,
+                                                                  logger)
+                for log in per_user_logs:
+                    of.write(json.dumps(log))
 
-                            per_user_logs.append(buf)
-
-                        def _flush() -> None:
-                            for log in per_user_logs:
-                                of.write(json.dumps(log))
-
-                            of.flush()
-
-                        # Fetches test results from folk-side workflow jobs
-                        user_test_results = github_utils.get_test_results_from(pr_user, pr_repo, params,
-                                                                               target_runs, target_jobs,
-                                                                               test_failure_patterns,
-                                                                               compilation_failure_patterns,
-                                                                               until=until, since=since,
-                                                                               resume_path=wrun_resume_path,
-                                                                               tqdm_leave=False,
-                                                                               logger=logger)
-
-                        # Merges the tests results with mainstream's ones
-                        user_test_results.update(test_results)
-
-                        for pr_number, pr_created_at, pr_updated_at, pr_title, pr_body, \
-                                pr_user, pr_repo, pr_branch in pullreqs:
-                            commits = github_apis.list_commits_for(pr_number, owner, repo, token,
-                                                                   until=until, since=since, logger=logger)
-                            logger.info(f"pullreq#{pr_number} has {len(commits)} commits (created_at:{pr_created_at}, "
-                                        f"updated_at:{pr_updated_at})")
-
-                            matched: Set[str] = set()
-                            for (commit, commit_date, commit_message) in commits:
-                                logger.info(f"commit:{commit}, commit_date:{commit_date}")
-                                if commit in user_test_results:
-                                    _, _, files, tests = user_test_results[commit]
-                                    _write(pr_user, commit_date, commit_message, files, tests, pr_title, pr_body)
-                                    matched.add(commit)
-
-                            # Writes left entries into the output file
-                            for head_sha, (commit_date, commit_message, files, tests) in user_test_results.items():
-                                if head_sha not in test_results and head_sha not in matched:
-                                    _write(pr_user, commit_date, commit_message, files, tests)
-
-                    except RuntimeError as e:
-                        if sleep_if_limit_exceeded and str(e).find('API rate limit exceeded') != -1:
-                            import time
-                            _, _, _, renewal = github_utils.get_rate_limit(params['GITHUB_TOKEN'])
-                            logger.info(f"API rate limit exceeded, so this process sleeps for {renewal}s")
-                            time.sleep(renewal + 16)
-                        else:
-                            raise e
-                    else:
-                        # Proceeds to the next
-                        finished = True
-
-                _flush()
+                of.flush()
 
                 # Writes a flag indicating run completion
                 rf.write(f"{pr_user}\n")
@@ -237,7 +176,8 @@ def _traverse_pull_requests(output_path: str,
 
     except Exception as e:
         logger.info(f"{e.__class__}: {e}")
-        logger.warning("Crawling logs failed, but you can resume it by '--resume' option")
+        logger.error("Crawling logs failed, but you can resume it by '--resume' option")
+        raise
 
     else:
         # If all things done successfully, removes the resume file/dir
@@ -246,16 +186,17 @@ def _traverse_pull_requests(output_path: str,
 
 
 def _traverse_github_logs(traverse_func: Any, output_path: str, overwrite: bool,
+                          owner: str, repo: str, token: str,
                           until: Optional[str], since: Optional[str],
-                          max_num_pullreqs: int, resume: bool, sleep_if_limit_exceeded: bool,
-                          params: Dict[str, str]) -> None:
+                          max_num_pullreqs: int, resume: bool,
+                          sleep_if_limit_exceeded: bool) -> None:
     if len(output_path) == 0:
         raise ValueError("Output Path must be specified in '--output'")
-    if len(params['GITHUB_TOKEN']) == 0:
+    if len(token) == 0:
         raise ValueError("GitHub token must be specified in '--github-token'")
-    if not resume and len(params['GITHUB_OWNER']) == 0:
+    if not resume and len(owner) == 0:
         raise ValueError("GitHub owner must be specified in '--github-owner'")
-    if not resume and len(params['GITHUB_REPO']) == 0:
+    if not resume and len(repo) == 0:
         raise ValueError("GitHub repository must be specified in '--github-repo'")
 
     if resume and not os.path.exists(output_path):
@@ -271,20 +212,22 @@ def _traverse_github_logs(traverse_func: Any, output_path: str, overwrite: bool,
     logger = _setup_logger(f'{output_path}/debug-info.log')
 
     # logger rate limit
-    logger.info(f"rate_limit: {_rate_limit_msg(params['GITHUB_TOKEN'])}")
+    logger.info(f"rate_limit: {_rate_limit_msg(token)}")
 
     # Parses a specified datetime string if necessary
     import dateutil.parser as parser  # type: ignore
     until = parser.parse(until) if until else None
     since = parser.parse(since) if since else None
 
-    traverse_func(output_path, until, since, max_num_pullreqs, resume,
-                  sleep_if_limit_exceeded, params, logger)
+    traverse_func(output_path, owner, repo, token,
+                  until, since, max_num_pullreqs, resume,
+                  sleep_if_limit_exceeded,
+                  logger)
 
 
-def _show_rate_limit(params: Dict[str, str]) -> None:
+def _show_rate_limit(token: str) -> None:
     print('======== GitHub Rate Limit ========')
-    print(_rate_limit_msg(params['GITHUB_TOKEN']))
+    print(_rate_limit_msg(token))
 
 
 def main() -> None:
@@ -304,20 +247,14 @@ def main() -> None:
     parser.add_argument('--show-rate-limit', dest='show_rate_limit', action='store_true')
     args = parser.parse_args()
 
-    params = {
-        "GITHUB_TOKEN": args.github_token,
-        "GITHUB_OWNER": args.github_owner,
-        "GITHUB_REPO": args.github_repo
-    }
-
     if not args.show_rate_limit:
         _traverse_github_logs(_traverse_pull_requests, args.output, args.overwrite,
+                              args.github_owner, args.github_repo, args.github_token,
                               args.until, args.since,
                               args.max_num_pullreqs, args.resume,
-                              args.sleep_if_limit_exceeded,
-                              params)
+                              args.sleep_if_limit_exceeded)
     else:
-        _show_rate_limit(params)
+        _show_rate_limit(args.github_token)
 
 
 if __name__ == "__main__":
