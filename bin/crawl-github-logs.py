@@ -183,6 +183,7 @@ def _traverse_pull_requests(output_path: str,
 
                 for log in per_user_logs:
                     of.write(json.dumps(log))
+                    of.write("\n")
 
                 of.flush()
 
