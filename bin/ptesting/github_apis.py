@@ -68,6 +68,7 @@ def _retry_if_timeout(caught: Exception) -> bool:
     return isinstance(caught, requests.exceptions.Timeout)
 
 
+@timeout_decorator.timeout(600, timeout_exception=RuntimeError)
 @retrying.retry(stop_max_attempt_number=3, wait_exponential_multiplier=1000, wait_exponential_max=4000,
                 retry_on_exception=_retry_if_timeout,
                 wrap_exception=False)
@@ -150,7 +151,6 @@ def get_rate_limit(token: str, logger: Any = None) -> Dict[str, Any]:
 
 
 # https://docs.github.com/en/rest/reference/pulls#list-pull-requests
-@timeout_decorator.timeout(1800, timeout_exception=StopIteration)
 def list_pullreqs(owner: str, repo: str, token: str,
                   until: Optional[datetime] = None, since: Optional[datetime] = None,
                   nmax: int = 100000,
