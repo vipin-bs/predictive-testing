@@ -80,7 +80,7 @@ class PullRequest(BaseModel):
     number: int = Field(ge=0)
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
-    title: Optional[str] = Field(min_length=0, max_length=256)
+    title: Optional[str] = Field(min_length=0)
     body: Optional[str] = Field(min_length=0, max_length=65536)
     user: Optional[User] = None
     head: Reference
