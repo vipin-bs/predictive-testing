@@ -149,22 +149,38 @@ def _traverse_pull_requests(output_path: str,
             for (pr_user, pr_repo), pullreqs in tqdm.tqdm(pullreqs_by_user.items(), desc=pb_title):
                 logger.info(f"pr_user:{pr_user}, pr_repo:{pr_repo}, #pullreqs:{len(pullreqs)}")
 
-                # Fetches test results from folk-side workflow jobs
-                user_test_results = github_utils.get_test_results_from(pr_user, pr_repo, token,
-                                                                       target_runs, target_jobs,
-                                                                       test_failure_patterns,
-                                                                       compilation_failure_patterns,
-                                                                       until=until, since=since,
-                                                                       resume_path=wrun_resume_path,
-                                                                       tqdm_leave=False,
-                                                                       logger=logger)
+                finished = False
+                while not finished:
+                    try:
+                        # Fetches test results from folk-side workflow jobs
+                        user_test_results = github_utils.get_test_results_from(pr_user, pr_repo, token,
+                                                                               target_runs, target_jobs,
+                                                                               test_failure_patterns,
+                                                                               compilation_failure_patterns,
+                                                                               until=until, since=since,
+                                                                               resume_path=wrun_resume_path,
+                                                                               tqdm_leave=False,
+                                                                               logger=logger)
 
-                # Merges the tests results with mainstream's repository ones
-                user_test_results.update(repo_test_results)
-                per_user_logs = github_utils.generate_commit_logs(owner, repo, token, until, since,
-                                                                  pullreqs, repo_test_results, user_test_results,
-                                                                  sleep_if_limit_exceeded,
-                                                                  logger)
+                        # Merges the tests results with mainstream's repository ones
+                        user_test_results.update(repo_test_results)
+                        per_user_logs = github_utils.generate_commit_logs(owner, repo, token, until, since,
+                                                                          pullreqs, repo_test_results,
+                                                                          user_test_results,
+                                                                          sleep_if_limit_exceeded,
+                                                                          commit_day_intervals=[3, 14, 56],
+                                                                          logger=logger)
+                    except RuntimeError as e:
+                        if sleep_if_limit_exceeded and github_apis.is_rate_limit_exceeded(str(e)):
+                            import time
+                            _, _, _, renewal = github_utils.get_rate_limit(token)
+                            logger.info(f"API rate limit exceeded, so this process sleeps for {renewal}s")
+                            time.sleep(renewal + 4)
+                        else:
+                            raise
+                    else:
+                        finished = True
+
                 for log in per_user_logs:
                     of.write(json.dumps(log))
 

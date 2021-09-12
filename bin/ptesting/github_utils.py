@@ -240,61 +240,48 @@ def generate_commit_logs(owner: str, repo: str, token: str,
                          repo_test_results: Dict[str, Any],
                          user_test_results: Dict[str, Any],
                          sleep_if_limit_exceeded: bool,
+                         commit_day_intervals: List[int],
                          logger: Any) -> List[Dict[str, Any]]:
-    while True:
-        try:
-            # Per-user buffer to write github logs
-            per_user_logs: List[Dict[str, Any]] = []
+    # Per-user buffer to write github logs
+    per_user_logs: List[Dict[str, Any]] = []
 
-            def _write(pr_user, commit_date, commit_message, files, tests,  # type: ignore
-                       pr_title='', pr_body=''):
-                buf: Dict[str, Any] = {}
-                buf['author'] = pr_user
-                buf['commit_date'] = format_github_datetime(commit_date, '%Y/%m/%d %H:%M:%S')
-                buf['commit_message'] = commit_message
-                buf['title'] = pr_title
-                buf['body'] = pr_body
-                buf['failed_tests'] = tests
-                buf['files'] = []
-                for file in files:
-                    update_counts = count_file_updates(file['name'], commit_date, [3, 14, 56], owner, repo, token)
-                    buf['files'].append({'file': file, 'updated': update_counts})
+    def _write(pr_user, commit_date, commit_message, files, tests,  # type: ignore
+               pr_title='', pr_body=''):
+        buf: Dict[str, Any] = {}
+        buf['author'] = pr_user
+        buf['commit_date'] = format_github_datetime(commit_date, '%Y/%m/%d %H:%M:%S')
+        buf['commit_message'] = commit_message
+        buf['title'] = pr_title
+        buf['body'] = pr_body
+        buf['failed_tests'] = tests
+        buf['files'] = []
+        for file in files:
+            update_counts = count_file_updates(file['name'], commit_date, commit_day_intervals, owner, repo, token)
+            buf['files'].append({'file': file, 'updated': update_counts})
 
-                per_user_logs.append(buf)
+        per_user_logs.append(buf)
 
-            for pr_number, pr_created_at, pr_updated_at, pr_title, pr_body, \
-                    pr_user, pr_repo, pr_branch in pullreqs:
-                commits = github_apis.list_commits_for(pr_number, owner, repo, token,
-                                                       until=until, since=since, logger=logger)
-                logger.info(f"pullreq#{pr_number} has {len(commits)} commits (created_at:{pr_created_at}, "
-                            f"updated_at:{pr_updated_at})")
+    for pr_number, pr_created_at, pr_updated_at, pr_title, pr_body, \
+            pr_user, pr_repo, pr_branch in pullreqs:
+        commits = github_apis.list_commits_for(pr_number, owner, repo, token,
+                                               until=until, since=since, logger=logger)
+        logger.info(f"pullreq#{pr_number} has {len(commits)} commits (created_at:{pr_created_at}, "
+                    f"updated_at:{pr_updated_at})")
 
-                matched: Set[str] = set()
-                for (commit, commit_date, commit_message) in commits:
-                    logger.info(f"commit:{commit}, commit_date:{commit_date}")
-                    if commit in user_test_results:
-                        _, _, files, tests = user_test_results[commit]
-                        _write(pr_user, commit_date, commit_message, files, tests, pr_title, pr_body)
-                        matched.add(commit)
+        matched: Set[str] = set()
+        for (commit, commit_date, commit_message) in commits:
+            logger.info(f"commit:{commit}, commit_date:{commit_date}")
+            if commit in user_test_results:
+                _, _, files, tests = user_test_results[commit]
+                _write(pr_user, commit_date, commit_message, files, tests, pr_title, pr_body)
+                matched.add(commit)
 
-                # Writes left entries into the output file
-                for head_sha, (commit_date, commit_message, files, tests) in user_test_results.items():
-                    if head_sha not in repo_test_results and head_sha not in matched:
-                        _write(pr_user, commit_date, commit_message, files, tests)
+        # Writes left entries into the output file
+        for head_sha, (commit_date, commit_message, files, tests) in user_test_results.items():
+            if head_sha not in repo_test_results and head_sha not in matched:
+                _write(pr_user, commit_date, commit_message, files, tests)
 
-        except RuntimeError as e:
-            if sleep_if_limit_exceeded and github_apis.is_rate_limit_exceeded(str(e)):
-                import time
-                _, _, _, renewal = get_rate_limit(token)
-                logger.info(f"API rate limit exceeded, so this process sleeps for {renewal}s")
-                time.sleep(renewal + 4)
-            else:
-                raise e
-        else:
-            return per_user_logs
-
-    assert False, 'unreachable path'
-    return []
+    return per_user_logs
 
 
 def get_rate_limit(github_token: str) -> Tuple[int, int, int, int]:
