@@ -29,7 +29,9 @@ def build_dependency_graphs(root_paths: List[str], target_package: str,
 
     # Collects class files from given paths
     files = reduce(lambda x, y: x.extend(y), [list_files(p, target_package) for p in root_paths])
+    files = list(set(files))
     test_files = reduce(lambda x, y: x.extend(y), [list_test_files(p, target_package) for p in root_paths])
+    test_files = list(set(test_files))
     all_files = [*files, *test_files]
     if len(all_files) == 0:
         raise RuntimeError(f"No file found in [{', '.join(root_paths)}]")

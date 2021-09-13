@@ -49,6 +49,12 @@ jobs:
       - name: Analyze Spark class dependencies
         run: |
           ./bin/analyze-spark-deps.sh ./spark-master "${{ env.OUTPUT_NAME }}"
+
+      # TODO: Needs to handle Python files in `./bin/analyze-spark-deps.sh`, too
+      - name: List up Python test files
+        run: |
+          OUTPUT_PATH=`pwd`/${{ env.OUTPUT_NAME }}
+          cd ./spark-master/python && find . -type f | grep -E "test_[a-zA-Z0-9_-]*\.py$" | sed -r 's/.*(pyspark\/.*\/test_.*)\.py$/\1/' > $OUTPUT_NAME/test-python-files.lst
       - name: Upload output as artifact
         if: success()
         uses: actions/upload-artifact@v2
