@@ -100,7 +100,7 @@ jobs:
           steps.check-if-latest-output-exists.outputs.files_exists == 'true' &&
           steps.check-if-resume-file-exists.outputs.files_exists == 'false' }}
         run: |
-          SINCE_DATE=`cat output/.run-meta.json | jq --raw-output .until`
+          SINCE_DATE=`cat latest_output/.run-meta.json | jq --raw-output .until`
           echo "SINCE_DATE=${SINCE_DATE}" >> $GITHUB_ENV
       - name: Run script to collect GitHub logs
         if: ${{ steps.check-if-resume-file-exists.outputs.files_exists == 'false' }}

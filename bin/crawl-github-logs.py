@@ -194,7 +194,6 @@ def _traverse_pull_requests(output_path: str,
     except Exception as e:
         logger.info(f"{e.__class__}: {e}")
         logger.error("Crawling logs failed, but you can resume it by '--resume' option")
-        raise
 
     else:
         # If all things done successfully, removes the resume file/dir
