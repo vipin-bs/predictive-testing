@@ -55,19 +55,19 @@ jobs:
         with:
           name: spark-dep-graphs
           path: ${{ env.OUTPUT_NAME }}
-      - name: Locate output in indexes/spark
+      - name: Locate output in models/spark/indexes/
         run: |
-          mv "${{ env.OUTPUT_NAME }}" indexes/spark/
+          mv "${{ env.OUTPUT_NAME }}" models/spark/indexes/
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: Adds `indexes/spark/${{ env.OUTPUT_NAME }}`
+          commit-message: Adds `models/spark/indexes/${{ env.OUTPUT_NAME }}`
           committer: GitHub <noreply@github.com>
           author: ${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>
           signoff: false
-          branch: build-spark-dep-graphs-pullreq
+          branch: ${{ github.job }}-${{ env.OUTPUT_NAME }}
           delete-branch: true
-          title: 'Adds `indexes/spark/${{ env.OUTPUT_NAME }}`'
+          title: 'Adds `models/spark/indexes/${{ env.OUTPUT_NAME }}`'
           body: |
-            Automated changes by the `${{ github.job}}` workflow (run_id=${{ github.run_id }}).
+            Automated changes by the `${{ github.job }}` workflow (run_id=${{ github.run_id }}).
