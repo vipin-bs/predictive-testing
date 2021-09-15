@@ -39,6 +39,7 @@ if [ -z "${OUTPUT_PATH}" ]; then
   exit 1
 fi
 
+PYTHONPATH="${FWDIR}/python" \
 exec python3 -u ${FWDIR}/bin/build-deps.py \
   --command analyze \
   --file-type java \

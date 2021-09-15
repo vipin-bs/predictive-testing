@@ -17,22 +17,24 @@
 # limitations under the License.
 #
 
+#
+# Crawl Spark GitHub logs
+
+if [ -z "${GITHUB_TOKEN}" ]; then
+  echo "env GITHUB_TOKEN not defined" 1>&2
+  exit 1
+fi
+
 FWDIR="$(cd "`dirname $0`"/..; pwd)"
-cd "$FWDIR"
 
 if [ ! -z "$CONDA_ENABLED" ]; then
   # Activate a conda virtual env
-  . ./bin/conda.sh && activate_conda_virtual_env "${FWDIR}" "predictive-testing"
+  . ${FWDIR}/bin/conda.sh && activate_conda_virtual_env "${FWDIR}" "predictive-testing"
 fi
 
-PYTHON_VERSION_CHECK=$(python3 -c 'import sys; print(sys.version_info < (3, 6, 0))')
-if [[ "$PYTHON_VERSION_CHECK" == "True" ]]; then
-  echo "Python versions prior to 3.6 are not supported."
-  exit -1
-fi
-
-# Static code analysis before running unit tests
-./bin/lint-python || exit -1
-
-exec python3 -u ./bin/run-tests.py \
-  --root-path ${FWDIR}/python --data ${FWDIR}/python/tests/resources "$@"
+PYTHONPATH="${FWDIR}/python" \
+exec python3 -u ${FWDIR}/bin/crawl-github-logs.py \
+  --github-token ${GITHUB_TOKEN} \
+  --github-owner apache \
+  --github-repo spark \
+  "$@"

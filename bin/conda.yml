@@ -18,5 +18,5 @@ dependencies:
   - timeout-decorator=0.5.0
   - python-dateutil=2.8.2
   - pydantic=1.8.2
-  - mypy=0.790
+  - mypy=0.910
   - flake8=3.8.4

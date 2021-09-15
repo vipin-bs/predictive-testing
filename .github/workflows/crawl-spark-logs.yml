@@ -107,14 +107,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.LOG_CRAWLER_API_KEY }}
         run: |
-          ./bin/crawl-github-logs.py --github-token "${GITHUB_TOKEN}" --github-owner apache --github-repo spark --output output --overwrite --since "${{ env.SINCE_DATE }}"
+          ./bin/crawl-spark-github-logs.sh --output output --overwrite --since "${{ env.SINCE_DATE }}"
       - name: Resume last run to collect GitHub logs
         if: ${{ steps.check-if-resume-file-exists.outputs.files_exists == 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.LOG_CRAWLER_API_KEY }}
         run: |
           mv latest_output output
-          ./bin/crawl-github-logs.py --github-token "${GITHUB_TOKEN}" --output output --resume
+          ./bin/crawl-spark-github-logs.sh --output output --resume
       - name: Upload output as artifact
         if: always()
         uses: actions/upload-artifact@v2
