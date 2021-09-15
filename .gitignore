@@ -5,3 +5,5 @@
 unit-tests.log
 output
 spark-master
+derby.log
+metastore_db

@@ -245,10 +245,11 @@ def generate_commit_logs(owner: str, repo: str, token: str,
     # Per-user buffer to write github logs
     per_user_logs: List[Dict[str, Any]] = []
 
-    def _write(pr_user, commit_date, commit_message, files, tests,  # type: ignore
+    def _write(pr_user, sha, commit_date, commit_message, files, tests,  # type: ignore
                pr_title='', pr_body=''):
         buf: Dict[str, Any] = {}
         buf['author'] = pr_user
+        buf['sha'] = sha  # Needed as a unique ID
         buf['commit_date'] = format_github_datetime(commit_date, '%Y/%m/%d %H:%M:%S')
         buf['commit_message'] = commit_message
         buf['title'] = pr_title
@@ -273,13 +274,13 @@ def generate_commit_logs(owner: str, repo: str, token: str,
             logger.info(f"commit:{commit}, commit_date:{commit_date}")
             if commit in user_test_results:
                 _, _, files, tests = user_test_results[commit]
-                _write(pr_user, commit_date, commit_message, files, tests, pr_title, pr_body)
+                _write(pr_user, commit, commit_date, commit_message, files, tests, pr_title, pr_body)
                 matched.add(commit)
 
         # Writes left entries into the output file
         for head_sha, (commit_date, commit_message, files, tests) in user_test_results.items():
             if head_sha not in repo_test_results and head_sha not in matched:
-                _write(pr_user, commit_date, commit_message, files, tests)
+                _write(pr_user, head_sha, commit_date, commit_message, files, tests)
 
     return per_user_logs
 
