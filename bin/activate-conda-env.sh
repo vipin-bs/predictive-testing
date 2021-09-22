@@ -20,7 +20,7 @@
 #
 # Activate conda env based on bin/conda.yml
 
-FWDIR="$(cd "`dirname $0`"/..; pwd)"
+FWDIR="$(cd "`dirname $BASH_SOURCE`"/..; pwd)"
 
 # Activate a conda virtual env
 . ${FWDIR}/bin/conda.sh && activate_conda_virtual_env "${FWDIR}" "predictive-testing"
