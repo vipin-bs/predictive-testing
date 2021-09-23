@@ -262,6 +262,9 @@ def generate_commit_logs(owner: str, repo: str, token: str,
 
         per_user_logs.append(buf)
 
+    # To track which commits are used
+    matched: Set[str] = set()
+
     for pr_number, pr_created_at, pr_updated_at, pr_title, pr_body, \
             pr_user, pr_repo, pr_branch in pullreqs:
         commits = github_apis.list_commits_for(pr_number, owner, repo, token,
@@ -269,7 +272,6 @@ def generate_commit_logs(owner: str, repo: str, token: str,
         logger.info(f"pullreq#{pr_number} has {len(commits)} commits (created_at:{pr_created_at}, "
                     f"updated_at:{pr_updated_at})")
 
-        matched: Set[str] = set()
         for (commit, commit_date, commit_message) in commits:
             logger.info(f"commit:{commit}, commit_date:{commit_date}")
             if commit in user_test_results:
@@ -277,10 +279,10 @@ def generate_commit_logs(owner: str, repo: str, token: str,
                 _write(pr_user, commit, commit_date, commit_message, files, tests, pr_title, pr_body)
                 matched.add(commit)
 
-        # Writes left entries into the output file
-        for head_sha, (commit_date, commit_message, files, tests) in user_test_results.items():
-            if head_sha not in repo_test_results and head_sha not in matched:
-                _write(pr_user, head_sha, commit_date, commit_message, files, tests)
+    # Writes left entries into the output file
+    for head_sha, (commit_date, commit_message, files, tests) in user_test_results.items():
+        if head_sha not in repo_test_results and head_sha not in matched:
+            _write(pr_user, head_sha, commit_date, commit_message, files, tests)
 
     return per_user_logs
 
