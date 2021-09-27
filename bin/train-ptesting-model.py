@@ -32,7 +32,7 @@ def _setup_logger() -> Any:
     logger.setLevel(DEBUG)
     ch = StreamHandler()
     ch.setLevel(INFO)
-    ch.setFormatter(Formatter('%(asctime)s.%(msecs)03d: %(message)s', '%Y-%m-%d %H:%M:%S'))
+    ch.setFormatter(Formatter('%(asctime)s.%(msecs)03d %(levelname)s %(module)s: %(message)s', '%Y-%m-%d %H:%M:%S'))
     logger.addHandler(ch)
     return logger
 
@@ -457,9 +457,11 @@ def _train_ptest_model(output_path: str, train_log_fpath: str, build_deps: str) 
         return _create_feature_from(df, enumerate_related_tests, compute_distance)
 
     try:
-        # TODO: Needs to collect commit sha data when collecting GitHub logs
+        # Assigns sha if it is an empty string (TODO: Needs to assign sha when collecting GitHub logs)
         df = spark.read.format('json').load(train_log_fpath) \
-            .selectExpr('*', 'sha2(concat(author, commit_date), 256) sha') \
+            .withColumn('sha_', functions.expr('case when length(sha) > 0 then sha else sha(string(random())) end')) \
+            .drop('sha') \
+            .withColumnRenamed('sha_', 'sha') \
             .distinct()
 
         train_df, test_df = _train_test_split(df)

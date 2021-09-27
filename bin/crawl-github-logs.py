@@ -39,7 +39,7 @@ def _setup_logger(logfile: str) -> Any:
     logger = getLogger(__name__)
     logger.setLevel(DEBUG)
 
-    formatter = Formatter('%(asctime)s.%(msecs)03d: %(message)s', '%Y-%m-%d %H:%M:%S')
+    formatter = Formatter('%(asctime)s.%(msecs)03d %(levelname)s %(module)s: %(message)s', '%Y-%m-%d %H:%M:%S')
 
     fh = FileHandler(logfile, mode='a')
     fh.setLevel(INFO)
@@ -170,22 +170,26 @@ def _traverse_pull_requests(output_path: str,
                                                                           sleep_if_limit_exceeded,
                                                                           commit_day_intervals=[3, 14, 56],
                                                                           logger=logger)
+
+                        for log in per_user_logs:
+                            of.write(json.dumps(log))
+                            of.write("\n")
+
+                        of.flush()
+
                     except RuntimeError as e:
                         if sleep_if_limit_exceeded and github_apis.is_rate_limit_exceeded(str(e)):
                             import time
                             _, _, _, renewal = github_utils.get_rate_limit(token)
                             logger.info(f"API rate limit exceeded, so this process sleeps for {renewal}s")
                             time.sleep(renewal + 4)
+                        elif github_apis.is_not_found(str(e)):
+                            logger.warning(f"Request (pr_user:{pr_user}, pr_repo:{pr_repo}, #pullreqs:{len(pullreqs)}) skipped")
+                            finished = True
                         else:
                             raise
                     else:
                         finished = True
-
-                for log in per_user_logs:
-                    of.write(json.dumps(log))
-                    of.write("\n")
-
-                of.flush()
 
                 # Writes a flag indicating run completion
                 rf.write(f"{pr_user}\n")

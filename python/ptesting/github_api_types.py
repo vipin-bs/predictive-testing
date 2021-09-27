@@ -54,7 +54,7 @@ class RateLimits(BaseModel):
 
 
 class User(BaseModel):
-    login: str = Field(min_length=1, max_length=39)
+    login: Optional[str] = Field(min_length=1, max_length=39)
 
 
 class Author(BaseModel):
@@ -97,7 +97,7 @@ class PullRequest(BaseModel):
 
 class Commit(BaseModel):
     author: Author
-    message: str = Field(min_length=1)
+    message: str = Field(min_length=0)
 
 
 class RepoCommit(BaseModel):
@@ -108,7 +108,7 @@ class RepoCommit(BaseModel):
 
 
 class ChangedFile(BaseModel):
-    filename: str = Field(min_length=1)
+    filename: str = Field(min_length=0)
     additions: int = Field(ge=0)
     deletions: int = Field(ge=0)
     changes: int = Field(ge=0)
@@ -125,9 +125,9 @@ class FileCommits(BaseModel):
 
 class WorkflowRun(BaseModel):
     id: int = Field(ge=1)
-    name: str = Field(min_length=1)
+    name: str = Field(min_length=0)
     head_sha: str = Field(min_length=40, max_length=40)
-    event: str = Field(min_length=1)
+    event: str = Field(min_length=0)
     status: str
     conclusion: Optional[str] = None
     updated_at: str
@@ -143,7 +143,18 @@ class WorkflowRun(BaseModel):
 
     @validator("conclusion")
     def validate_conclusion(cls, v: str) -> str:
-        expected = ['success', 'failure', 'skipped', 'cancelled', 'startup_failure']
+        # See: https://docs.github.com/en/rest/reference/checks#create-a-check-run
+        expected = [
+            'success',
+            'failure',
+            'skipped',
+            'cancelled',
+            'startup_failure',
+            'stale',
+            'neutral',
+            'timed_out',
+            'action_required'
+        ]
         if not (v is None or v in expected):
             raise ValueError(f"'conclusion' must be in [{','.join(expected)}], "
                              f"but '{v}' found")
@@ -161,12 +172,23 @@ class WorkflowRuns(BaseModel):
 
 class WorkflowJob(BaseModel):
     id: int = Field(ge=1)
-    name: str = Field(min_length=1)
+    name: str = Field(min_length=0)
     conclusion: Optional[str] = None
 
     @validator("conclusion")
     def validate_conclusion(cls, v: str) -> str:
-        expected = ['success', 'failure', 'skipped', 'cancelled', 'startup_failure']
+        # See: https://docs.github.com/en/rest/reference/checks#create-a-check-run
+        expected = [
+            'success',
+            'failure',
+            'skipped',
+            'cancelled',
+            'startup_failure',
+            'stale',
+            'neutral',
+            'timed_out',
+            'action_required'
+        ]
         if not (v is None or v in expected):
             raise ValueError(f"'conclusion' must be in [{','.join(expected)}], "
                              f"but '{v}' found")

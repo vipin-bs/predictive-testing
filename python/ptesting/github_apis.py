@@ -62,6 +62,10 @@ def is_rate_limit_exceeded(msg: str) -> bool:
     return msg.find('API rate limit exceeded') != -1
 
 
+def is_not_found(msg: str) -> bool:
+    return msg.find('Not Found') != -1
+
+
 # For a list of requests's exceptions, see:
 # https://docs.python-requests.org/en/latest/user/quickstart/#errors-and-exceptions
 def _retry_if_timeout(caught: Exception) -> bool:
@@ -110,37 +114,22 @@ def _always_false(d: str) -> bool:
     return False
 
 
-def _create_until_validator(until: datetime) -> Any:
-    def validator(d: str) -> bool:
-        return until < github_utils.from_github_datetime(d)
+def _create_until_validator(until: Optional[datetime]) -> Any:
+    def validator(d: Optional[str]) -> bool:
+        return until < github_utils.from_github_datetime(d) if d is not None else False
 
-    return validator
-
-
-def _create_since_validator(since: datetime) -> Any:
-    def validator(d: str) -> bool:
-        return since >= github_utils.from_github_datetime(d)
-
-    return validator
+    return validator if until is not None else _always_false
 
 
-def _create_datetime_range_validator(until: datetime, since: datetime) -> Any:
-    def validator(d: str) -> bool:
-        return until < github_utils.from_github_datetime(d) or \
-            since >= github_utils.from_github_datetime(d)
+def _create_since_validator(since: Optional[datetime]) -> Any:
+    def validator(d: Optional[str]) -> bool:
+        return since >= github_utils.from_github_datetime(d) if d is not None else False
 
-    return validator
+    return validator if since is not None else _always_false
 
 
-def _create_date_filter(until: Optional[datetime], since: Optional[datetime]) -> Any:
-    if until is not None and since is not None:
-        return _create_datetime_range_validator(until, since)
-    elif until is not None:
-        return _create_until_validator(since)  # type: ignore
-    elif since is not None:
-        return _create_since_validator(since)  # type: ignore
-    else:
-        return _always_false
+def _create_date_filter(until: Optional[datetime], since: Optional[datetime]) -> Tuple[Any, Any]:
+    return _create_until_validator(until), _create_since_validator(since)
 
 
 # https://docs.github.com/en/rest/reference/rate-limit#get-rate-limit-status-for-the-authenticated-user
@@ -160,7 +149,7 @@ def list_pullreqs(owner: str, repo: str, token: str,
     logger = logger or _default_logger
 
     pullreqs: List[Tuple[str, str, str, str, str, str, str, str]] = []
-    check_updated = _create_date_filter(until, since)
+    check_until_date, check_since_date = _create_date_filter(until, since)
     rem_pages = nmax
     npage = 1
     while True:
@@ -169,7 +158,11 @@ def list_pullreqs(owner: str, repo: str, token: str,
         prs = _request_github_api(f"repos/{owner}/{repo}/pulls", token, params=params, logger=logger)
         for pullreq in prs:
             pr = PullRequest.parse_obj(pullreq)
-            if check_updated(pr.updated_at):
+
+            if check_until_date(pr.updated_at):
+                continue
+
+            if check_since_date(pr.updated_at):
                 return pullreqs
 
             if pr.head.repo is not None:
@@ -206,7 +199,7 @@ def list_commits_for(pr_number: str, owner: str, repo: str, token: str,
     logger = logger or _default_logger
 
     commits: List[Tuple[str, str, str]] = []
-    check_date = _create_date_filter(until, since)
+    check_until_date, check_since_date = _create_date_filter(until, since)
     rem_pages = nmax
     npage = 1
     while True:
@@ -217,7 +210,12 @@ def list_commits_for(pr_number: str, owner: str, repo: str, token: str,
         for commit in pr_commits:
             c = RepoCommit.parse_obj(commit)
             commit_date = c.commit.author.date
-            if check_date(commit_date):
+
+            # TODO: Are 'pr_commits' always sorted by 'commit_date'?
+            if check_until_date(commit_date):
+                continue
+
+            if check_since_date(commit_date):
                 return commits
 
             commits.append((c.sha, commit_date, c.commit.message))
@@ -331,7 +329,7 @@ def list_workflow_runs(owner: str, repo: str, token: str,
     wruns = WorkflowRuns.parse_obj(latest_run)
 
     runs: List[Tuple[str, str, str, str, str, str, str, str]] = []
-    check_updated = _create_date_filter(until, since)
+    check_until_date, check_since_date = _create_date_filter(until, since)
     num_pages = int(wruns.total_count / 100) + 1
     rem_pages = nmax
     for page in range(0, num_pages):
@@ -340,7 +338,12 @@ def list_workflow_runs(owner: str, repo: str, token: str,
         wruns = _request_github_api(api, token=token, params=params, logger=logger)
         for run in wruns['workflow_runs']:  # type: ignore
             run = WorkflowRun.parse_obj(run)
-            if check_updated(run.updated_at):
+
+            # TODO: Are 'wruns' always sorted by 'run.updated_at'?
+            if check_until_date(run.updated_at):
+                continue
+
+            if check_since_date(run.updated_at):
                 return runs
 
             if run.status == 'completed':
