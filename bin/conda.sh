@@ -19,17 +19,17 @@
 
 activate_conda_virtual_env() {
   local _ROOTT_DIR="$1"
-  local _CONDA_ENV_ID="$2"
 
   # Creates a virtual env to resolve Python dependencies
   CONDA_COMMAND=${_ROOTT_DIR}/bin/conda.py
-  ${CONDA_COMMAND} --command=create_env_only --env_id=${_CONDA_ENV_ID}
-  echo -ne "\n=== Running Python code on conda virtual env '$(${CONDA_COMMAND} --command=get_env_name --env_id=${_CONDA_ENV_ID})' ===\n"
+  CONDA_ENV_ID=`cd ${_ROOTT_DIR} && pwd | xargs basename`
+  ${CONDA_COMMAND} --command=create_env_only --env_id=${CONDA_ENV_ID}
+  echo -ne "\n=== Running Python code on conda virtual env '$(${CONDA_COMMAND} --command=get_env_name --env_id=${CONDA_ENV_ID})' ===\n"
 
   # Gets virtual env home
-  CONDA_ENV_HOME=$(${CONDA_COMMAND} --command=get_env_home --env_id=${_CONDA_ENV_ID})
+  CONDA_ENV_HOME=$(${CONDA_COMMAND} --command=get_env_home --env_id=${CONDA_ENV_ID})
 
   # Then, activates the virtual env
-  ACTIVATE_CONDA_ENV=$(${CONDA_COMMAND} --command=get_activate_command --env_id=${_CONDA_ENV_ID})
+  ACTIVATE_CONDA_ENV=$(${CONDA_COMMAND} --command=get_activate_command --env_id=${CONDA_ENV_ID})
   eval "${ACTIVATE_CONDA_ENV}"
 }

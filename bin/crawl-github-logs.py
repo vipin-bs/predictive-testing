@@ -184,7 +184,8 @@ def _traverse_pull_requests(output_path: str,
                             logger.info(f"API rate limit exceeded, so this process sleeps for {renewal}s")
                             time.sleep(renewal + 4)
                         elif github_apis.is_not_found(str(e)):
-                            logger.warning(f"Request (pr_user:{pr_user}, pr_repo:{pr_repo}, #pullreqs:{len(pullreqs)}) skipped")
+                            logger.warning(f"Request (pr_user:{pr_user}, pr_repo:{pr_repo}, "
+                                           f"#pullreqs:{len(pullreqs)}) skipped")
                             finished = True
                         else:
                             raise

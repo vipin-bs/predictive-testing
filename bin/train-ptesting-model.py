@@ -252,7 +252,8 @@ def _create_func_to_enumerate_related_tests(spark: SparkSession,
             .selectExpr('sha', 'explode_outer(tests) test') \
             .groupBy('sha') \
             .agg(functions.expr('collect_set(test) tests')) \
-            .selectExpr('sha', 'size(tests) target_card', 'transform(tests, p -> replace(p, "\/", ".")) related_tests') \
+            .selectExpr('sha', 'size(tests) target_card',
+                        'transform(tests, p -> replace(p, "\/", ".")) related_tests') \
             .where('related_tests IS NOT NULL')
 
         return test_df
@@ -414,7 +415,8 @@ def _compute_eval_metrics(df: DataFrame, predicted: DataFrame) -> List[Tuple[flo
             'size(tests) num_tests',
             'size(array_intersect(failed_tests, tests)) covered'
         )
-        row = eval_df.selectExpr('SUM(covered) / SUM(num_failed_tests) p', 'SUM(covered) / SUM(num_tests) r').collect()[0]
+        eval_df = eval_df.selectExpr('SUM(covered) / SUM(num_failed_tests) p', 'SUM(covered) / SUM(num_tests) r')
+        row = eval_df.collect()[0]
         return row.p, row.r
 
     metrics = [(thres, _metric(thres)) for thres in [0.0, 0.2, 0.4, 0.6, 0.8]]
@@ -422,11 +424,11 @@ def _compute_eval_metrics(df: DataFrame, predicted: DataFrame) -> List[Tuple[flo
 
 
 def _format_eval_metrics(metrics: List[Tuple[float, float]]) -> str:
-    strbuf: List[str]  = []
+    strbuf: List[str] = []
     strbuf.append('|  failed prob. threshold  |  precision  |  recall  |')
     strbuf.append('| ---- | ---- | ---- |')
-    for prob, (p, r) in metrics:
-        strbuf.append(f'| {prob} | {p} | {r} |')
+    for prob, (p, r) in metrics:  # type: ignore
+        strbuf.append(f'| {prob} | {p} | {r} |')  # type: ignore
 
     return '\n'.join(strbuf)
 
@@ -492,8 +494,8 @@ def _train_ptest_model(output_path: str, train_log_fpath: str, build_deps: str) 
 
         predicted = _predict_failed_probs(spark, clf, _to_feature(test_df))
         metrics = _compute_eval_metrics(test_df, predicted)
-        with open(f"{output_prefix}-metrics.md", 'w') as f:
-            f.write(_format_eval_metrics(metrics))
+        with open(f"{output_prefix}-metrics.md", 'w') as f:  # type: ignore
+            f.write(_format_eval_metrics(metrics))  # type: ignore
 
     finally:
         spark.stop()
