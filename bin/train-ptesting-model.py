@@ -519,7 +519,7 @@ def _train_ptest_model(output_path: str, train_log_fpath: str, build_deps: str) 
         clf = _build_model(_to_features(_create_train_feature_from, df))
 
         with open(f"{output_path}/failed-tests.json", 'w') as f:
-            f.write(json.dumps(failed_tests, indent=4))
+            f.write(json.dumps(failed_tests, indent=2))
         with open(f"{output_path}/model.pkl", 'wb') as f:  # type: ignore
             import pickle
             pickle.dump(clf, f)  # type: ignore
