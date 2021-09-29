@@ -394,11 +394,6 @@ def _build_model(df: DataFrame) -> Any:
     return clf
 
 
-def _create_temp_name(prefix: str = "temp") -> str:
-    import datetime
-    return f'{prefix}_{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}'
-
-
 def _train_test_split(df: DataFrame, test_ratio: float) -> Tuple[DataFrame, DataFrame]:
     test_nrows = int(df.count() * test_ratio)
     test_df = df.orderBy(funcs.expr('to_timestamp(commit_date, "yyy/MM/dd HH:mm:ss")').desc()).limit(test_nrows)
