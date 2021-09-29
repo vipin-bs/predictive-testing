@@ -85,7 +85,7 @@ def _build_lgb_model(X: pd.DataFrame, y: pd.Series, n_jobs: int = -1, opts: Dict
         return int(_get_option("hp.max_evals", "100000000"))
 
     def _no_progress_loss() -> int:
-        return int(_get_option("hp.no_progress_loss", "5"))
+        return int(_get_option("hp.no_progress_loss", "1000"))
 
     fixed_params = {
         "boosting_type": _boosting_type(),
@@ -245,7 +245,7 @@ def _create_func_to_enumerate_related_tests(spark: SparkSession,
         return pd.Series(ret)
 
     def _func(df: DataFrame, output_col: str) -> DataFrame:
-        return df.selectExpr('sha', 'explode_outer(files.file.name) filename') \
+        related_test_df = df.selectExpr('sha', 'explode_outer(files.file.name) filename') \
             .selectExpr('sha', 'regexp_extract(filename, ".*(org\/apache\/spark\/.+?)\.scala", 1) ident') \
             .withColumn('tests', _enumerate_tests(funcs.expr('ident'))) \
             .selectExpr('sha', 'ident', 'from_json(tests, "tests ARRAY<STRING>").tests tests') \
@@ -255,6 +255,8 @@ def _create_func_to_enumerate_related_tests(spark: SparkSession,
             .selectExpr('sha', 'size(tests) target_card',
                         f'transform(tests, p -> replace(p, "\/", ".")) {output_col}') \
             .where(f'{output_col} IS NOT NULL')
+
+        return df.join(related_test_df, 'sha', 'LEFT_OUTER')
 
     return _func
 
@@ -350,11 +352,11 @@ def _create_train_feature_from(df: DataFrame,
 
     related_test_df = enumerate_related_tests(df, 'related_tests')
 
-    passed_test_df = df.join(related_test_df, 'sha', 'INNER') \
+    passed_test_df = related_test_df \
         .selectExpr('*', 'array_except(related_tests, failed_tests) tests', '0 failed') \
         .where('size(tests) > 0')
 
-    failed_test_df = df.join(related_test_df, 'sha', 'INNER') \
+    failed_test_df = related_test_df \
         .where('size(failed_tests) > 0') \
         .selectExpr('*', 'failed_tests tests', '1 failed')
 
@@ -362,10 +364,10 @@ def _create_train_feature_from(df: DataFrame,
         .selectExpr('*', 'explode(tests) test') \
         .drop('sha', 'related_tests', 'tests')
 
-    df = enrich_tests(df).drop('commit_date', 'failed_tests')
-    df = compute_minimal_file_distances(df, 'files.file.name', 'test') \
-        .withColumn('file_card', funcs.expr('size(files)')) \
-        .drop('files', 'test')
+    df = enrich_tests(df)
+    df = compute_minimal_file_distances(df, 'files.file.name', 'test')
+    df = df.withColumn('file_card', funcs.expr('size(files)'))
+    df = df.drop('commit_date', 'files', 'failed_tests', 'test')
     return df
 
 
@@ -374,16 +376,13 @@ def _create_test_feature_from(df: DataFrame,
                               enrich_tests: Any,
                               compute_minimal_file_distances: Any) -> DataFrame:
     df = _expand_updated_files(df.selectExpr('sha', 'commit_date', 'files'))
-
-    related_test_df = enumerate_related_tests(df, 'related_tests')
-    df = df.join(related_test_df, 'sha', 'LEFT_OUTER') \
+    df = enumerate_related_tests(df, 'related_tests') \
         .selectExpr('*', 'explode_outer(related_tests) test') \
         .drop('related_tests')
-
-    df = enrich_tests(df).drop('commit_date')
-    df = compute_minimal_file_distances(df, 'files.file.name', 'test') \
-        .withColumn('file_card', funcs.expr('size(files)')) \
-        .drop('files')
+    df = enrich_tests(df)
+    df = compute_minimal_file_distances(df, 'files.file.name', 'test')
+    df = df.withColumn('file_card', funcs.expr('size(files)'))
+    df = df.drop('commit_date', 'files')
     return df
 
 
