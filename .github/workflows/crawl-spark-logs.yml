@@ -1,4 +1,4 @@
-name: Crawling Spark GitHub logs
+name: Crawl Spark GitHub logs
 
 on:
   workflow_dispatch:
