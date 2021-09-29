@@ -22,7 +22,7 @@ import os
 import time
 import numpy as np  # type: ignore[import]
 import pandas as pd  # type: ignore[import]
-from pyspark.sql import Column, DataFrame, SparkSession, functions
+from pyspark.sql import Column, DataFrame, SparkSession, functions as funcs
 from typing import Any, Dict, List, Optional, Tuple
 
 
@@ -85,7 +85,7 @@ def _build_lgb_model(X: pd.DataFrame, y: pd.Series, n_jobs: int = -1, opts: Dict
         return int(_get_option("hp.max_evals", "100000000"))
 
     def _no_progress_loss() -> int:
-        return int(_get_option("hp.no_progress_loss", "1000"))
+        return int(_get_option("hp.no_progress_loss", "5"))
 
     fixed_params = {
         "boosting_type": _boosting_type(),
@@ -212,7 +212,7 @@ def _create_func_to_enumerate_related_tests(spark: SparkSession,
     broadcasted_rev_dep_graph = spark.sparkContext.broadcast(rev_dep_graph)
     broadcasted_depth = spark.sparkContext.broadcast(depth)
 
-    @functions.pandas_udf("string")  # type: ignore
+    @funcs.pandas_udf("string")  # type: ignore
     def _enumerate_tests(idents: pd.Series) -> pd.Series:
         rev_dep_graph = broadcasted_rev_dep_graph.value
         depth = broadcasted_depth.value
@@ -244,17 +244,17 @@ def _create_func_to_enumerate_related_tests(spark: SparkSession,
 
         return pd.Series(ret)
 
-    def _func(df: DataFrame) -> DataFrame:
+    def _func(df: DataFrame, output_col: str) -> DataFrame:
         return df.selectExpr('sha', 'explode_outer(files.file.name) filename') \
             .selectExpr('sha', 'regexp_extract(filename, ".*(org\/apache\/spark\/.+?)\.scala", 1) ident') \
-            .withColumn('tests', _enumerate_tests(functions.expr('ident'))) \
+            .withColumn('tests', _enumerate_tests(funcs.expr('ident'))) \
             .selectExpr('sha', 'ident', 'from_json(tests, "tests ARRAY<STRING>").tests tests') \
             .selectExpr('sha', 'explode_outer(tests) test') \
             .groupBy('sha') \
-            .agg(functions.expr('collect_set(test) tests')) \
+            .agg(funcs.expr('collect_set(test) tests')) \
             .selectExpr('sha', 'size(tests) target_card',
-                        'transform(tests, p -> replace(p, "\/", ".")) related_tests') \
-            .where('related_tests IS NOT NULL')
+                        f'transform(tests, p -> replace(p, "\/", ".")) {output_col}') \
+            .where(f'{output_col} IS NOT NULL')
 
     return _func
 
@@ -280,9 +280,9 @@ def _create_func_to_enrich_tests(failed_test_df: DataFrame) -> Tuple[Any, List[D
             f'{_failed(28)} failed_28d',
             'failed_test') \
         .groupBy('failed_test').agg(
-            functions.expr('sum(failed_7d) failed_7d'),
-            functions.expr('sum(failed_14d) failed_14d'),
-            functions.expr('sum(failed_28d) failed_28d')) \
+            funcs.expr('sum(failed_7d) failed_7d'),
+            funcs.expr('sum(failed_14d) failed_14d'),
+            funcs.expr('sum(failed_28d) failed_28d')) \
         .cache()
 
     def _func(df: DataFrame) -> DataFrame:
@@ -297,7 +297,7 @@ def _create_func_to_enrich_tests(failed_test_df: DataFrame) -> Tuple[Any, List[D
 def _create_func_to_compute_distances(spark: SparkSession, test_files: Dict[str, str]) -> Any:
     broadcasted_test_files = spark.sparkContext.broadcast(test_files)
 
-    @functions.pandas_udf("int")  # type: ignore
+    @funcs.pandas_udf("int")  # type: ignore
     def _distance(filenames: pd.Series, test: pd.Series) -> pd.Series:
         test_files = broadcasted_test_files.value
 
@@ -316,7 +316,7 @@ def _create_func_to_compute_distances(spark: SparkSession, test_files: Dict[str,
         return pd.Series(ret)
 
     def _func(df: DataFrame, files: str, test: str) -> DataFrame:
-        distance = _distance(functions.expr(f'to_json({files})'), functions.expr(test))
+        distance = _distance(funcs.expr(f'to_json({files})'), funcs.expr(test))
         return df.withColumn('minimal_distance', distance)
 
     return _func
@@ -324,7 +324,7 @@ def _create_func_to_compute_distances(spark: SparkSession, test_files: Dict[str,
 
 def _expand_updated_files(df: DataFrame) -> DataFrame:
     def _sum(c: str) -> Column:
-        return functions.expr(f'aggregate({c}, 0, (x, y) -> int(x) + int(y))')
+        return funcs.expr(f'aggregate({c}, 0, (x, y) -> int(x) + int(y))')
 
     def _expand_by_update_rate(df: DataFrame) -> DataFrame:
         return df \
@@ -346,11 +346,9 @@ def _create_train_feature_from(df: DataFrame,
                                enrich_tests: Any,
                                compute_minimal_file_distances: Any) -> DataFrame:
     # TODO: Revisit this feature engineering
-    df = df.selectExpr('sha', 'commit_date', 'files', 'failed_tests')
-    df = _expand_updated_files(df) \
-        .selectExpr('*', 'files.file.name filenames', 'size(files) file_card')
+    df = _expand_updated_files(df.selectExpr('sha', 'commit_date', 'files', 'failed_tests'))
 
-    related_test_df = enumerate_related_tests(df)
+    related_test_df = enumerate_related_tests(df, 'related_tests')
 
     passed_test_df = df.join(related_test_df, 'sha', 'INNER') \
         .selectExpr('*', 'array_except(related_tests, failed_tests) tests', '0 failed') \
@@ -362,10 +360,12 @@ def _create_train_feature_from(df: DataFrame,
 
     df = passed_test_df.union(failed_test_df) \
         .selectExpr('*', 'explode(tests) test') \
-        .drop('sha', 'files', 'related_tests', 'tests')
+        .drop('sha', 'related_tests', 'tests')
 
     df = enrich_tests(df).drop('commit_date', 'failed_tests')
-    df = compute_minimal_file_distances(df, 'filenames', 'test').drop('filenames', 'test')
+    df = compute_minimal_file_distances(df, 'files.file.name', 'test') \
+        .withColumn('file_card', funcs.expr('size(files)')) \
+        .drop('files', 'test')
     return df
 
 
@@ -373,17 +373,17 @@ def _create_test_feature_from(df: DataFrame,
                               enumerate_related_tests: Any,
                               enrich_tests: Any,
                               compute_minimal_file_distances: Any) -> DataFrame:
-    df = df.selectExpr('sha', 'commit_date', 'files')
-    df = _expand_updated_files(df) \
-        .selectExpr('*', 'files.file.name filenames', 'size(files) file_card')
+    df = _expand_updated_files(df.selectExpr('sha', 'commit_date', 'files'))
 
-    related_test_df = enumerate_related_tests(df)
+    related_test_df = enumerate_related_tests(df, 'related_tests')
     df = df.join(related_test_df, 'sha', 'LEFT_OUTER') \
         .selectExpr('*', 'explode_outer(related_tests) test') \
-        .drop('files', 'related_tests')
+        .drop('related_tests')
 
     df = enrich_tests(df).drop('commit_date')
-    df = compute_minimal_file_distances(df, 'filenames', 'test').drop('filenames')
+    df = compute_minimal_file_distances(df, 'files.file.name', 'test') \
+        .withColumn('file_card', funcs.expr('size(files)')) \
+        .drop('files')
     return df
 
 
@@ -404,7 +404,7 @@ def _create_temp_name(prefix: str = "temp") -> str:
 
 def _train_test_split(df: DataFrame, test_ratio: float) -> Tuple[DataFrame, DataFrame]:
     test_nrows = int(df.count() * test_ratio)
-    test_df = df.orderBy(functions.expr('to_timestamp(commit_date, "yyy/MM/dd HH:mm:ss")').desc()).limit(test_nrows)
+    test_df = df.orderBy(funcs.expr('to_timestamp(commit_date, "yyy/MM/dd HH:mm:ss")').desc()).limit(test_nrows)
     train_df = df.subtract(test_df)
     return train_df, test_df
 
@@ -416,7 +416,7 @@ def _predict_failed_probs(spark: SparkSession, clf: Any, test_df: DataFrame) -> 
     pmf = map(lambda p: {"classes": clf.classes_.tolist(), "probs": p.tolist()}, predicted)
     pmf = map(lambda p: json.dumps(p), pmf)  # type: ignore
     df['predicted'] = pd.Series(list(pmf))
-    to_map_expr = functions.expr('from_json(predicted, "classes array<string>, probs array<double>")')
+    to_map_expr = funcs.expr('from_json(predicted, "classes array<string>, probs array<double>")')
     to_failed_prob = 'map_from_arrays(pmf.classes, pmf.probs)["1"] failed_prob'
     df_with_failed_probs = spark.createDataFrame(df) \
         .withColumn('pmf', to_map_expr).selectExpr('sha', 'test', to_failed_prob)
@@ -429,7 +429,7 @@ def _compute_eval_metrics(df: DataFrame, predicted: DataFrame, min_num_tests: in
         f"when {x}.failed_prob > {y}.failed_prob then -1 " \
         "else 0 end"
     predicted = predicted.groupBy('sha') \
-        .agg(functions.expr('collect_set(named_struct("test", test, "failed_prob", failed_prob))').alias('tests')) \
+        .agg(funcs.expr('collect_set(named_struct("test", test, "failed_prob", failed_prob))').alias('tests')) \
         .selectExpr('sha', f'array_sort(tests, (l, r) -> {compare("l", "r")}) tests') \
         .cache()
 
@@ -502,7 +502,7 @@ def _train_ptest_model(output_path: str, train_log_fpath: str, build_deps: str) 
     try:
         # Assigns sha if it is an empty string (TODO: Needs to assign sha when collecting GitHub logs)
         df = spark.read.format('json').load(train_log_fpath) \
-            .withColumn('sha_', functions.expr('case when length(sha) > 0 then sha else sha(string(random())) end')) \
+            .withColumn('sha_', funcs.expr('case when length(sha) > 0 then sha else sha(string(random())) end')) \
             .drop('sha') \
             .withColumnRenamed('sha_', 'sha') \
             .distinct()
