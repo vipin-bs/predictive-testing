@@ -48,16 +48,16 @@
         "failed_28d": 0
     },
     {
-        "failed_test": "org.apache.spark.sql.catalyst.expressions.AnsiCastSuite",
-        "failed_7d": 0,
-        "failed_14d": 0,
-        "failed_28d": 0
-    },
-    {
         "failed_test": "org.apache.spark.ml.classification.LogisticRegressionSuite",
         "failed_7d": 0,
         "failed_14d": 1,
         "failed_28d": 1
+    },
+    {
+        "failed_test": "org.apache.spark.sql.catalyst.expressions.AnsiCastSuite",
+        "failed_7d": 0,
+        "failed_14d": 0,
+        "failed_28d": 0
     },
     {
         "failed_test": "org.apache.spark.sql.SessionStateSuite",
@@ -762,16 +762,16 @@
         "failed_28d": 0
     },
     {
-        "failed_test": "org.apache.spark.sql.DataFrameWindowFunctionsSuite",
-        "failed_7d": 0,
-        "failed_14d": 0,
-        "failed_28d": 0
-    },
-    {
         "failed_test": "org.apache.spark.ml.classification.GBTClassifierSuite",
         "failed_7d": 0,
         "failed_14d": 1,
         "failed_28d": 1
+    },
+    {
+        "failed_test": "org.apache.spark.sql.DataFrameWindowFunctionsSuite",
+        "failed_7d": 0,
+        "failed_14d": 0,
+        "failed_28d": 0
     },
     {
         "failed_test": "org.apache.spark.sql.hive.HiveSessionStateSuite",
@@ -870,16 +870,16 @@
         "failed_28d": 0
     },
     {
-        "failed_test": "org.apache.spark.sql.DateFunctionsSuite",
-        "failed_7d": 0,
-        "failed_14d": 0,
-        "failed_28d": 0
-    },
-    {
         "failed_test": "org.apache.spark.ml.regression.GBTRegressorSuite",
         "failed_7d": 0,
         "failed_14d": 1,
         "failed_28d": 1
+    },
+    {
+        "failed_test": "org.apache.spark.sql.DateFunctionsSuite",
+        "failed_7d": 0,
+        "failed_14d": 0,
+        "failed_28d": 0
     },
     {
         "failed_test": "org.apache.spark.sql.catalyst.analysis.ResolvedUuidExpressionsSuite",
@@ -1284,13 +1284,13 @@
         "failed_28d": 0
     },
     {
-        "failed_test": "org.apache.spark.sql.DataFrameSuite",
+        "failed_test": "org.apache.spark.sql.hive.MultiDatabaseSuite",
         "failed_7d": 0,
         "failed_14d": 0,
         "failed_28d": 0
     },
     {
-        "failed_test": "org.apache.spark.sql.hive.MultiDatabaseSuite",
+        "failed_test": "org.apache.spark.sql.DataFrameSuite",
         "failed_7d": 0,
         "failed_14d": 0,
         "failed_28d": 0
@@ -2010,16 +2010,16 @@
         "failed_28d": 0
     },
     {
-        "failed_test": "org.apache.spark.sql.catalyst.expressions.TryCastSuite",
-        "failed_7d": 0,
-        "failed_14d": 0,
-        "failed_28d": 0
-    },
-    {
         "failed_test": "org.apache.spark.ml.regression.DecisionTreeRegressorSuite",
         "failed_7d": 0,
         "failed_14d": 1,
         "failed_28d": 1
+    },
+    {
+        "failed_test": "org.apache.spark.sql.catalyst.expressions.TryCastSuite",
+        "failed_7d": 0,
+        "failed_14d": 0,
+        "failed_28d": 0
     },
     {
         "failed_test": "org.apache.spark.sql.avro.AvroScanSuite",

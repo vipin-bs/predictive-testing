@@ -85,7 +85,7 @@ def _build_lgb_model(X: pd.DataFrame, y: pd.Series, n_jobs: int = -1, opts: Dict
         return int(_get_option("hp.max_evals", "100000000"))
 
     def _no_progress_loss() -> int:
-        return int(_get_option("hp.no_progress_loss", "1000"))
+        return int(_get_option("hp.no_progress_loss", "100"))
 
     fixed_params = {
         "boosting_type": _boosting_type(),
@@ -296,7 +296,7 @@ def _create_func_to_enrich_tests(failed_test_df: DataFrame) -> Tuple[Any, List[D
     return _func, failed_tests
 
 
-def _create_func_to_compute_distances(spark: SparkSession, test_files: Dict[str, str]) -> Any:
+def _create_func_to_compute_distances(spark: SparkSession, test_files: Dict[str, str], f: Any) -> Any:
     broadcasted_test_files = spark.sparkContext.broadcast(test_files)
 
     @funcs.pandas_udf("int")  # type: ignore
@@ -306,14 +306,12 @@ def _create_func_to_compute_distances(spark: SparkSession, test_files: Dict[str,
         ret = []
         for names, t in zip(filenames, test):
             if t in test_files:
-                fpath = test_files[t].split('/')
                 distances = []
                 for n in json.loads(names):
-                    f = n.split('/')
-                    distances.append(len(set(f) ^ set(fpath)) - 2)
+                    distances.append(f(n, test_files[t]))
                 ret.append(min(distances))
             else:
-                ret.append(256)
+                ret.append(65536)
 
         return pd.Series(ret)
 
@@ -422,7 +420,7 @@ def _predict_failed_probs(spark: SparkSession, clf: Any, test_df: DataFrame) -> 
     return df_with_failed_probs
 
 
-def _compute_eval_metrics(df: DataFrame, predicted: DataFrame, min_num_tests: int) -> List[Tuple[float, Tuple[float, float]]]:
+def _compute_eval_metrics(df: DataFrame, predicted: DataFrame, min_num_tests: int) -> Any:
     compare = lambda x, y: \
         f"case when {x}.failed_prob < {y}.failed_prob then 1 " \
         f"when {x}.failed_prob > {y}.failed_prob then -1 " \
@@ -434,9 +432,10 @@ def _compute_eval_metrics(df: DataFrame, predicted: DataFrame, min_num_tests: in
 
     def _metric(thres: float) -> Tuple[float, float]:
         p = predicted \
-            .selectExpr('*', f'filter(tests, x -> x.failed_prob >= {thres}) filtered_tests') \
-            .selectExpr('sha', f'case when size(filtered_tests) > {min_num_tests} then filtered_tests else slice(tests, 1, {min_num_tests}) end tests') \
-            .selectExpr('sha', 'transform(tests, x -> x.test) tests')
+            .withColumn('filtered_tests', funcs.expr(f'filter(tests, x -> x.failed_prob >= {thres})')) \
+            .withColumn('tests_', funcs.expr(f'case when size(filtered_tests) > {min_num_tests} then filtered_tests '
+                                             f'else slice(tests, 1, {min_num_tests}) end')) \
+            .selectExpr('sha', 'transform(tests_, x -> x.test) tests')
         eval_df = df.selectExpr('sha', 'failed_tests').cache().join(p, 'sha', 'LEFT_OUTER') \
             .selectExpr('sha', 'failed_tests', 'coalesce(tests, array()) tests')
         eval_df = eval_df.selectExpr(
@@ -511,7 +510,8 @@ def _train_ptest_model(output_path: str, train_log_fpath: str, build_deps: str) 
 
         enumerate_related_tests = _create_func_to_enumerate_related_tests(spark, rev_dep_graph, depth=2)
         enrich_tests, failed_tests = _create_func_to_enrich_tests(train_df.where('size(failed_tests) > 0'))
-        compute_distances = _create_func_to_compute_distances(spark, test_files)
+        compute_distances = _create_func_to_compute_distances(
+            spark, test_files, lambda x, y: len(set(x.split('/')) ^ set(y.split('/'))) - 2)
 
         def _to_features(f: Any, df: DataFrame) -> Any:
             return f(df, enumerate_related_tests, enrich_tests, compute_distances)
