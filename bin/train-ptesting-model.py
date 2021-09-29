@@ -85,7 +85,7 @@ def _build_lgb_model(X: pd.DataFrame, y: pd.Series, n_jobs: int = -1, opts: Dict
         return int(_get_option("hp.max_evals", "100000000"))
 
     def _no_progress_loss() -> int:
-        return int(_get_option("hp.no_progress_loss", "500"))
+        return int(_get_option("hp.no_progress_loss", "1000"))
 
     fixed_params = {
         "boosting_type": _boosting_type(),
@@ -245,7 +245,7 @@ def _create_func_to_enumerate_related_tests(spark: SparkSession,
         return pd.Series(ret)
 
     def _func(df: DataFrame) -> DataFrame:
-        test_df = df.selectExpr('sha', 'explode_outer(files.file.name) filename') \
+        return df.selectExpr('sha', 'explode_outer(files.file.name) filename') \
             .selectExpr('sha', 'regexp_extract(filename, ".*(org\/apache\/spark\/.+?)\.scala", 1) ident') \
             .withColumn('tests', _enumerate_tests(functions.expr('ident'))) \
             .selectExpr('sha', 'ident', 'from_json(tests, "tests ARRAY<STRING>").tests tests') \
@@ -256,12 +256,45 @@ def _create_func_to_enumerate_related_tests(spark: SparkSession,
                         'transform(tests, p -> replace(p, "\/", ".")) related_tests') \
             .where('related_tests IS NOT NULL')
 
-        return test_df
-
     return _func
 
 
-def _create_func_to_compute_distance(spark: SparkSession, test_files: Dict[str, str]) -> Any:
+def _create_func_to_enrich_tests(failed_test_df: DataFrame) -> Tuple[Any, List[Dict[str, Any]]]:
+    def _intvl(d: int) -> str:
+        return f"current_timestamp() - interval {d} days"
+
+    def _failed(d: int) -> str:
+        return f'CASE WHEN commit_date > intvl_{d}days THEN 1 ELSE 0 END'
+
+    failed_test_df = failed_test_df \
+        .selectExpr(
+            'to_timestamp(commit_date, "yyy/MM/dd HH:mm:ss") commit_date',
+            'explode_outer(failed_tests) failed_test',
+            f'{_intvl(7)} intvl_7days',
+            f'{_intvl(14)} intvl_14days',
+            f'{_intvl(28)} intvl_28days') \
+        .where('failed_test IS NOT NULL') \
+        .selectExpr(
+            f'{_failed(7)} failed_7d',
+            f'{_failed(14)} failed_14d',
+            f'{_failed(28)} failed_28d',
+            'failed_test') \
+        .groupBy('failed_test').agg(
+            functions.expr('sum(failed_7d) failed_7d'),
+            functions.expr('sum(failed_14d) failed_14d'),
+            functions.expr('sum(failed_28d) failed_28d')) \
+        .cache()
+
+    def _func(df: DataFrame) -> DataFrame:
+        return df.join(failed_test_df, df.test == failed_test_df.failed_test, 'LEFT_OUTER') \
+            .na.fill({'failed_7d': 0, 'failed_14d': 0, 'failed_28d': 0}) \
+            .drop('failed_test')
+
+    failed_tests = list(map(lambda r: r.asDict(), failed_test_df.collect()))
+    return _func, failed_tests
+
+
+def _create_func_to_compute_distances(spark: SparkSession, test_files: Dict[str, str]) -> Any:
     broadcasted_test_files = spark.sparkContext.broadcast(test_files)
 
     @functions.pandas_udf("int")  # type: ignore
@@ -289,38 +322,6 @@ def _create_func_to_compute_distance(spark: SparkSession, test_files: Dict[str, 
     return _func
 
 
-def _expand_failed_tests_by_failed_rate(df: DataFrame) -> DataFrame:
-    def _intvl(d: int) -> str:
-        return f"current_timestamp() - interval {d} days"
-
-    def _failed(d: int) -> str:
-        return f'CASE WHEN commit_date > intvl_{d}days THEN 1 ELSE 0 END'
-
-    failed_test_df = df \
-        .selectExpr(
-            'to_timestamp(commit_date, "yyy/MM/dd HH:mm:ss") commit_date',
-            'explode_outer(failed_tests) failed_test',
-            f'{_intvl(7)} intvl_7days',
-            f'{_intvl(14)} intvl_14days',
-            f'{_intvl(28)} intvl_28days') \
-        .where('failed_test IS NOT NULL') \
-        .selectExpr(
-            f'{_failed(7)} failed_7d',
-            f'{_failed(14)} failed_14d',
-            f'{_failed(28)} failed_28d',
-            'failed_test') \
-        .groupBy('failed_test').agg(
-            functions.expr('sum(failed_7d) failed_7d'),
-            functions.expr('sum(failed_14d) failed_14d'),
-            functions.expr('sum(failed_28d) failed_28d'))
-
-    df = df.join(failed_test_df, df.test == failed_test_df.failed_test, 'LEFT_OUTER') \
-        .na.fill({'failed_7d': 0, 'failed_14d': 0, 'failed_28d': 0}) \
-        .drop('failed_test')
-
-    return df
-
-
 def _expand_updated_files(df: DataFrame) -> DataFrame:
     def _sum(c: str) -> Column:
         return functions.expr(f'aggregate({c}, 0, (x, y) -> int(x) + int(y))')
@@ -340,9 +341,10 @@ def _expand_updated_files(df: DataFrame) -> DataFrame:
     return df
 
 
-def _create_feature_from(df: DataFrame,
-                         enumerate_related_tests: Any,
-                         compute_minimal_file_distance: Any) -> DataFrame:
+def _create_train_feature_from(df: DataFrame,
+                               enumerate_related_tests: Any,
+                               enrich_tests: Any,
+                               compute_minimal_file_distances: Any) -> DataFrame:
     # TODO: Revisit this feature engineering
     df = df.selectExpr('sha', 'commit_date', 'files', 'failed_tests')
     df = _expand_updated_files(df) \
@@ -352,23 +354,41 @@ def _create_feature_from(df: DataFrame,
 
     passed_test_df = df.join(related_test_df, 'sha', 'INNER') \
         .selectExpr('*', 'array_except(related_tests, failed_tests) tests', '0 failed') \
+        .where('size(tests) > 0')
 
     failed_test_df = df.join(related_test_df, 'sha', 'INNER') \
         .where('size(failed_tests) > 0') \
         .selectExpr('*', 'failed_tests tests', '1 failed')
 
     df = passed_test_df.union(failed_test_df) \
-        .selectExpr('*', 'explode_outer(tests) test') \
-        .drop('files', 'related_tests', 'tests')
+        .selectExpr('*', 'explode(tests) test') \
+        .drop('sha', 'files', 'related_tests', 'tests')
 
-    df = _expand_failed_tests_by_failed_rate(df).drop('commit_date', 'failed_tests')
-    df = compute_minimal_file_distance(df, 'filenames', 'test').drop('filenames')
+    df = enrich_tests(df).drop('commit_date', 'failed_tests')
+    df = compute_minimal_file_distances(df, 'filenames', 'test').drop('filenames', 'test')
+    return df
 
+
+def _create_test_feature_from(df: DataFrame,
+                              enumerate_related_tests: Any,
+                              enrich_tests: Any,
+                              compute_minimal_file_distances: Any) -> DataFrame:
+    df = df.selectExpr('sha', 'commit_date', 'files')
+    df = _expand_updated_files(df) \
+        .selectExpr('*', 'files.file.name filenames', 'size(files) file_card')
+
+    related_test_df = enumerate_related_tests(df)
+    df = df.join(related_test_df, 'sha', 'LEFT_OUTER') \
+        .selectExpr('*', 'explode_outer(related_tests) test') \
+        .drop('files', 'related_tests')
+
+    df = enrich_tests(df).drop('commit_date')
+    df = compute_minimal_file_distances(df, 'filenames', 'test').drop('filenames')
     return df
 
 
 def _build_model(df: DataFrame) -> Any:
-    pdf = df.drop('sha', 'test').toPandas()
+    pdf = df.toPandas()
     X = pdf[pdf.columns[pdf.columns != 'failed']]  # type: ignore
     y = pdf['failed']
     X, y = _rebalance_training_data(X, y)
@@ -382,8 +402,8 @@ def _create_temp_name(prefix: str = "temp") -> str:
     return f'{prefix}_{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}'
 
 
-def _train_test_split(df: DataFrame) -> Tuple[DataFrame, DataFrame]:
-    test_nrows = int(df.count() * 0.20)
+def _train_test_split(df: DataFrame, test_ratio: float) -> Tuple[DataFrame, DataFrame]:
+    test_nrows = int(df.count() * test_ratio)
     test_df = df.orderBy(functions.expr('to_timestamp(commit_date, "yyy/MM/dd HH:mm:ss")').desc()).limit(test_nrows)
     train_df = df.subtract(test_df)
     return train_df, test_df
@@ -468,12 +488,6 @@ def _train_ptest_model(output_path: str, train_log_fpath: str, build_deps: str) 
     # Supresses `WARN` messages in JVM
     spark.sparkContext.setLogLevel("ERROR")
 
-    enumerate_related_tests = _create_func_to_enumerate_related_tests(spark, rev_dep_graph, depth=2)
-    compute_distance = _create_func_to_compute_distance(spark, test_files)
-
-    def _to_feature(df: DataFrame) -> DataFrame:
-        return _create_feature_from(df, enumerate_related_tests, compute_distance)
-
     try:
         # Assigns sha if it is an empty string (TODO: Needs to assign sha when collecting GitHub logs)
         df = spark.read.format('json').load(train_log_fpath) \
@@ -482,19 +496,27 @@ def _train_ptest_model(output_path: str, train_log_fpath: str, build_deps: str) 
             .withColumnRenamed('sha_', 'sha') \
             .distinct()
 
-        train_df, test_df = _train_test_split(df)
-        _logger.info(f"Split data: #train={train_df.count()}, #test={test_df.count()}")
+        train_df, test_df = _train_test_split(df, test_ratio=0.20)
+        _logger.info(f"Split data: #total={df.count()}, #train={train_df.count()}, #test={test_df.count()}")
 
-        clf = _build_model(_to_feature(train_df))
+        enumerate_related_tests = _create_func_to_enumerate_related_tests(spark, rev_dep_graph, depth=2)
+        enrich_tests, failed_tests = _create_func_to_enrich_tests(train_df.where('size(failed_tests) > 0'))
+        compute_distances = _create_func_to_compute_distances(spark, test_files)
 
-        output_prefix = f"{output_path}/ptesting-model"
-        with open(f"{output_prefix}.pkl", 'wb') as f:
+        def _to_features(f: Any, df: DataFrame) -> Any:
+            return f(df, enumerate_related_tests, enrich_tests, compute_distances)
+
+        clf = _build_model(_to_features(_create_train_feature_from, df))
+
+        with open(f"{output_path}/failed-tests.json", 'w') as f:
+            f.write(json.dumps(failed_tests, indent=4))
+        with open(f"{output_path}/model.pkl", 'wb') as f:  # type: ignore
             import pickle
-            pickle.dump(clf, f)
+            pickle.dump(clf, f)  # type: ignore
 
-        predicted = _predict_failed_probs(spark, clf, _to_feature(test_df))
+        predicted = _predict_failed_probs(spark, clf, _to_features(_create_test_feature_from, test_df))
         metrics = _compute_eval_metrics(test_df, predicted)
-        with open(f"{output_prefix}-metrics.md", 'w') as f:  # type: ignore
+        with open(f"{output_path}/model-eval-metrics.md", 'w') as f:  # type: ignore
             f.write(_format_eval_metrics(metrics))  # type: ignore
 
     finally:
