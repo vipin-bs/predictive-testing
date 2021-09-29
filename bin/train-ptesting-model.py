@@ -85,7 +85,7 @@ def _build_lgb_model(X: pd.DataFrame, y: pd.Series, n_jobs: int = -1, opts: Dict
         return int(_get_option("hp.max_evals", "100000000"))
 
     def _no_progress_loss() -> int:
-        return int(_get_option("hp.no_progress_loss", "50"))
+        return int(_get_option("hp.no_progress_loss", "500"))
 
     fixed_params = {
         "boosting_type": _boosting_type(),
@@ -197,9 +197,10 @@ def _build_lgb_model(X: pd.DataFrame, y: pd.Series, n_jobs: int = -1, opts: Dict
 
 
 def _rebalance_training_data(X: pd.DataFrame, y: pd.Series) -> Tuple[pd.DataFrame, pd.Series]:
-    from imblearn.under_sampling import RepeatedEditedNearestNeighbours
-    renn = RepeatedEditedNearestNeighbours()
-    X_res, y_res = renn.fit_resample(X, y)
+    # TODO: To improve model performance, we need to reconsider this sampling method?
+    from imblearn.under_sampling import RandomUnderSampler
+    rus = RandomUnderSampler(random_state=42)
+    X_res, y_res = rus.fit_resample(X, y)
     from collections import Counter
     _logger.info(f"Rebalancing training data: {dict(Counter(y).items())} => {dict(Counter(y_res).items())}")
     return X_res, y_res
@@ -251,7 +252,8 @@ def _create_func_to_enumerate_related_tests(spark: SparkSession,
             .selectExpr('sha', 'explode_outer(tests) test') \
             .groupBy('sha') \
             .agg(functions.expr('collect_set(test) tests')) \
-            .selectExpr('sha', 'size(tests) target_card', 'transform(tests, p -> replace(p, "\/", ".")) related_tests')
+            .selectExpr('sha', 'size(tests) target_card', 'transform(tests, p -> replace(p, "\/", ".")) related_tests') \
+            .where('related_tests IS NOT NULL')
 
         return test_df
 
@@ -346,13 +348,17 @@ def _create_feature_from(df: DataFrame,
         .selectExpr('*', 'files.file.name filenames', 'size(files) file_card')
 
     related_test_df = enumerate_related_tests(df)
-    df = df.join(related_test_df, 'sha', 'LEFT_OUTER') \
-        .selectExpr('*', 'CASE WHEN size(failed_tests) = 0 THEN 0 ELSE 1 END failed') \
-        .selectExpr('*', 'CASE WHEN failed = 1 THEN failed_tests ELSE related_tests END tests') \
-        .drop('files', 'related_tests') \
-        .where('tests IS NOT NULL') \
+
+    passed_test_df = df.join(related_test_df, 'sha', 'INNER') \
+        .selectExpr('*', 'array_except(related_tests, failed_tests) tests', '0 failed') \
+
+    failed_test_df = df.join(related_test_df, 'sha', 'INNER') \
+        .where('size(failed_tests) > 0') \
+        .selectExpr('*', 'failed_tests tests', '1 failed')
+
+    df = passed_test_df.union(failed_test_df) \
         .selectExpr('*', 'explode_outer(tests) test') \
-        .drop('tests')
+        .drop('files', 'related_tests', 'tests')
 
     df = _expand_failed_tests_by_failed_rate(df).drop('commit_date', 'failed_tests')
     df = compute_minimal_file_distance(df, 'filenames', 'test').drop('filenames')
