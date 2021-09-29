@@ -405,9 +405,9 @@ def _predict_failed_probs(spark: SparkSession, clf: Any, test_df: DataFrame) -> 
 
 def _compute_eval_metrics(df: DataFrame, predicted: DataFrame) -> List[Tuple[float, Tuple[float, float]]]:
     def _metric(thres: float) -> Tuple[float, float]:
-        p = predicted.where(f'failed_prob > {thres}') \
+        p = predicted.cache().where(f'failed_prob > {thres}') \
             .groupBy('sha').agg(functions.expr('collect_set(test)').alias('tests'))
-        eval_df = df.selectExpr('sha', 'failed_tests').join(p, 'sha', 'LEFT_OUTER') \
+        eval_df = df.selectExpr('sha', 'failed_tests').cache().join(p, 'sha', 'LEFT_OUTER') \
             .selectExpr('sha', 'failed_tests', 'coalesce(tests, array()) tests')
         eval_df = eval_df.selectExpr(
             'sha',
