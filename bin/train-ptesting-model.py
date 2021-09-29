@@ -266,30 +266,32 @@ def _create_func_to_enrich_tests(failed_test_df: DataFrame) -> Tuple[Any, List[D
         return f"current_timestamp() - interval {d} days"
 
     def _failed(d: int) -> str:
-        return f'CASE WHEN commit_date > intvl_{d}days THEN 1 ELSE 0 END'
+        return f'case when commit_date > intvl_{d}d then 1 else 0 end'
 
     failed_test_df = failed_test_df \
         .selectExpr(
             'to_timestamp(commit_date, "yyy/MM/dd HH:mm:ss") commit_date',
             'explode_outer(failed_tests) failed_test',
-            f'{_intvl(7)} intvl_7days',
-            f'{_intvl(14)} intvl_14days',
-            f'{_intvl(28)} intvl_28days') \
+            f'{_intvl(7)} intvl_7d',
+            f'{_intvl(14)} intvl_14d',
+            f'{_intvl(28)} intvl_28d') \
         .where('failed_test IS NOT NULL') \
         .selectExpr(
+            'failed_test',
             f'{_failed(7)} failed_7d',
             f'{_failed(14)} failed_14d',
             f'{_failed(28)} failed_28d',
-            'failed_test') \
+            '1 failed') \
         .groupBy('failed_test').agg(
-            funcs.expr('sum(failed_7d) failed_7d'),
-            funcs.expr('sum(failed_14d) failed_14d'),
-            funcs.expr('sum(failed_28d) failed_28d')) \
+            funcs.expr('sum(failed_7d) failed_num_7d'),
+            funcs.expr('sum(failed_14d) failed_num_14d'),
+            funcs.expr('sum(failed_28d) failed_num_28d'),
+            funcs.expr('sum(failed) total_failed_num')) \
         .cache()
 
     def _func(df: DataFrame) -> DataFrame:
         return df.join(failed_test_df, df.test == failed_test_df.failed_test, 'LEFT_OUTER') \
-            .na.fill({'failed_7d': 0, 'failed_14d': 0, 'failed_28d': 0}) \
+            .na.fill({'failed_num_7d': 0, 'failed_num_14d': 0, 'failed_num_28d': 0, 'total_failed_num': 0}) \
             .drop('failed_test')
 
     failed_tests = list(map(lambda r: r.asDict(), failed_test_df.collect()))
@@ -328,15 +330,15 @@ def _expand_updated_files(df: DataFrame) -> DataFrame:
 
     def _expand_by_update_rate(df: DataFrame) -> DataFrame:
         return df \
-            .withColumn('total_udpated_3d', _sum('files.updated[0]')) \
-            .withColumn('total_udpated_14d', _sum('files.updated[1]')) \
-            .withColumn('total_udpated_56d', _sum('files.updated[2]')) \
-            .na.fill({'total_udpated_3d': 0, 'total_udpated_14d': 0, 'total_udpated_56d': 0})
+            .withColumn('udpated_num_3d', _sum('files.updated[0]')) \
+            .withColumn('udpated_num_14d', _sum('files.updated[1]')) \
+            .withColumn('udpated_num_56d', _sum('files.updated[2]')) \
+            .na.fill({'udpated_num_3d': 0, 'udpated_num_14d': 0, 'udpated_num_56d': 0})
 
     df = _expand_by_update_rate(df) \
-        .withColumn('total_adds', _sum('files.file.additions')) \
-        .withColumn('total_dels', _sum("files.file.deletions")) \
-        .withColumn('total_chgs', _sum("files.file.changes"))
+        .withColumn('num_adds', _sum('files.file.additions')) \
+        .withColumn('num_dels', _sum("files.file.deletions")) \
+        .withColumn('num_chgs', _sum("files.file.changes"))
 
     return df
 
