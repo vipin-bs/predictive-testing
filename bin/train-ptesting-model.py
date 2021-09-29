@@ -396,7 +396,7 @@ def _predict_failed_probs(spark: SparkSession, clf: Any, test_df: DataFrame) -> 
     return df_with_failed_probs
 
 
-def _eval_ptesting_model(df: DataFrame, predicted: DataFrame) -> None:
+def _compute_eval_metrics(df: DataFrame, predicted: DataFrame) -> List[Tuple[float, float]]:
     def _metric(thres: float) -> float:
         p = predicted.where(f'failed_prob > {thres}') \
             .groupBy('sha').agg(functions.expr('collect_set(test)').alias('tests'))
@@ -412,7 +412,17 @@ def _eval_ptesting_model(df: DataFrame, predicted: DataFrame) -> None:
         return row.p
 
     metrics = [(thres, _metric(thres)) for thres in [0.0, 0.2, 0.4, 0.6, 0.8]]
-    print(metrics)
+    return metrics
+
+
+def _format_eval_metrics(metrics: List[Tuple[float, float]]) -> str:
+    strbuf: List[str]  = []
+    strbuf.append('|  failed prob. threshold  |  coverage  |')
+    strbuf.append('| ---- | ---- |')
+    for prob, coverage in metrics:
+        strbuf.append(f'| {prob} | {coverage} |')
+
+    return '\n'.join(strbuf)
 
 
 def _train_ptest_model(output_path: str, train_log_fpath: str, build_deps: str) -> None:
@@ -469,12 +479,16 @@ def _train_ptest_model(output_path: str, train_log_fpath: str, build_deps: str) 
 
         clf = _build_model(_to_feature(train_df))
 
-        predicted = _predict_failed_probs(spark, clf, _to_feature(test_df))
-        _eval_ptesting_model(test_df, predicted)
-
-        with open(f"{output_path}/{_create_temp_name('ptesting-model')}", 'wb') as f:
+        output_prefix = f"{output_path}/ptesting-model"
+        with open(f"{output_prefix}.pkl", 'wb') as f:
             import pickle
             pickle.dump(clf, f)
+
+        predicted = _predict_failed_probs(spark, clf, _to_feature(test_df))
+        metrics = _compute_eval_metrics(test_df, predicted)
+        with open(f"{output_prefix}-metrics.md", 'w') as f:
+            f.write(_format_eval_metrics(metrics))
+
     finally:
         spark.stop()
 

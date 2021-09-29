@@ -7,4 +7,3 @@ output
 spark-master
 derby.log
 metastore_db
-models/spark/ptesting-model_*
