@@ -402,8 +402,8 @@ def _predict_failed_probs(spark: SparkSession, clf: Any, test_df: DataFrame) -> 
     return df_with_failed_probs
 
 
-def _compute_eval_metrics(df: DataFrame, predicted: DataFrame) -> List[Tuple[float, float]]:
-    def _metric(thres: float) -> float:
+def _compute_eval_metrics(df: DataFrame, predicted: DataFrame) -> List[Tuple[float, Tuple[float, float]]]:
+    def _metric(thres: float) -> Tuple[float, float]:
         p = predicted.where(f'failed_prob > {thres}') \
             .groupBy('sha').agg(functions.expr('collect_set(test)').alias('tests'))
         eval_df = df.selectExpr('sha', 'failed_tests').join(p, 'sha', 'LEFT_OUTER') \
@@ -414,8 +414,8 @@ def _compute_eval_metrics(df: DataFrame, predicted: DataFrame) -> List[Tuple[flo
             'size(tests) num_tests',
             'size(array_intersect(failed_tests, tests)) covered'
         )
-        row = eval_df.selectExpr('SUM(covered) / SUM(num_failed_tests) p').collect()[0]
-        return row.p
+        row = eval_df.selectExpr('SUM(covered) / SUM(num_failed_tests) p', 'SUM(covered) / SUM(num_tests) r').collect()[0]
+        return row.p, row.r
 
     metrics = [(thres, _metric(thres)) for thres in [0.0, 0.2, 0.4, 0.6, 0.8]]
     return metrics
@@ -423,10 +423,10 @@ def _compute_eval_metrics(df: DataFrame, predicted: DataFrame) -> List[Tuple[flo
 
 def _format_eval_metrics(metrics: List[Tuple[float, float]]) -> str:
     strbuf: List[str]  = []
-    strbuf.append('|  failed prob. threshold  |  coverage  |')
-    strbuf.append('| ---- | ---- |')
-    for prob, coverage in metrics:
-        strbuf.append(f'| {prob} | {coverage} |')
+    strbuf.append('|  failed prob. threshold  |  precision  |  recall  |')
+    strbuf.append('| ---- | ---- | ---- |')
+    for prob, (p, r) in metrics:
+        strbuf.append(f'| {prob} | {p} | {r} |')
 
     return '\n'.join(strbuf)
 
