@@ -423,10 +423,21 @@ def _predict_failed_probs(spark: SparkSession, clf: Any, test_df: DataFrame) -> 
     return df_with_failed_probs
 
 
-def _compute_eval_metrics(df: DataFrame, predicted: DataFrame) -> List[Tuple[float, Tuple[float, float]]]:
+def _compute_eval_metrics(df: DataFrame, predicted: DataFrame, min_num_tests: int) -> List[Tuple[float, Tuple[float, float]]]:
+    compare = lambda x, y: \
+        f"case when {x}.failed_prob < {y}.failed_prob then 1 " \
+        f"when {x}.failed_prob > {y}.failed_prob then -1 " \
+        "else 0 end"
+    predicted = predicted.groupBy('sha') \
+        .agg(functions.expr('collect_set(named_struct("test", test, "failed_prob", failed_prob))').alias('tests')) \
+        .selectExpr('sha', f'array_sort(tests, (l, r) -> {compare("l", "r")}) tests') \
+        .cache()
+
     def _metric(thres: float) -> Tuple[float, float]:
-        p = predicted.cache().where(f'failed_prob > {thres}') \
-            .groupBy('sha').agg(functions.expr('collect_set(test)').alias('tests'))
+        p = predicted \
+            .selectExpr('*', f'filter(tests, x -> x.failed_prob >= {thres}) filtered_tests') \
+            .selectExpr('sha', f'case when size(filtered_tests) > {min_num_tests} then filtered_tests else slice(tests, 1, {min_num_tests}) end tests') \
+            .selectExpr('sha', 'transform(tests, x -> x.test) tests')
         eval_df = df.selectExpr('sha', 'failed_tests').cache().join(p, 'sha', 'LEFT_OUTER') \
             .selectExpr('sha', 'failed_tests', 'coalesce(tests, array()) tests')
         eval_df = eval_df.selectExpr(
@@ -515,7 +526,7 @@ def _train_ptest_model(output_path: str, train_log_fpath: str, build_deps: str) 
             pickle.dump(clf, f)  # type: ignore
 
         predicted = _predict_failed_probs(spark, clf, _to_features(_create_test_feature_from, test_df))
-        metrics = _compute_eval_metrics(test_df, predicted)
+        metrics = _compute_eval_metrics(test_df, predicted, min_num_tests=30)
         with open(f"{output_path}/model-eval-metrics.md", 'w') as f:  # type: ignore
             f.write(_format_eval_metrics(metrics))  # type: ignore
 
