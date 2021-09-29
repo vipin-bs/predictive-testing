@@ -22,7 +22,7 @@ cd "$FWDIR"
 
 if [ ! -z "$CONDA_ENABLED" ]; then
   # Activate a conda virtual env
-  . ./bin/conda.sh && activate_conda_virtual_env "${FWDIR}" "predictive-testing"
+  . ./bin/conda.sh && activate_conda_virtual_env "${FWDIR}"
 fi
 
 PYTHON_VERSION_CHECK=$(python3 -c 'import sys; print(sys.version_info < (3, 6, 0))')

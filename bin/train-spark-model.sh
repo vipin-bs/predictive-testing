@@ -24,7 +24,7 @@ FWDIR="$(cd "`dirname $0`"/..; pwd)"
 
 if [ ! -z "$CONDA_ENABLED" ]; then
   # Activate a conda virtual env
-  . ${FWDIR}/bin/conda.sh && activate_conda_virtual_env "${FWDIR}" "predictive-testing"
+  . ${FWDIR}/bin/conda.sh && activate_conda_virtual_env "${FWDIR}"
 fi
 
 exec python3 -u ${FWDIR}/bin/train-ptesting-model.py \
