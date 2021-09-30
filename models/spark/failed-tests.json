@@ -1498,14 +1498,14 @@
     "total_failed_num": 1
   },
   {
-    "failed_test": "org.apache.spark.sql.hive.MultiDatabaseSuite",
+    "failed_test": "org.apache.spark.sql.DataFrameSuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
     "failed_num_28d": 0,
     "total_failed_num": 9
   },
   {
-    "failed_test": "org.apache.spark.sql.DataFrameSuite",
+    "failed_test": "org.apache.spark.sql.hive.MultiDatabaseSuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
     "failed_num_28d": 0,

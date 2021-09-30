@@ -85,7 +85,7 @@ def _build_lgb_model(X: pd.DataFrame, y: pd.Series, n_jobs: int = -1, opts: Dict
         return int(_get_option("hp.max_evals", "100000000"))
 
     def _no_progress_loss() -> int:
-        return int(_get_option("hp.no_progress_loss", "100"))
+        return int(_get_option("hp.no_progress_loss", "1000"))
 
     fixed_params = {
         "boosting_type": _boosting_type(),
@@ -207,44 +207,41 @@ def _rebalance_training_data(X: pd.DataFrame, y: pd.Series) -> Tuple[pd.DataFram
 
 
 def _create_func_to_enumerate_related_tests(spark: SparkSession,
-                                            rev_dep_graph: Dict[str, List[str]],
-                                            depth: int) -> Any:
+                                            rev_dep_graph: Dict[str, List[str]]) -> Any:
     broadcasted_rev_dep_graph = spark.sparkContext.broadcast(rev_dep_graph)
-    broadcasted_depth = spark.sparkContext.broadcast(depth)
 
-    @funcs.pandas_udf("string")  # type: ignore
-    def _enumerate_tests(idents: pd.Series) -> pd.Series:
-        rev_dep_graph = broadcasted_rev_dep_graph.value
-        depth = broadcasted_depth.value
+    def _func(df: DataFrame, output_col: str, depth: int, max_num_tests: int) -> DataFrame:
+        @funcs.pandas_udf("string")  # type: ignore
+        def _enumerate_tests(idents: pd.Series) -> pd.Series:
+            rev_dep_graph = broadcasted_rev_dep_graph.value
 
-        def _traverse(target):  # type: ignore
-            if not target:
-                return []
+            def _traverse(target):  # type: ignore
+                if not target:
+                    return []
 
-            subgraph = {}
-            visited_nodes = set()
-            keys = list([target])
-            for i in range(0, depth):
-                next_keys = set()
-                for key in keys:
-                    if key in rev_dep_graph and key not in visited_nodes:
-                        nodes = rev_dep_graph[key]
-                        next_keys.update(nodes)
-                visited_nodes.update(keys)
-                keys = list(next_keys)
-            if keys is not None:
-                visited_nodes.update(keys)
-            tests = list(filter(lambda n: n.endswith('Suite'), visited_nodes))
-            return tests
+                subgraph = {}
+                visited_nodes = set()
+                keys = list([target])
+                for i in range(0, depth):
+                    next_keys = set()
+                    for key in keys:
+                        if key in rev_dep_graph and key not in visited_nodes:
+                            nodes = rev_dep_graph[key]
+                            next_keys.update(nodes)
+                    visited_nodes.update(keys)
+                    keys = list(next_keys)
+                if keys is not None:
+                    visited_nodes.update(keys)
+                tests = list(filter(lambda n: n.endswith('Suite'), visited_nodes))
+                return tests
 
-        ret = []
-        for ident in idents:
-            s = _traverse(ident)
-            ret.append(json.dumps({'tests': s}))
+            ret = []
+            for ident in idents:
+                s = _traverse(ident)
+                ret.append(json.dumps({'tests': s}))
 
-        return pd.Series(ret)
+            return pd.Series(ret)
 
-    def _func(df: DataFrame, output_col: str) -> DataFrame:
         related_test_df = df.selectExpr('sha', 'explode_outer(files.file.name) filename') \
             .selectExpr('sha', 'regexp_extract(filename, ".*(org\/apache\/spark\/.+?)\.scala", 1) ident') \
             .withColumn('tests', _enumerate_tests(funcs.expr('ident'))) \
@@ -350,7 +347,7 @@ def _create_train_feature_from(df: DataFrame,
     # TODO: Revisit this feature engineering
     df = _expand_updated_files(df.selectExpr('sha', 'commit_date', 'files', 'failed_tests'))
 
-    related_test_df = enumerate_related_tests(df, 'related_tests')
+    related_test_df = enumerate_related_tests(df, output_col='related_tests', depth=2, max_num_tests=16)
 
     passed_test_df = related_test_df \
         .selectExpr('*', 'array_except(related_tests, failed_tests) tests', '0 failed') \
@@ -376,7 +373,7 @@ def _create_test_feature_from(df: DataFrame,
                               enrich_tests: Any,
                               compute_minimal_file_distances: Any) -> DataFrame:
     df = _expand_updated_files(df.selectExpr('sha', 'commit_date', 'files'))
-    df = enumerate_related_tests(df, 'related_tests') \
+    df = enumerate_related_tests(df, output_col='related_tests', depth=6, max_num_tests=256) \
         .selectExpr('*', 'explode_outer(related_tests) test') \
         .drop('related_tests')
     df = enrich_tests(df)
@@ -505,7 +502,7 @@ def _train_ptest_model(output_path: str, train_log_fpath: str, build_deps: str) 
         train_df, test_df = _train_test_split(df, test_ratio=0.20)
         _logger.info(f"Split data: #total={df.count()}, #train={train_df.count()}, #test={test_df.count()}")
 
-        enumerate_related_tests = _create_func_to_enumerate_related_tests(spark, rev_dep_graph, depth=2)
+        enumerate_related_tests = _create_func_to_enumerate_related_tests(spark, rev_dep_graph)
         enrich_tests, failed_tests = _create_func_to_enrich_tests(train_df.where('size(failed_tests) > 0'))
         compute_distances = _create_func_to_compute_distances(
             spark, test_files, lambda x, y: len(set(x.split('/')) ^ set(y.split('/'))) - 2)
@@ -522,7 +519,7 @@ def _train_ptest_model(output_path: str, train_log_fpath: str, build_deps: str) 
             pickle.dump(clf, f)  # type: ignore
 
         predicted = _predict_failed_probs(spark, clf, _to_features(_create_test_feature_from, test_df))
-        metrics = _compute_eval_metrics(test_df, predicted, min_num_tests=30)
+        metrics = _compute_eval_metrics(test_df, predicted, min_num_tests=128)
         with open(f"{output_path}/model-eval-metrics.md", 'w') as f:  # type: ignore
             f.write(_format_eval_metrics(metrics))  # type: ignore
 
