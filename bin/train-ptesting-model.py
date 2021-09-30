@@ -207,21 +207,34 @@ def _rebalance_training_data(X: pd.DataFrame, y: pd.Series) -> Tuple[pd.DataFram
 
 
 def _create_func_to_enumerate_related_tests(spark: SparkSession,
-                                            rev_dep_graph: Dict[str, List[str]]) -> Any:
+                                            rev_dep_graph: Dict[str, List[str]],
+                                            test_files: Dict[str, str]) -> Any:
     broadcasted_rev_dep_graph = spark.sparkContext.broadcast(rev_dep_graph)
+    broadcasted_test_files = spark.sparkContext.broadcast(list(test_files.items()))
 
     def _func(df: DataFrame, output_col: str, depth: int, max_num_tests: Optional[int] = None) -> DataFrame:
         @funcs.pandas_udf("string")  # type: ignore
-        def _enumerate_tests(idents: pd.Series) -> pd.Series:
+        def _enumerate_tests(file_paths: pd.Series) -> pd.Series:
             rev_dep_graph = broadcasted_rev_dep_graph.value
+            test_files = broadcasted_test_files.value
 
-            def _traverse(target):  # type: ignore
+            # TODO: Could we inject a function to compute distances?
+            compute_distance = lambda x, y: len(set(x.split('/')) ^ set(y.split('/'))) - 2
+
+            def _enumerate_tests_from_dep_graph(target):  # type: ignore
                 if not target:
+                    return []
+
+                import re
+                # TODO: Removes package-depenent stuffs
+                format_ident = re.compile(f"[a-zA-Z0-9/\-]+/(org\/apache\/spark\/[a-zA-Z0-9/\-]+)\.scala")
+                result = format_ident.search(target)
+                if not result:
                     return []
 
                 subgraph = {}
                 visited_nodes = set()
-                keys = list([target])
+                keys = list([result.group(1)])
                 for i in range(0, depth):
                     next_keys = set()
                     for key in keys:
@@ -236,16 +249,19 @@ def _create_func_to_enumerate_related_tests(spark: SparkSession,
                 return tests
 
             ret = []
-            for ident in idents:
-                s = _traverse(ident)
-                ret.append(json.dumps({'tests': s}))
+            for file_path in file_paths:
+                related_tests = _enumerate_tests_from_dep_graph(file_path)
+                if not related_tests and file_path:
+                    # If no related test found, adds the tests whose paths are close to `file_path`
+                    related_tests = [test for test, test_path in test_files if compute_distance(file_path, test_path) <= 1]
+
+                ret.append(json.dumps({'tests': related_tests}))
 
             return pd.Series(ret)
 
         related_test_df = df.selectExpr('sha', 'explode_outer(files.file.name) filename') \
-            .selectExpr('sha', 'regexp_extract(filename, ".*(org\/apache\/spark\/.+?)\.scala", 1) ident') \
-            .withColumn('tests', _enumerate_tests(funcs.expr('ident'))) \
-            .selectExpr('sha', 'ident', 'from_json(tests, "tests ARRAY<STRING>").tests tests') \
+            .withColumn('tests', _enumerate_tests(funcs.expr('filename'))) \
+            .selectExpr('sha', 'from_json(tests, "tests ARRAY<STRING>").tests tests') \
             .selectExpr('sha', 'explode_outer(tests) test') \
             .groupBy('sha') \
             .agg(funcs.expr('collect_set(test) tests')) \
@@ -506,7 +522,7 @@ def _train_ptest_model(output_path: str, train_log_fpath: str, build_deps: str) 
         train_df, test_df = _train_test_split(df, test_ratio=0.20)
         _logger.info(f"Split data: #total={df.count()}, #train={train_df.count()}, #test={test_df.count()}")
 
-        enumerate_related_tests = _create_func_to_enumerate_related_tests(spark, rev_dep_graph)
+        enumerate_related_tests = _create_func_to_enumerate_related_tests(spark, rev_dep_graph, test_files)
         enrich_tests, failed_tests = _create_func_to_enrich_tests(train_df.where('size(failed_tests) > 0'))
         compute_distances = _create_func_to_compute_distances(
             spark, test_files, lambda x, y: len(set(x.split('/')) ^ set(y.split('/'))) - 2)
