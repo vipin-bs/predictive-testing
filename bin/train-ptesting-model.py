@@ -85,7 +85,7 @@ def _build_lgb_model(X: pd.DataFrame, y: pd.Series, n_jobs: int = -1, opts: Dict
         return int(_get_option("hp.max_evals", "100000000"))
 
     def _no_progress_loss() -> int:
-        return int(_get_option("hp.no_progress_loss", "1000"))
+        return int(_get_option("hp.no_progress_loss", "1"))
 
     fixed_params = {
         "boosting_type": _boosting_type(),
@@ -253,7 +253,7 @@ def _create_func_to_enumerate_related_tests(spark: SparkSession,
                 related_tests = _enumerate_tests_from_dep_graph(file_path)
                 if not related_tests and file_path:
                     # If no related test found, adds the tests whose paths are close to `file_path`
-                    related_tests = [test for test, test_path in test_files if compute_distance(file_path, test_path) <= 1]
+                    related_tests = [t for t, p in test_files if compute_distance(file_path, p) <= 1]
 
                 ret.append(json.dumps({'tests': related_tests}))
 
@@ -282,6 +282,7 @@ def _create_func_to_enrich_tests(failed_test_df: DataFrame) -> Tuple[Any, List[D
         return f'case when commit_date > intvl_{d}d then 1 else 0 end'
 
     failed_test_df = failed_test_df \
+        .where('size(failed_tests) > 0') \
         .selectExpr(
             'to_timestamp(commit_date, "yyy/MM/dd HH:mm:ss") commit_date',
             'explode_outer(failed_tests) failed_test',
@@ -512,7 +513,7 @@ def _train_ptest_model(output_path: str, train_log_fpath: str, build_deps: str) 
     spark.sparkContext.setLogLevel("ERROR")
 
     try:
-        # Assigns sha if it is an empty string (TODO: Needs to assign sha when collecting GitHub logs)
+        # Assigns a random string if 'sha' is an empty string
         df = spark.read.format('json').load(train_log_fpath) \
             .withColumn('sha_', funcs.expr('case when length(sha) > 0 then sha else sha(string(random())) end')) \
             .drop('sha') \
@@ -523,7 +524,7 @@ def _train_ptest_model(output_path: str, train_log_fpath: str, build_deps: str) 
         _logger.info(f"Split data: #total={df.count()}, #train={train_df.count()}, #test={test_df.count()}")
 
         enumerate_related_tests = _create_func_to_enumerate_related_tests(spark, rev_dep_graph, test_files)
-        enrich_tests, failed_tests = _create_func_to_enrich_tests(train_df.where('size(failed_tests) > 0'))
+        enrich_tests, failed_tests = _create_func_to_enrich_tests(train_df)
         compute_distances = _create_func_to_compute_distances(
             spark, test_files, lambda x, y: len(set(x.split('/')) ^ set(y.split('/'))) - 2)
 
