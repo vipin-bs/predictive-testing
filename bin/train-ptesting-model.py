@@ -210,7 +210,7 @@ def _create_func_to_enumerate_related_tests(spark: SparkSession,
                                             rev_dep_graph: Dict[str, List[str]]) -> Any:
     broadcasted_rev_dep_graph = spark.sparkContext.broadcast(rev_dep_graph)
 
-    def _func(df: DataFrame, output_col: str, depth: int, max_num_tests: int) -> DataFrame:
+    def _func(df: DataFrame, output_col: str, depth: int, max_num_tests: Optional[int] = None) -> DataFrame:
         @funcs.pandas_udf("string")  # type: ignore
         def _enumerate_tests(idents: pd.Series) -> pd.Series:
             rev_dep_graph = broadcasted_rev_dep_graph.value
@@ -373,7 +373,7 @@ def _create_test_feature_from(df: DataFrame,
                               enrich_tests: Any,
                               compute_minimal_file_distances: Any) -> DataFrame:
     df = _expand_updated_files(df.selectExpr('sha', 'commit_date', 'files'))
-    df = enumerate_related_tests(df, output_col='related_tests', depth=6, max_num_tests=256) \
+    df = enumerate_related_tests(df, output_col='related_tests', depth=256) \
         .selectExpr('*', 'explode_outer(related_tests) test') \
         .drop('related_tests')
     df = enrich_tests(df)
@@ -401,7 +401,7 @@ def _train_test_split(df: DataFrame, test_ratio: float) -> Tuple[DataFrame, Data
 
 
 def _predict_failed_probs(spark: SparkSession, clf: Any, test_df: DataFrame) -> DataFrame:
-    df = test_df.selectExpr('sha', 'test').toPandas()
+    df = test_df.selectExpr('sha', 'target_card', 'test').toPandas()
     X = test_df.drop('sha', 'failed', 'test').toPandas()
     predicted = clf.predict_proba(X)
     pmf = map(lambda p: {"classes": clf.classes_.tolist(), "probs": p.tolist()}, predicted)
@@ -410,48 +410,52 @@ def _predict_failed_probs(spark: SparkSession, clf: Any, test_df: DataFrame) -> 
     to_map_expr = funcs.expr('from_json(predicted, "classes array<string>, probs array<double>")')
     to_failed_prob = 'map_from_arrays(pmf.classes, pmf.probs)["1"] failed_prob'
     df_with_failed_probs = spark.createDataFrame(df) \
-        .withColumn('pmf', to_map_expr).selectExpr('sha', 'test', to_failed_prob)
-    return df_with_failed_probs
+        .withColumn('pmf', to_map_expr) \
+        .selectExpr('sha', 'target_card', 'test', to_failed_prob)
 
-
-def _compute_eval_metrics(df: DataFrame, predicted: DataFrame, min_num_tests: int) -> Any:
     compare = lambda x, y: \
         f"case when {x}.failed_prob < {y}.failed_prob then 1 " \
         f"when {x}.failed_prob > {y}.failed_prob then -1 " \
         "else 0 end"
-    predicted = predicted.groupBy('sha') \
-        .agg(funcs.expr('collect_set(named_struct("test", test, "failed_prob", failed_prob))').alias('tests')) \
-        .selectExpr('sha', f'array_sort(tests, (l, r) -> {compare("l", "r")}) tests') \
+    return df_with_failed_probs.groupBy('sha') \
+        .agg(funcs.expr('first(target_card)').alias('target_card'),
+             funcs.expr('collect_set(named_struct("test", test, "failed_prob", failed_prob))').alias('tests')) \
+        .selectExpr('sha', 'target_card', f'array_sort(tests, (l, r) -> {compare("l", "r")}) tests')
+
+
+def _compute_eval_metrics(df: DataFrame, predicted: DataFrame, eval_num_tests: List[int]) -> Any:
+    df = df.selectExpr('sha', 'failed_tests').join(predicted, 'sha', 'LEFT_OUTER') \
+        .selectExpr('sha', 'target_card', 'failed_tests', 'coalesce(tests, array()) tests') \
         .cache()
 
-    def _metric(thres: float) -> Tuple[float, float]:
-        p = predicted \
-            .withColumn('filtered_tests', funcs.expr(f'filter(tests, x -> x.failed_prob >= {thres})')) \
-            .withColumn('tests_', funcs.expr(f'case when size(filtered_tests) > {min_num_tests} then filtered_tests '
-                                             f'else slice(tests, 1, {min_num_tests}) end')) \
-            .selectExpr('sha', 'transform(tests_, x -> x.test) tests')
-        eval_df = df.selectExpr('sha', 'failed_tests').cache().join(p, 'sha', 'LEFT_OUTER') \
-            .selectExpr('sha', 'failed_tests', 'coalesce(tests, array()) tests')
-        eval_df = eval_df.selectExpr(
-            'sha',
-            'size(failed_tests) num_failed_tests',
-            'size(tests) num_tests',
-            'size(array_intersect(failed_tests, tests)) covered'
-        )
-        eval_df = eval_df.selectExpr('SUM(covered) / SUM(num_failed_tests) p', 'SUM(covered) / SUM(num_tests) r')
+    def _metric(num_tests: int, score_thres: float = 0.0) -> Tuple[float, float]:
+        # TODO: Needs to make 'num_dependent_tests' more precise
+        eval_df = df.withColumn('filtered_tests', funcs.expr(f'filter(tests, x -> x.failed_prob >= {score_thres})')) \
+            .withColumn('tests_', funcs.expr(f'case when size(filtered_tests) <= {num_tests} then filtered_tests '
+                                             f'else slice(tests, 1, {num_tests}) end')) \
+            .selectExpr('sha', 'target_card', 'failed_tests', 'transform(tests_, x -> x.test) tests') \
+            .selectExpr(
+                'sha',
+                'target_card num_dependent_tests',
+                'size(failed_tests) num_failed_tests',
+                'size(tests) num_tests',
+                'size(array_intersect(failed_tests, tests)) covered') \
+            .selectExpr(
+                'SUM(covered) / SUM(num_failed_tests) recall',
+                'SUM(num_tests) / SUM(num_dependent_tests) ratio')
         row = eval_df.collect()[0]
-        return row.p, row.r
+        return row.recall, row.ratio
 
-    metrics = [(thres, _metric(thres)) for thres in [0.0, 0.2, 0.4, 0.6, 0.8]]
+    metrics = [(num_tests, _metric(num_tests)) for num_tests in eval_num_tests]
     return metrics
 
 
 def _format_eval_metrics(metrics: List[Tuple[float, float]]) -> str:
     strbuf: List[str] = []
-    strbuf.append('|  failed prob. threshold  |  precision  |  recall  |')
+    strbuf.append('|  #tests  |  test recall  |  selection ratio  |')
     strbuf.append('| ---- | ---- | ---- |')
-    for prob, (p, r) in metrics:  # type: ignore
-        strbuf.append(f'| {prob} | {p} | {r} |')  # type: ignore
+    for num_tests, (recall, ratio) in metrics:  # type: ignore
+        strbuf.append(f'|  {num_tests}  |  {recall}  |  {ratio}  |')  # type: ignore
 
     return '\n'.join(strbuf)
 
@@ -519,7 +523,7 @@ def _train_ptest_model(output_path: str, train_log_fpath: str, build_deps: str) 
             pickle.dump(clf, f)  # type: ignore
 
         predicted = _predict_failed_probs(spark, clf, _to_features(_create_test_feature_from, test_df))
-        metrics = _compute_eval_metrics(test_df, predicted, min_num_tests=128)
+        metrics = _compute_eval_metrics(test_df, predicted, eval_num_tests=[2, 4, 8, 16, 32, 64, 128, 256, 512, 1024])
         with open(f"{output_path}/model-eval-metrics.md", 'w') as f:  # type: ignore
             f.write(_format_eval_metrics(metrics))  # type: ignore
 
