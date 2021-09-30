@@ -85,7 +85,7 @@ def _build_lgb_model(X: pd.DataFrame, y: pd.Series, n_jobs: int = -1, opts: Dict
         return int(_get_option("hp.max_evals", "100000000"))
 
     def _no_progress_loss() -> int:
-        return int(_get_option("hp.no_progress_loss", "1"))
+        return int(_get_option("hp.no_progress_loss", "1000"))
 
     fixed_params = {
         "boosting_type": _boosting_type(),
@@ -463,16 +463,17 @@ def _compute_eval_metrics(df: DataFrame, predicted: DataFrame, eval_num_tests: L
         row = eval_df.collect()[0]
         return row.recall, row.ratio
 
-    metrics = [(num_tests, _metric(num_tests)) for num_tests in eval_num_tests]
+    metrics = [(num_tests, *_metric(num_tests)) for num_tests in eval_num_tests]
+    metrics = list(map(lambda m: {'num_tests': m[0], 'test_recall': m[1], 'selection_ratio': m[2]}, metrics))
     return metrics
 
 
-def _format_eval_metrics(metrics: List[Tuple[float, float]]) -> str:
+def _format_eval_metrics(metrics: List[Dict[str, Any]]) -> str:
     strbuf: List[str] = []
     strbuf.append('|  #tests  |  test recall  |  selection ratio  |')
     strbuf.append('| ---- | ---- | ---- |')
-    for num_tests, (recall, ratio) in metrics:  # type: ignore
-        strbuf.append(f'|  {num_tests}  |  {recall}  |  {ratio}  |')  # type: ignore
+    for m in metrics:  # type: ignore
+        strbuf.append(f'|  {m["num_tests"]}  |  {m["test_recall"]}  |  {m["selection_ratio"]}  |')  # type: ignore
 
     return '\n'.join(strbuf)
 
@@ -540,9 +541,12 @@ def _train_ptest_model(output_path: str, train_log_fpath: str, build_deps: str) 
             pickle.dump(clf, f)  # type: ignore
 
         predicted = _predict_failed_probs(spark, clf, _to_features(_create_test_feature_from, test_df))
-        metrics = _compute_eval_metrics(test_df, predicted, eval_num_tests=[2, 4, 8, 16, 32, 64, 128, 256, 512, 1024])
-        with open(f"{output_path}/model-eval-metrics.md", 'w') as f:  # type: ignore
-            f.write(_format_eval_metrics(metrics))  # type: ignore
+        metrics = _compute_eval_metrics(test_df, predicted, eval_num_tests=list(range(4, 1025, 4)))
+
+        with open(f"{output_path}/model-eval-metric-summary.md", 'w') as f:  # type: ignore
+            f.write(_format_eval_metrics([metrics[i] for i in [0, 1, 7, 15, 31, 63, 127, 255]]))  # type: ignore
+        with open(f"{output_path}/model-eval-metrics.json", 'w') as f:  # type: ignore
+            f.write(json.dumps(metrics, indent=2))  # type: ignore
 
     finally:
         spark.stop()

@@ -31,5 +31,5 @@ jobs:
         run: |
           curl -X POST \
             -H "Authorization: token ${GITHUB_TOKEN}" \
-            -d "{\"body\": \"$(cat models/spark/ptesting-model-metrics.md)\"}" \
+            -d "{\"body\": \"$(cat models/spark/model-eval-metric-summary.md)\"}" \
             ${URL}
