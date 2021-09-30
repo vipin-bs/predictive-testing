@@ -56,18 +56,18 @@
     "total_failed_num": 6
   },
   {
-    "failed_test": "org.apache.spark.ml.classification.LogisticRegressionSuite",
-    "failed_num_7d": 0,
-    "failed_num_14d": 0,
-    "failed_num_28d": 1,
-    "total_failed_num": 1
-  },
-  {
     "failed_test": "org.apache.spark.sql.catalyst.expressions.AnsiCastSuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
     "failed_num_28d": 0,
     "total_failed_num": 2
+  },
+  {
+    "failed_test": "org.apache.spark.ml.classification.LogisticRegressionSuite",
+    "failed_num_7d": 0,
+    "failed_num_14d": 0,
+    "failed_num_28d": 1,
+    "total_failed_num": 1
   },
   {
     "failed_test": "org.apache.spark.sql.SessionStateSuite",
@@ -889,18 +889,18 @@
     "total_failed_num": 6
   },
   {
-    "failed_test": "org.apache.spark.ml.classification.GBTClassifierSuite",
-    "failed_num_7d": 0,
-    "failed_num_14d": 0,
-    "failed_num_28d": 1,
-    "total_failed_num": 1
-  },
-  {
     "failed_test": "org.apache.spark.sql.DataFrameWindowFunctionsSuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
     "failed_num_28d": 0,
     "total_failed_num": 7
+  },
+  {
+    "failed_test": "org.apache.spark.ml.classification.GBTClassifierSuite",
+    "failed_num_7d": 0,
+    "failed_num_14d": 0,
+    "failed_num_28d": 1,
+    "total_failed_num": 1
   },
   {
     "failed_test": "org.apache.spark.sql.hive.HiveSessionStateSuite",
@@ -1015,18 +1015,18 @@
     "total_failed_num": 16
   },
   {
-    "failed_test": "org.apache.spark.sql.DateFunctionsSuite",
-    "failed_num_7d": 0,
-    "failed_num_14d": 0,
-    "failed_num_28d": 0,
-    "total_failed_num": 7
-  },
-  {
     "failed_test": "org.apache.spark.ml.regression.GBTRegressorSuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
     "failed_num_28d": 1,
     "total_failed_num": 1
+  },
+  {
+    "failed_test": "org.apache.spark.sql.DateFunctionsSuite",
+    "failed_num_7d": 0,
+    "failed_num_14d": 0,
+    "failed_num_28d": 0,
+    "total_failed_num": 7
   },
   {
     "failed_test": "org.apache.spark.sql.catalyst.analysis.ResolvedUuidExpressionsSuite",
@@ -2345,17 +2345,17 @@
     "total_failed_num": 11
   },
   {
-    "failed_test": "org.apache.spark.ml.regression.DecisionTreeRegressorSuite",
-    "failed_num_7d": 0,
-    "failed_num_14d": 0,
-    "failed_num_28d": 1,
-    "total_failed_num": 1
-  },
-  {
     "failed_test": "org.apache.spark.sql.catalyst.expressions.TryCastSuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
     "failed_num_28d": 0,
+    "total_failed_num": 1
+  },
+  {
+    "failed_test": "org.apache.spark.ml.regression.DecisionTreeRegressorSuite",
+    "failed_num_7d": 0,
+    "failed_num_14d": 0,
+    "failed_num_28d": 1,
     "total_failed_num": 1
   },
   {

@@ -478,6 +478,24 @@ def _format_eval_metrics(metrics: List[Dict[str, Any]]) -> str:
     return '\n'.join(strbuf)
 
 
+def _save_metrics_as_chart(metrics: List[Dict[str, Any]], output_path: str) -> None:
+    import altair as alt
+    x_opts = {
+        'scale': alt.Scale(domain=[0, 240]),
+        'axis': alt.Axis(title='#tests', titleFontSize=16, labelFontSize=14)
+    }
+    y_opts = {
+        'scale': alt.Scale(domain=[0.0, 1.0]),
+        'axis': alt.Axis(title='test recall', titleFontSize=16, labelFontSize=14)
+    }
+    df = pd.DataFrame(metrics)
+    plot = alt.Chart(df).mark_point().encode(x=alt.X("num_tests", **x_opts), y=alt.Y("test_recall", **y_opts)) \
+        .properties(width=600, height=400) \
+        .interactive()
+
+    plot.save(output_path)
+
+
 def _train_ptest_model(output_path: str, train_log_fpath: str, build_deps: str) -> None:
     dep_graph_fpath = f'{build_deps}/dep-graph.json'
     rev_dep_graph_fpath = f'{build_deps}/rev-dep-graph.json'
@@ -541,12 +559,14 @@ def _train_ptest_model(output_path: str, train_log_fpath: str, build_deps: str) 
             pickle.dump(clf, f)  # type: ignore
 
         predicted = _predict_failed_probs(spark, clf, _to_features(_create_test_feature_from, test_df))
-        metrics = _compute_eval_metrics(test_df, predicted, eval_num_tests=list(range(4, 1025, 4)))
+        metrics = _compute_eval_metrics(test_df, predicted, eval_num_tests=list(range(4, 241, 4)))
 
         with open(f"{output_path}/model-eval-metric-summary.md", 'w') as f:  # type: ignore
-            f.write(_format_eval_metrics([metrics[i] for i in [0, 1, 7, 15, 31, 63, 127, 255]]))  # type: ignore
+            f.write(_format_eval_metrics([metrics[i] for i in [0, 14, 29, 44, 59]]))  # type: ignore
         with open(f"{output_path}/model-eval-metrics.json", 'w') as f:  # type: ignore
             f.write(json.dumps(metrics, indent=2))  # type: ignore
+
+        _save_metrics_as_chart(metrics, f"{output_path}/model-eval-metrics.svg")
 
     finally:
         spark.stop()
