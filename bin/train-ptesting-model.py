@@ -357,6 +357,29 @@ def _expand_updated_files(df: DataFrame) -> DataFrame:
     return df
 
 
+# This method extracts features from a dataset of historical test outcomes.
+# The current features used in our model are as follows:
+#  - Change history for files: the count of commits made to modified files in the last 3, 14, and 56 days
+#    (`updated_num_3d`, `updated_num_14d`, and `updated_num_15d`, respectively).
+#  - File update statistics: the total number of additions, deletions, and changes made to modified files
+#    (`num_adds`, `num_dels`, and `num_chgs`, respectively).
+#  - File cardinality: the number of files touched in a test run (`file_card`).
+#  - Target cardinality: the number of tests invoked in a test run (`target_card`).
+#  - Historical failure rates: the count of target test failures occurred in the last 7, 14, and 28 days
+#    (`failed_num_7d`, `failed_num_14d`, and `failed_num_28d`, respectively) and the total count
+#    of target test failures in historical test outcomes (`total_failed_num`).
+#  - Minimal distance between one of modified files and a prediction target: the number of different directories
+#    between file paths (`minimal_distance`). Let's say that we have two files: their file paths are
+#    'xxx/yyy/zzz/file' and 'xxx/aaa/zzz/test_file'. In the example, a minimal distance is 1.
+#
+# NOTE: The Facebook paper [1] reports that the best performance predictive model uses a change history,
+# failure rates, target cardinality, and minimal distances (For more details, see
+# "Section 6.B. Feature Selection" in the paper [1]). Even in our model, change history for files
+# and historical failure rates tend to be more important than the other features.
+#
+# TODO: Needs to improve predictive model performance by checking the other feature candidates
+# that can be found in the Facebook paper (See "Section 4.A. Feature Engineering") [1]
+# and the Google paper (See "Section 4. Hypotheses, Models and Results") [2].
 def _create_train_feature_from(df: DataFrame,
                                enumerate_related_tests: Any,
                                enrich_tests: Any,
@@ -400,7 +423,13 @@ def _create_test_feature_from(df: DataFrame,
     return df
 
 
-def _build_model(df: DataFrame) -> Any:
+# Our predictive model uses LightGBM, an implementation of gradient-boosted decision trees.
+# This is because the algorithm has desirable properties for this use-case
+# (the reason is the same with the Facebook one):
+#  - normalizing feature values are less required
+#  - fast model training on commodity hardware
+#  - robustness in imbalanced datasets
+def _build_predictive_model(df: DataFrame) -> Any:
     pdf = df.toPandas()
     X = pdf[pdf.columns[pdf.columns != 'failed']]  # type: ignore
     y = pdf['failed']
@@ -445,6 +474,14 @@ def _compute_eval_metrics(df: DataFrame, predicted: DataFrame, eval_num_tests: L
         .selectExpr('sha', 'target_card', 'failed_tests', 'coalesce(tests, array()) tests') \
         .cache()
 
+    # This method computes metrics to measure the quality of a selected test set; "test recall", which is computed
+    # in the method, represents the emprical probability of a particular test selection strategy catching
+    # an individual failure (See "Section 3.B. Measuring Quality of Test Selection" in the Facebook paper [1]).
+    # The equation to compute the metric is defined as follows:
+    #  - TestRecall(D) = \frac{\sum_{d \in D} |SelectedTests(d) \bigcamp F_{d}|}{\sum_{d \in D} |F_{d}|}
+    # , where D is a set of code changes and F_{d} is a set of failed tests.
+    #
+    # TODO: Computes a "chnage recall" metric.
     def _metric(num_tests: int, score_thres: float = 0.0) -> Tuple[float, float]:
         # TODO: Needs to make 'num_dependent_tests' more precise
         eval_df = df.withColumn('filtered_tests', funcs.expr(f'filter(tests, x -> x.failed_prob >= {score_thres})')) \
@@ -550,7 +587,7 @@ def _train_ptest_model(output_path: str, train_log_fpath: str, build_deps: str) 
         def _to_features(f: Any, df: DataFrame) -> Any:
             return f(df, enumerate_related_tests, enrich_tests, compute_distances)
 
-        clf = _build_model(_to_features(_create_train_feature_from, df))
+        clf = _build_predictive_model(_to_features(_create_train_feature_from, df))
 
         with open(f"{output_path}/failed-tests.json", 'w') as f:
             f.write(json.dumps(failed_tests, indent=2))
