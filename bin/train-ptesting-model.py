@@ -500,8 +500,9 @@ def _compute_eval_metrics(df: DataFrame, predicted: DataFrame, eval_num_tests: L
         row = eval_df.collect()[0]
         return row.recall, row.ratio
 
+    to_metric_values = lambda m: {'num_tests': m[0], 'test_recall': m[1], 'selection_ratio': m[2]}
     metrics = [(num_tests, *_metric(num_tests)) for num_tests in eval_num_tests]
-    metrics = list(map(lambda m: {'num_tests': m[0], 'test_recall': m[1], 'selection_ratio': m[2]}, metrics))
+    metrics = list(map(to_metric_values, metrics))  # type: ignore
     return metrics
 
 
