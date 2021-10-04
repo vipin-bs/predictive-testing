@@ -7,8 +7,12 @@ on:
     paths:
       - bin/train-ptesting-model.py
       - models/spark/logs/github-logs.json
+  issue_comment:
+    types: [created, edited]
 jobs:
   eval-spark-model:
+    if: ${{ github.event_name == 'pull_request' ||
+      (contains(github.event.comment.html_url, '/pull/') && startsWith(github.event.comment.body, '/eval')) }}
     runs-on: ubuntu-latest
     env:
       python: 3.6
@@ -22,14 +26,20 @@ jobs:
           fetch-depth: 0
       - name: Install Python packages (Python ${{ env.python }})
         run: python -m pip install -r ./bin/requirements.txt
+      - name: Install JavaScript packages
+        run: npm install fs
       - name: Build predictive model and compute eval metrics
         run: ./bin/train-spark-model.sh
       - name: Post the result metrics
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          URL: ${{ github.event.pull_request.comments_url }}
-        run: |
-          curl -X POST \
-            -H "Authorization: token ${GITHUB_TOKEN}" \
-            -d "{\"body\": \"$(cat models/spark/model-eval-metric-summary.md)\"}" \
-            ${URL}
+        uses: actions/github-script@v5
+        with:
+          script: |
+            const fs = require('fs')
+            const metrics = fs.readFileSync('models/spark/model-eval-metric-summary.md').toString('utf8')
+            const commentBody = `Result Metrics:\n${metrics}`
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: commentBody
+            })
