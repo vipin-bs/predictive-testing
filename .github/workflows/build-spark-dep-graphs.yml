@@ -47,14 +47,9 @@ jobs:
           export JAVA_VERSION=${{ env.java }}
           cd spark-master && ./build/mvn $MAVEN_CLI_OPTS -DskipTests -Pyarn -Pmesos -Pkubernetes -Phive -Phive-thriftserver -Phadoop-cloud -Djava.version=$JAVA_VERSION test-compile
       - name: Analyze Spark class dependencies
-        run: |
-          ./bin/analyze-spark-deps.sh ./spark-master "${{ env.OUTPUT_NAME }}"
-
-      # TODO: Needs to handle Python files in `./bin/analyze-spark-deps.sh`, too
-      - name: List up Python test files
-        run: |
-          OUTPUT_PATH=`pwd`/${{ env.OUTPUT_NAME }}
-          cd ./spark-master/python && find . -type f | grep -E "test_[a-zA-Z0-9_-]*\.py$" | sed -r 's/.*(pyspark\/.*\/test_.*)\.py$/\1/' > $OUTPUT_NAME/test-python-files.lst
+        run: ./bin/analyze-spark-deps.sh ./spark-master "${{ env.OUTPUT_NAME }}"
+      - name: List up all the Spark tests
+        run: ./bin/enumerate-spark-tests.py > "${{ env.OUTPUT_NAME }}"/test-files.json
       - name: Upload output as artifact
         if: success()
         uses: actions/upload-artifact@v2
