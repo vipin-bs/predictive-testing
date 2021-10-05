@@ -59,12 +59,11 @@ def _analyze_build_deps(output_path: str, overwrite: bool, root_paths: str, targ
     # Make an output dir in advance
     os.mkdir(output_path)
 
-    adj_list, rev_adj_list, _ = depgraph.build_dependency_graphs(
+    _, rev_adj_list, _ = depgraph.build_dependency_graphs(
         root_paths.split(','), target_package, list_files, list_test_files, extract_refs)
 
     # Writes dependency graphes into files
-    _write_data_as('dep-graph', output_path, adj_list)
-    _write_data_as('rev-dep-graph', output_path, rev_adj_list)
+    _write_data_as('dep-graph', output_path, rev_adj_list)
 
 
 def _generate_dependency_graph(path: str, targets: str, depth: int) -> str:

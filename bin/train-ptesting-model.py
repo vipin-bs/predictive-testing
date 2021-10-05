@@ -207,15 +207,15 @@ def _rebalance_training_data(X: pd.DataFrame, y: pd.Series) -> Tuple[pd.DataFram
 
 
 def _create_func_to_enumerate_related_tests(spark: SparkSession,
-                                            rev_dep_graph: Dict[str, List[str]],
+                                            dep_graph: Dict[str, List[str]],
                                             test_files: Dict[str, str]) -> Any:
-    broadcasted_rev_dep_graph = spark.sparkContext.broadcast(rev_dep_graph)
+    broadcasted_dep_graph = spark.sparkContext.broadcast(dep_graph)
     broadcasted_test_files = spark.sparkContext.broadcast(list(test_files.items()))
 
     def _func(df: DataFrame, output_col: str, depth: int, max_num_tests: Optional[int] = None) -> DataFrame:
         @funcs.pandas_udf("string")  # type: ignore
         def _enumerate_tests(file_paths: pd.Series) -> pd.Series:
-            rev_dep_graph = broadcasted_rev_dep_graph.value
+            dep_graph = broadcasted_dep_graph.value
             test_files = broadcasted_test_files.value
 
             # TODO: Could we inject a function to compute distances?
@@ -238,8 +238,8 @@ def _create_func_to_enumerate_related_tests(spark: SparkSession,
                 for i in range(0, depth):
                     next_keys = set()
                     for key in keys:
-                        if key in rev_dep_graph and key not in visited_nodes:
-                            nodes = rev_dep_graph[key]
+                        if key in dep_graph and key not in visited_nodes:
+                            nodes = dep_graph[key]
                             next_keys.update(nodes)
                     visited_nodes.update(keys)
                     keys = list(next_keys)
@@ -534,26 +534,19 @@ def _save_metrics_as_chart(metrics: List[Dict[str, Any]], output_path: str) -> N
     plot.save(output_path)
 
 
-def _train_ptest_model(output_path: str, train_log_fpath: str, build_deps: str) -> None:
-    dep_graph_fpath = f'{build_deps}/dep-graph.json'
-    rev_dep_graph_fpath = f'{build_deps}/rev-dep-graph.json'
-    test_list_fpath = f'{build_deps}/test-files.json'
-
+def _train_ptest_model(output_path: str, train_log_fpath: str, tests_fpath: str, build_dep_fpath: str) -> None:
     if not os.path.exists(output_path) or not os.path.isdir(output_path):
         raise ValueError(f"Output directory not found in {os.path.abspath(output_path)}")
     if not os.path.exists(train_log_fpath):
         raise ValueError(f"Training data not found in {os.path.abspath(train_log_fpath)}")
-    if not os.path.exists(dep_graph_fpath):
-        raise ValueError(f"Dependency graph file not found in {os.path.abspath(dep_graph_fpath)}")
-    if not os.path.exists(rev_dep_graph_fpath):
-        raise ValueError(f"Reverse dependency graph file not found in {os.path.abspath(rev_dep_graph_fpath)}")
-    if not os.path.exists(test_list_fpath):
-        raise ValueError(f"Dependency graph file not found in {os.path.abspath(test_list_fpath)}")
+    if not os.path.exists(tests_fpath):
+        raise ValueError(f"Test list file not found in {os.path.abspath(tests_fpath)}")
+    if not os.path.exists(build_dep_fpath):
+        raise ValueError(f"Dependency graph file not found in {os.path.abspath(build_dep_fpath)}")
 
     from pathlib import Path
-    dep_graph = json.loads(Path(dep_graph_fpath).read_text())
-    rev_dep_graph = json.loads(Path(rev_dep_graph_fpath).read_text())
-    test_files = json.loads(Path(test_list_fpath).read_text())
+    test_files = json.loads(Path(tests_fpath).read_text())
+    dep_graph = json.loads(Path(build_dep_fpath).read_text())
 
     # Initializes a Spark session
     # NOTE: Since learning tasks run longer, we set a large value (6h)
@@ -580,7 +573,7 @@ def _train_ptest_model(output_path: str, train_log_fpath: str, build_deps: str) 
         train_df, test_df = _train_test_split(df, test_ratio=0.20)
         _logger.info(f"Split data: #total={df.count()}, #train={train_df.count()}, #test={test_df.count()}")
 
-        enumerate_related_tests = _create_func_to_enumerate_related_tests(spark, rev_dep_graph, test_files)
+        enumerate_related_tests = _create_func_to_enumerate_related_tests(spark, dep_graph, test_files)
         enrich_tests, failed_tests = _create_func_to_enrich_tests(train_df)
         compute_distances = _create_func_to_compute_distances(
             spark, test_files, lambda x, y: len(set(x.split('/')) ^ set(y.split('/'))) - 2)
@@ -616,10 +609,11 @@ def main() -> None:
     parser = ArgumentParser()
     parser.add_argument('--output', type=str, required=True)
     parser.add_argument('--train-log-data', type=str, required=True)
-    parser.add_argument('--build-deps', type=str, required=True)
+    parser.add_argument('--tests', type=str, required=True)
+    parser.add_argument('--build-dep', type=str, required=True)
     args = parser.parse_args()
 
-    _train_ptest_model(args.output, args.train_log_data, args.build_deps)
+    _train_ptest_model(args.output, args.train_log_data, args.tests, args.build_dep)
 
 
 if __name__ == '__main__':

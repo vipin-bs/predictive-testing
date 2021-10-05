@@ -30,4 +30,5 @@ fi
 exec python3 -u ${FWDIR}/bin/train-ptesting-model.py \
   --output ${FWDIR}/models/spark \
   --train-log-data ${FWDIR}/models/spark/logs/github-logs.json \
-  --build-deps ${FWDIR}/models/spark/indexes/spark-dep-graphs
+  --build-dep ${FWDIR}/models/spark/indexes/spark-dep-graphs/dep-graph.json \
+  --tests ${FWDIR}/models/spark/indexes/spark-dep-graphs/test-files.json
