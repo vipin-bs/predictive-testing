@@ -43,3 +43,12 @@ jobs:
               repo: context.repo.repo,
               body: commentBody
             })
+      - name: Upload updated model as artifact
+        if: success()
+        uses: actions/upload-artifact@v2
+        with:
+          name: spark-model-metrics
+          path: |
+            models/spark/model.pkl
+            models/spark/model-eval-*
+            models/spark/failed-tests.json
