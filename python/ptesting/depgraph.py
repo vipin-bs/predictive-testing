@@ -18,44 +18,23 @@
 #
 
 from typing import Any, Dict, List, Set, Tuple
-from functools import reduce
 
 
-def build_dependency_graphs(root_paths: List[str], target_package: str,
-                            list_files: Any, list_test_files: Any,
-                            extract_refs: Any) -> Tuple[Dict[str, List[str]], Dict[str, List[str]], List[str]]:
+def build_dependency_graphs(files: List[Tuple[str, str]], extract_edges_from_path: Any) -> Dict[str, List[str]]:
     adj_list: Dict[str, Set[str]] = {}
-    rev_adj_list: Dict[str, Set[str]] = {}
-
-    # Collects class files from given paths
-    files = reduce(lambda x, y: x.extend(y), [list_files(p, target_package) for p in root_paths])
-    files = list(set(files))
-    test_files = reduce(lambda x, y: x.extend(y), [list_test_files(p, target_package) for p in root_paths])
-    test_files = list(set(test_files))
-    all_files = [*files, *test_files]
-    if len(all_files) == 0:
-        raise RuntimeError(f"No file found in [{', '.join(root_paths)}]")
 
     import tqdm
-    n_files = len(all_files)
+    n_files = len(files)
     for i in tqdm.tqdm(range(n_files)):
-        node, path = all_files[i]
-        refs = adj_list[node] if node in adj_list else set()
-        extracted_refs = extract_refs(path, target_package)
-        for ref in extracted_refs:
-            if ref != node:
-                if ref not in rev_adj_list:
-                    rev_adj_list[ref] = set()
-                rev_adj_list[ref].add(node)
-                refs.add(ref)
+        node, path = files[i]
+        extracted_dst_nodes = extract_edges_from_path(path)
+        for dst_node in extracted_dst_nodes:
+            if dst_node != node:
+                if dst_node not in adj_list:
+                    adj_list[dst_node] = set()
+                adj_list[dst_node].add(node)
 
-        adj_list[node] = refs
-
-    def to_graph(g: Dict[str, Set[str]]) -> Dict[str, List[str]]:
-        return {k: list(v) for k, v in g.items()}
-
-    return to_graph(adj_list), to_graph(rev_adj_list), \
-        list(map(lambda x: x[0], test_files))
+    return {k: list(v) for k, v in adj_list.items()}
 
 
 def generate_graph(nodes: List[str], targets: List[str], edges: Dict[str, List[str]]) -> str:

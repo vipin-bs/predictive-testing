@@ -21,12 +21,24 @@
 Helper functions to analyze java class files
 """
 
+import glob
 import re
 from typing import Any, List, Optional, Tuple
 
 
-# Compiled regex patterns
-RE_IS_TEST_CLASS = re.compile('Suite|Spec')
+def list_classes(root_path: str, target_package: str) -> List[Tuple[str, str]]:
+    java_package = re.compile(f"[a-zA-Z0-9/\-_]+\/({target_package.replace('.', '/')}\/[a-zA-Z0-9/\-_]+)[\.class|\$]")
+
+    def _extract_package(path: str) -> Optional[str]:
+        result = java_package.search(path)
+        if result:
+            return result.group(1).replace('/', '.')
+        else:
+            return None
+
+    paths = [p for p in glob.glob(f'{root_path}/**/*.class', recursive=True)]
+    classes = list(filter(lambda t: t[0] is not None, map(lambda p: (_extract_package(p), p), paths)))
+    return classes
 
 
 def _exec_subprocess(cmd: str, raise_error: bool = True) -> Tuple[Any, Any, Any]:
@@ -47,54 +59,18 @@ def _get_cmd_path(cmd: str) -> Any:
     return cmd
 
 
-def _format_class_path(path: str, package_prefix: str) -> Optional[str]:
-    format_class_path = re.compile(f"[a-zA-Z0-9/\-]+/({package_prefix.replace('.', '/')}/[a-zA-Z0-9/\-]+)[\.class|\$]")
-    result = format_class_path.search(path)
-    if result:
-        return result.group(1)
-    else:
-        return None
+def create_func_to_extract_refs_from_class_file(target_package: str) -> Any:
+    re_extract_refs = re.compile(f"({target_package.replace('.', '/')}/[a-zA-Z0-9/\-]+)")
 
+    def extract_refs(path: str) -> List[str]:
+        stdout, stderr, rt = _exec_subprocess(f"{_get_cmd_path('javap')} -c -p {path}", raise_error=False)
+        opcodes = stdout.decode().split('\n')
+        invoke_opcodes = list(filter(lambda op: re.search('invoke', op), opcodes))
+        refs: List[str] = []
+        for invoke_opcode in invoke_opcodes:
+            for ref in re_extract_refs.findall(invoke_opcode):
+                refs.append(ref.replace('/', '.'))
 
-def _list_class_files(root: str, p: str) -> List[str]:
-    import glob
-    return [p for p in glob.glob(f'{root}/**/{p}', recursive=True)]
+        return refs
 
-
-def _is_test_class(path: str) -> bool:
-    return RE_IS_TEST_CLASS.search(path) is not None
-
-
-def list_classes(root: str, target_package: str) -> List[Tuple[str, str]]:
-    classes = list(filter(lambda c: not _is_test_class(c), _list_class_files(root, '*.class')))
-    qualified_classes = []
-    for path in classes:
-        clazz = _format_class_path(path, target_package)
-        if clazz is not None:
-            qualified_classes.append((clazz, path))
-
-    return qualified_classes
-
-
-def list_test_classes(root: str, target_package: str) -> List[Tuple[str, str]]:
-    test_classes = list(filter(lambda c: _is_test_class(c), _list_class_files(root, '*.class')))
-    qualified_test_classes = []
-    for path in test_classes:
-        clazz = _format_class_path(path, target_package)
-        if clazz is not None:
-            qualified_test_classes.append((clazz, path))
-
-    return qualified_test_classes
-
-
-def extract_refs(path: str, target_package: str) -> List[str]:
-    stdout, stderr, rt = _exec_subprocess(f"{_get_cmd_path('javap')} -c -p {path}", raise_error=False)
-    opcodes = stdout.decode().split('\n')
-    invoke_opcodes = list(filter(lambda op: re.search('invoke', op), opcodes))
-    refs: List[str] = []
-    extract_refs = re.compile(f"({target_package.replace('.', '/')}/[a-zA-Z0-9/\-]+)")
-    for invoke_opcode in invoke_opcodes:
-        for ref in extract_refs.findall(invoke_opcode):
-            refs.append(ref)
-
-    return refs
+    return extract_refs

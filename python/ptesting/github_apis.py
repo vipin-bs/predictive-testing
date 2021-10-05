@@ -406,7 +406,7 @@ def get_workflow_job_logs(job_id: str, owner: str, repo: str, token: str, logger
 
 
 # https://docs.github.com/en/rest/reference/repos#get-all-contributor-commit-activity
-def list_contributors_stats(owner: str, repo: str, token: str, logger: Any = None) -> List[Tuple[str, int]]:
+def list_contributor_stats(owner: str, repo: str, token: str, logger: Any = None) -> List[Tuple[str, int]]:
     _assert_github_prams(owner, repo, token)
 
     logger = logger or _default_logger

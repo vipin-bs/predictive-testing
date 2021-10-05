@@ -1,0 +1,4 @@
+[
+  "org.apache.spark.sql.kafka010.KafkaRelationSuite",
+  "org.apache.spark.sql.QueryTestSuite"
+]

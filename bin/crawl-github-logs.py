@@ -251,6 +251,23 @@ def _show_rate_limit(token: str) -> None:
     print(_rate_limit_msg(token))
 
 
+def _list_contributor_stats(output_path: str, overwrite: bool, owner: str, repo: str, token: str) -> None:
+    if len(output_path) == 0:
+        raise ValueError("Output Path must be specified in '--output'")
+    if len(token) == 0:
+        raise ValueError("GitHub token must be specified in '--github-token'")
+
+    if overwrite:
+        shutil.rmtree(output_path, ignore_errors=True)
+
+    # Make an output dir in advance
+    os.mkdir(output_path)
+
+    contributor_stats = github_apis.list_contributor_stats(owner, repo, token)
+    with open(f"{output_path}/contributor-stats.json", mode='w') as f:
+        f.write(json.dumps(contributor_stats, indent=2))
+
+
 def main() -> None:
     # Parses command-line arguments
     from argparse import ArgumentParser
@@ -265,15 +282,19 @@ def main() -> None:
     parser.add_argument('--github-repo', dest='github_repo', type=str, default='')
     parser.add_argument('--resume', dest='resume', action='store_true')
     parser.add_argument('--sleep-if-limit-exceeded', dest='sleep_if_limit_exceeded', action='store_true')
+    parser.add_argument('--list-contributor-stats', dest='list_contributor_stats', action='store_true')
     parser.add_argument('--show-rate-limit', dest='show_rate_limit', action='store_true')
     args = parser.parse_args()
 
-    if not args.show_rate_limit:
+    if not args.show_rate_limit and not args.list_contributor_stats:
         _traverse_github_logs(_traverse_pull_requests, args.output, args.overwrite,
                               args.github_owner, args.github_repo, args.github_token,
                               args.until, args.since,
                               args.max_num_pullreqs, args.resume,
                               args.sleep_if_limit_exceeded)
+    elif args.list_contributor_stats:
+        _list_contributor_stats(args.output, args.overwrite,
+                                args.github_owner, args.github_repo, args.github_token)
     else:
         _show_rate_limit(args.github_token)
 

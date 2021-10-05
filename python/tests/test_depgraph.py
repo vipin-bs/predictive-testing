@@ -31,38 +31,21 @@ class DepGraphTests(unittest.TestCase):
 
     def test_build_call_graphs(self):
         class_path = self._java_class_test_path
-        adj_list, rev_adj_list, test_files = depgraph.build_dependency_graphs(
-            [class_path], 'io.github.maropu', javaclass.list_classes, javaclass.list_test_classes,
-            javaclass.extract_refs)
-
-        _adj_list = sorted(map(lambda kv: (kv[0], sorted(kv[1])), adj_list.items()))
-        self.assertEqual(_adj_list, [
-            ('io/github/maropu/BaseClass', []),
-            ('io/github/maropu/MainClass', ['io/github/maropu/TestClassA', 'io/github/maropu/TestClassC']),
-            ('io/github/maropu/MainClassSuite', ['io/github/maropu/MainClass']),
-            ('io/github/maropu/TestClassA', ['io/github/maropu/BaseClass']),
-            ('io/github/maropu/TestClassB', ['io/github/maropu/BaseClass']),
-            ('io/github/maropu/TestClassC', ['io/github/maropu/TestClassA', 'io/github/maropu/TestClassB']),
-            ('io/github/maropu/TestClassSuite', ['io/github/maropu/TestClassA', 'io/github/maropu/TestClassB'])
-        ])
-
+        classes = javaclass.list_classes(class_path, 'io.github.maropu')
+        extract_edges_from_path = javaclass.create_func_to_extract_refs_from_class_file('io.github.maropu')
+        rev_adj_list = depgraph.build_dependency_graphs(classes, extract_edges_from_path)
         _rev_adj_list = sorted(map(lambda kv: (kv[0], sorted(kv[1])), rev_adj_list.items()))
         self.assertEqual(_rev_adj_list, [
-            ('io/github/maropu/BaseClass', ['io/github/maropu/TestClassA', 'io/github/maropu/TestClassB']),
-            ('io/github/maropu/MainClass', ['io/github/maropu/MainClassSuite']),
-            ('io/github/maropu/TestClassA', [
-                'io/github/maropu/MainClass',
-                'io/github/maropu/TestClassC',
-                'io/github/maropu/TestClassSuite'
+            ('io.github.maropu.BaseClass', ['io.github.maropu.TestClassA', 'io.github.maropu.TestClassB']),
+            ('io.github.maropu.MainClass', ['io.github.maropu.MainClassSuite']),
+            ('io.github.maropu.TestClassA', [
+                'io.github.maropu.MainClass',
+                'io.github.maropu.TestClassC',
+                'io.github.maropu.TestClassSuite'
             ]),
-            ('io/github/maropu/TestClassB', ['io/github/maropu/TestClassC', 'io/github/maropu/TestClassSuite']),
-            ('io/github/maropu/TestClassC', ['io/github/maropu/MainClass']),
+            ('io.github.maropu.TestClassB', ['io.github.maropu.TestClassC', 'io.github.maropu.TestClassSuite']),
+            ('io.github.maropu.TestClassC', ['io.github.maropu.MainClass']),
         ])
-
-        self.assertEqual(set(test_files), set([
-            'io/github/maropu/TestClassSuite',
-            'io/github/maropu/MainClassSuite'
-        ]))
 
     def test_select_subgraph(self):
         g = {'A': ['B'], 'B': ['A', 'C'], 'C': ['D'], 'D': ['E'], 'E': ['A']}

@@ -175,8 +175,8 @@ class GitHubApiTests(unittest.TestCase):
         logs = github_apis.get_workflow_job_logs(job_id, self._github_owner, self._github_repo, self._github_token)
         self.assertIsNotNone(logs)
 
-    def test_list_contributors_stats(self):
-        contributors = github_apis.list_contributors_stats(self._github_owner, self._github_repo, self._github_token)
+    def test_list_contributor_stats(self):
+        contributors = github_apis.list_contributor_stats(self._github_owner, self._github_repo, self._github_token)
         self.assertEqual(len(contributors), 100)
         self.assertEqual(contributors[0:3], [('rxin', 1179), ('cloud-fan', 923), ('HyukjinKwon', 839)])
 

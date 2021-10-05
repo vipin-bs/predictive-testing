@@ -27,8 +27,11 @@ if [ ! -z "$CONDA_ENABLED" ]; then
   . ${FWDIR}/bin/conda.sh && activate_conda_virtual_env "${FWDIR}"
 fi
 
-exec python3 -u ${FWDIR}/bin/train-ptesting-model.py \
+PYTHONPATH="${FWDIR}/python" \
+exec python3 -u ${FWDIR}/bin/train-model.py \
   --output ${FWDIR}/models/spark \
   --train-log-data ${FWDIR}/models/spark/logs/github-logs.json \
-  --build-dep ${FWDIR}/models/spark/indexes/spark-dep-graphs/dep-graph.json \
-  --tests ${FWDIR}/models/spark/indexes/spark-dep-graphs/test-files.json
+  --contributor-stats ${FWDIR}/models/spark/logs/contributor-stats.json \
+  --build-dep ${FWDIR}/models/spark/indexes/latest/dep-graph.json \
+  --tests ${FWDIR}/models/spark/indexes/latest/test-files.json \
+  --excluded-tests ${FWDIR}/models/spark/logs/excluded-tests.json

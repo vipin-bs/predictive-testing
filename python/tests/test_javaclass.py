@@ -42,55 +42,25 @@ class JavaClassTests(unittest.TestCase):
         r = stdout.decode().replace('\n', '')
         self.assertEqual(r, '1')
 
-    def test_list_classes(self):
-        classes = javaclass.list_classes(self._java_class_test_path, 'io.github.maropu')
-        formatted_classes = list(map(lambda c: c[0], classes))
-        expected_classes = [
-            'io/github/maropu/MainClass',
-            'io/github/maropu/BaseClass',
-            'io/github/maropu/TestClassA',
-            'io/github/maropu/TestClassB',
-            'io/github/maropu/TestClassC'
-        ]
-        self.assertEqual(set(formatted_classes), set(expected_classes))
-
-    def test_list_classes(self):
-        classes = javaclass.list_classes(self._java_class_test_path, 'io.github.others')
-        formatted_classes = list(map(lambda c: c[0], classes))
-        expected_classes = [
-            'io/github/others/OtherMainClass'
-        ]
-        self.assertEqual(set(formatted_classes), set(expected_classes))
-
-    def test_list_test_classes(self):
-        classes = javaclass.list_test_classes(self._java_class_test_path, 'io.github.maropu')
-        formatted_classes = list(map(lambda c: c[0], classes))
-        expected_classes = [
-            'io/github/maropu/MainClassSuite',
-            'io/github/maropu/TestClassSuite'
-        ]
-        self.assertEqual(set(formatted_classes), set(expected_classes))
-
     def test_extract_refs(self):
         classes = javaclass.list_classes(self._java_class_test_path, 'io.github.maropu')
-        test_classes = javaclass.list_test_classes(self._java_class_test_path, 'io.github.maropu')
-        all_classes = classes + test_classes
+        extract_refs_from_path = javaclass.create_func_to_extract_refs_from_class_file('io.github.maropu')
 
         results = []
-        for (clazz, path) in all_classes:
-            refs = javaclass.extract_refs(path, 'io.github.maropu')
+        for (clazz, path) in classes:
+            refs = extract_refs_from_path(path)
             other_refs = set(filter(lambda r: r != clazz, refs))
             results.append((clazz, sorted(other_refs)))
 
         expected_results = [
-            ('io/github/maropu/BaseClass', []),
-            ('io/github/maropu/MainClass', []),
-            ('io/github/maropu/MainClass', ['io/github/maropu/TestClassA', 'io/github/maropu/TestClassC']),
-            ('io/github/maropu/MainClassSuite', ['io/github/maropu/MainClass']),
-            ('io/github/maropu/TestClassA', ['io/github/maropu/BaseClass']),
-            ('io/github/maropu/TestClassB', ['io/github/maropu/BaseClass']),
-            ('io/github/maropu/TestClassC', ['io/github/maropu/TestClassA', 'io/github/maropu/TestClassB']),
-            ('io/github/maropu/TestClassSuite', ['io/github/maropu/TestClassA', 'io/github/maropu/TestClassB'])
+            ('io.github.maropu.BaseClass', []),
+            ('io.github.maropu.MainClass', []),
+            ('io.github.maropu.MainClass', ['io.github.maropu.TestClassA', 'io.github.maropu.TestClassC']),
+            ('io.github.maropu.MainClassSuite', ['io.github.maropu.MainClass']),
+            ('io.github.maropu.TestClassA', ['io.github.maropu.BaseClass']),
+            ('io.github.maropu.TestClassB', ['io.github.maropu.BaseClass']),
+            ('io.github.maropu.TestClassC', ['io.github.maropu.TestClassA', 'io.github.maropu.TestClassB']),
+            ('io.github.maropu.TestClassSuite', ['io.github.maropu.TestClassA', 'io.github.maropu.TestClassB'])
         ]
         self.assertEqual(sorted(results), expected_results)
 
