@@ -29,14 +29,18 @@ fi
 
 ROOT_PATH="$1"
 if [ -z "${ROOT_PATH}" ]; then
-  echo "Spark repository root path not specified and usage: ${0} <root_paths>" 1>&2
+  echo "Spark repository root path not specified and usage: ${0} <root_paths> [<output_name>]" 1>&2
   exit 1
 fi
 
-OUTPUT_INDEX_NAME=`git -C ${ROOT_PATH} rev-parse --abbrev-ref HEAD`-`git -C ${ROOT_PATH} rev-parse --short HEAD`-`gdate '+%Y%m%d%H%M'`
-OUTPUT_PATH=${FWDIR}/models/spark/indexes/${OUTPUT_INDEX_NAME}
+OUTPUT_INDEX_NAME="$2"
+if [ -z "${OUTPUT_INDEX_NAME}" ]; then
+  OUTPUT_INDEX_NAME=`git -C ${ROOT_PATH} rev-parse --abbrev-ref HEAD`-`git -C ${ROOT_PATH} rev-parse --short HEAD`-`date '+%Y%m%d%H%M'`
+fi
 
+OUTPUT_PATH=${FWDIR}/models/spark/indexes/${OUTPUT_INDEX_NAME}
 echo "Output path is ${OUTPUT_PATH}"
+
 PYTHONPATH="${FWDIR}/python" \
 exec python3 -u ${FWDIR}/bin/analyze-spark-package.py \
   --root-path ${ROOT_PATH} \

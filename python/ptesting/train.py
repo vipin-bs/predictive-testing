@@ -24,9 +24,9 @@ from typing import Any, Dict, List, Optional, Tuple
 
 
 def _setup_logger() -> Any:
-    from logging import getLogger, NullHandler, DEBUG
+    from logging import getLogger, NullHandler, INFO
     logger = getLogger(__name__)
-    logger.setLevel(DEBUG)
+    logger.setLevel(INFO)
     logger.addHandler(NullHandler())
     return logger
 

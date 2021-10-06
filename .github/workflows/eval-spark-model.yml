@@ -6,7 +6,8 @@ on:
       - master
     paths:
       - bin/train-ptesting-model.py
-      - models/spark/logs/github-logs.json
+      - models/spark/logs/*
+      - models/spark/indexes/latest
   issue_comment:
     types: [created, edited]
 jobs:
