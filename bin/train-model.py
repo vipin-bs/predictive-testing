@@ -301,7 +301,7 @@ def _expand_updated_files(df: DataFrame) -> DataFrame:
 # and the Google paper (See "Section 4. Hypotheses, Models and Results") [2].
 def _create_train_feature_from(df: DataFrame,
                                enrich_authors: Any,
-                               enumerate_related_tests: Any,
+                               enumerate_tests: Any,
                                enrich_tests: Any,
                                compute_minimal_distances: Any) -> DataFrame:
     # TODO: Revisit this feature engineering
@@ -309,7 +309,7 @@ def _create_train_feature_from(df: DataFrame,
     df = enrich_authors(df).drop('author')
     df = _expand_updated_files(df)
 
-    related_test_df = enumerate_related_tests(df, output_col='related_tests', depth=2, max_num_tests=16)
+    related_test_df = enumerate_tests(df, output_col='related_tests', depth=2, max_num_tests=16)
 
     passed_test_df = related_test_df \
         .selectExpr('*', 'array_except(related_tests, failed_tests) tests', '0 failed') \
@@ -332,13 +332,13 @@ def _create_train_feature_from(df: DataFrame,
 
 def _create_test_feature_from(df: DataFrame,
                               enrich_authors: Any,
-                              enumerate_related_tests: Any,
+                              enumerate_tests: Any,
                               enrich_tests: Any,
                               compute_minimal_distances: Any) -> DataFrame:
     df = df.selectExpr('sha', 'author', 'commit_date', 'files')
     df = enrich_authors(df).drop('author')
     df = _expand_updated_files(df)
-    df = enumerate_related_tests(df, output_col='related_tests') \
+    df = enumerate_tests(df, output_col='related_tests') \
         .selectExpr('*', 'explode_outer(related_tests) test') \
         .drop('related_tests')
     df = enrich_tests(df)
@@ -354,8 +354,8 @@ def _create_test_feature_from(df: DataFrame,
 #  - normalizing feature values are less required
 #  - fast model training on commodity hardware
 #  - robustness in imbalanced datasets
-def _build_predictive_model(df: DataFrame) -> Any:
-    pdf = df.drop('target_card').toPandas()
+def _build_predictive_model(df: DataFrame, to_features: Any) -> Any:
+    pdf = to_features(df).drop('target_card').toPandas()
     X = pdf[pdf.columns[pdf.columns != 'failed']]  # type: ignore
     y = pdf['failed']
     X, y = train.rebalance_training_data(X, y)
@@ -371,16 +371,17 @@ def _train_test_split(df: DataFrame, test_ratio: float) -> Tuple[DataFrame, Data
     return train_df, test_df
 
 
-def _predict_failed_probs(spark: SparkSession, clf: Any, test_df: DataFrame) -> DataFrame:
-    df = test_df.selectExpr('sha', 'target_card', 'test').toPandas()
-    X = test_df.drop('sha', 'target_card', 'failed', 'test').toPandas()
+def _predict_failed_probs(test_df: DataFrame, clf: Any, to_features: Any) -> DataFrame:
+    test_feature_df = to_features(test_df)
+    df = test_feature_df.selectExpr('sha', 'target_card', 'test').toPandas()
+    X = test_feature_df.drop('sha', 'target_card', 'failed', 'test').toPandas()
     predicted = clf.predict_proba(X)
     pmf = map(lambda p: {"classes": clf.classes_.tolist(), "probs": p.tolist()}, predicted)
     pmf = map(lambda p: json.dumps(p), pmf)  # type: ignore
     df['predicted'] = pd.Series(list(pmf))
     to_map_expr = funcs.expr('from_json(predicted, "classes array<string>, probs array<double>")')
     to_failed_prob = 'map_from_arrays(pmf.classes, pmf.probs)["1"] failed_prob'
-    df_with_failed_probs = spark.createDataFrame(df) \
+    df_with_failed_probs = test_df.sql_ctx.sparkSession.createDataFrame(df) \
         .withColumn('pmf', to_map_expr) \
         .selectExpr('sha', 'target_card', 'test', to_failed_prob)
 
@@ -388,17 +389,26 @@ def _predict_failed_probs(spark: SparkSession, clf: Any, test_df: DataFrame) -> 
         f"case when {x}.failed_prob < {y}.failed_prob then 1 " \
         f"when {x}.failed_prob > {y}.failed_prob then -1 " \
         "else 0 end"
-    return df_with_failed_probs.groupBy('sha') \
+    df_with_failed_probs = df_with_failed_probs.groupBy('sha') \
         .agg(funcs.expr('first(target_card)').alias('target_card'),
              funcs.expr('collect_set(named_struct("test", test, "failed_prob", failed_prob))').alias('tests')) \
         .selectExpr('sha', 'target_card', f'array_sort(tests, (l, r) -> {compare("l", "r")}) tests')
 
-
-def _compute_eval_metrics(df: DataFrame, predicted: DataFrame, eval_num_tests: List[int]) -> Any:
-    df = df.selectExpr('sha', 'failed_tests').join(predicted, 'sha', 'LEFT_OUTER') \
+    predicted = test_df.selectExpr('sha', 'failed_tests').join(df_with_failed_probs, 'sha', 'LEFT_OUTER') \
         .selectExpr('sha', 'target_card', 'failed_tests', 'coalesce(tests, array()) tests') \
-        .cache()
 
+    return predicted
+
+
+def _compute_eval_stats(df: DataFrame) -> DataFrame:
+    rank = 'array_position(transform(tests, x -> x.test), failed_test) rank'
+    to_test_map = 'map_from_arrays(transform(tests, x -> x.test), transform(tests, x -> x.failed_prob)) tests'
+    return df.selectExpr('sha', 'explode(failed_tests) failed_test', 'tests') \
+        .selectExpr('sha', 'failed_test', rank, 'tests[0].failed_prob max_score', to_test_map) \
+        .selectExpr('sha', 'failed_test', 'rank', 'tests[failed_test] score', 'max_score')
+
+
+def _compute_eval_metrics(predicted: DataFrame, eval_num_tests: List[int]) -> Any:
     # This method computes metrics to measure the quality of a selected test set; "test recall", which is computed
     # in the method, represents the emprical probability of a particular test selection strategy catching
     # an individual failure (See "Section 3.B. Measuring Quality of Test Selection" in the Facebook paper [1]).
@@ -409,7 +419,8 @@ def _compute_eval_metrics(df: DataFrame, predicted: DataFrame, eval_num_tests: L
     # TODO: Computes a "chnage recall" metric.
     def _metric(num_tests: int, score_thres: float = 0.0) -> Tuple[float, float]:
         # TODO: Needs to make 'num_dependent_tests' more precise
-        eval_df = df.withColumn('filtered_tests', funcs.expr(f'filter(tests, x -> x.failed_prob >= {score_thres})')) \
+        filtered_test_expr = funcs.expr(f'filter(tests, x -> x.failed_prob >= {score_thres})')
+        eval_df = predicted.withColumn('filtered_tests', filtered_test_expr) \
             .withColumn('tests_', funcs.expr(f'case when size(filtered_tests) <= {num_tests} then filtered_tests '
                                              f'else slice(tests, 1, {num_tests}) end')) \
             .selectExpr('sha', 'target_card', 'failed_tests', 'transform(tests_, x -> x.test) tests') \
@@ -476,8 +487,8 @@ def _train_and_eval_ptest_model(output_path: str, spark: SparkSession, df: DataF
     def _to_features(df: DataFrame, f: Any, enumerate_tests: Any) -> Any:
         return f(df, enrich_authors, enumerate_tests, enrich_tests, compute_distances)
 
-    features = _to_features(df, _create_train_feature_from, enumerate_related_tests)
-    clf = _build_predictive_model(features)
+    to_features = lambda df: _to_features(df, _create_train_feature_from, enumerate_related_tests)
+    clf = _build_predictive_model(train_df, to_features)
 
     with open(f"{output_path}/failed-tests.json", 'w') as f:
         f.write(json.dumps(failed_tests, indent=2))
@@ -485,10 +496,14 @@ def _train_and_eval_ptest_model(output_path: str, spark: SparkSession, df: DataF
         import pickle
         pickle.dump(clf, f)  # type: ignore
 
-    features = _to_features(test_df, _create_test_feature_from, enumerate_all_tests)
-    predicted = _predict_failed_probs(spark, clf, features)
-    metrics = _compute_eval_metrics(test_df, predicted, eval_num_tests=list(range(4, len(test_files) + 1, 4)))
+    to_features = lambda df: _to_features(df, _create_test_feature_from, enumerate_all_tests)
+    predicted = _predict_failed_probs(test_df, clf, to_features)
 
+    metrics = _compute_eval_metrics(predicted, eval_num_tests=list(range(4, len(test_files) + 1, 4)))
+    stats = _compute_eval_stats(predicted)
+
+    with open(f"{output_path}/model-eval-stats.json", 'w') as f:  # type: ignore
+        f.write(json.dumps(stats.toPandas().to_dict(orient='records'), indent=2))  # type: ignore
     with open(f"{output_path}/model-eval-metric-summary.md", 'w') as f:  # type: ignore
         f.write(_format_eval_metrics([metrics[i] for i in [0, 14, 29, 44, 59]]))  # type: ignore
     with open(f"{output_path}/model-eval-metrics.json", 'w') as f:  # type: ignore
