@@ -359,8 +359,7 @@ def _build_predictive_model(df: DataFrame) -> Any:
     X = pdf[pdf.columns[pdf.columns != 'failed']]  # type: ignore
     y = pdf['failed']
     X, y = train.rebalance_training_data(X, y)
-    # clf, score = train.build_model(X, y, opts={'hp.timeout': '3600', 'hp.no_progress_loss': '1000'})
-    clf, score = train.build_model(X, y, opts={'hp.timeout': '3600', 'hp.no_progress_loss': '1'})
+    clf, score = train.build_model(X, y, opts={'hp.timeout': '3600', 'hp.no_progress_loss': '1000'})
     _logger.info(f"model score: {score}")
     return clf
 
@@ -578,7 +577,8 @@ def main() -> None:
         if len(unknown_failed_tests) > 0:
             _logger.warning(f'Unknown failed tests found: {",".join(unknown_failed_tests)}')
 
-        _train_and_eval_ptest_model(args.output, spark, log_data_df, test_files, dep_graph, contributor_stats)
+        _train_and_eval_ptest_model(args.output, spark, log_data_df, test_files, dep_graph,
+                                    contributor_stats, test_ratio=0.10)
     finally:
         spark.stop()
 

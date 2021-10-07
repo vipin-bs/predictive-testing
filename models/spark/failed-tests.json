@@ -1,5 +1,12 @@
 [
   {
+    "failed_test": "org.apache.spark.ml.tuning.JavaCrossValidatorSuite",
+    "failed_num_7d": 0,
+    "failed_num_14d": 0,
+    "failed_num_28d": 1,
+    "total_failed_num": 1
+  },
+  {
     "failed_test": "org.apache.spark.sql.execution.datasources.csv.CSVLegacyTimeParserSuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
@@ -21,14 +28,14 @@
     "total_failed_num": 3
   },
   {
-    "failed_test": "org.apache.spark.streaming.kafka010.DirectKafkaStreamSuite",
+    "failed_test": "org.apache.spark.sql.connector.DataSourceV2SQLSuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
-    "failed_num_28d": 0,
-    "total_failed_num": 1
+    "failed_num_28d": 2,
+    "total_failed_num": 3
   },
   {
-    "failed_test": "org.apache.spark.sql.connector.DataSourceV2SQLSuite",
+    "failed_test": "org.apache.spark.streaming.kafka010.DirectKafkaStreamSuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
     "failed_num_28d": 0,
@@ -63,6 +70,13 @@
     "total_failed_num": 1
   },
   {
+    "failed_test": "org.apache.spark.ml.classification.LogisticRegressionSuite",
+    "failed_num_7d": 0,
+    "failed_num_14d": 0,
+    "failed_num_28d": 1,
+    "total_failed_num": 1
+  },
+  {
     "failed_test": "org.apache.spark.sql.execution.arrow.ArrowConvertersSuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
@@ -81,6 +95,13 @@
     "failed_num_7d": 0,
     "failed_num_14d": 0,
     "failed_num_28d": 0,
+    "total_failed_num": 1
+  },
+  {
+    "failed_test": "org.apache.spark.sql.avro.AvroSerdeSuite",
+    "failed_num_7d": 0,
+    "failed_num_14d": 0,
+    "failed_num_28d": 1,
     "total_failed_num": 1
   },
   {
@@ -130,6 +151,13 @@
     "failed_num_7d": 0,
     "failed_num_14d": 0,
     "failed_num_28d": 0,
+    "total_failed_num": 1
+  },
+  {
+    "failed_test": "pyspark.pandas.tests.test_typedef",
+    "failed_num_7d": 0,
+    "failed_num_14d": 0,
+    "failed_num_28d": 1,
     "total_failed_num": 1
   },
   {
@@ -340,7 +368,7 @@
     "failed_num_7d": 0,
     "failed_num_14d": 0,
     "failed_num_28d": 0,
-    "total_failed_num": 1
+    "total_failed_num": 2
   },
   {
     "failed_test": "org.apache.spark.sql.avro.AvroSuite",
@@ -448,13 +476,6 @@
     "total_failed_num": 1
   },
   {
-    "failed_test": "org.apache.spark.sql.catalyst.parser.DDLParserSuite",
-    "failed_num_7d": 0,
-    "failed_num_14d": 0,
-    "failed_num_28d": 0,
-    "total_failed_num": 2
-  },
-  {
     "failed_test": "org.apache.spark.sql.execution.datasources.text.TextV1Suite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
@@ -476,6 +497,13 @@
     "total_failed_num": 1
   },
   {
+    "failed_test": "org.apache.spark.sql.catalyst.parser.DDLParserSuite",
+    "failed_num_7d": 0,
+    "failed_num_14d": 0,
+    "failed_num_28d": 0,
+    "total_failed_num": 2
+  },
+  {
     "failed_test": "org.apache.spark.sql.streaming.FileStreamSinkV2Suite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
@@ -486,8 +514,8 @@
     "failed_test": "pyspark.pandas.tests.test_dataframe",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
-    "failed_num_28d": 0,
-    "total_failed_num": 2
+    "failed_num_28d": 1,
+    "total_failed_num": 3
   },
   {
     "failed_test": "org.apache.spark.sql.catalyst.analysis.AnalysisExternalCatalogSuite",
@@ -598,8 +626,8 @@
     "failed_test": "org.apache.spark.sql.TPCDSModifiedPlanStabilitySuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
-    "failed_num_28d": 0,
-    "total_failed_num": 1
+    "failed_num_28d": 2,
+    "total_failed_num": 3
   },
   {
     "failed_test": "org.apache.spark.sql.DataFrameTimeWindowingSuite",
@@ -798,6 +826,13 @@
     "total_failed_num": 1
   },
   {
+    "failed_test": "org.apache.spark.ml.tree.impl.GradientBoostedTreesSuite",
+    "failed_num_7d": 0,
+    "failed_num_14d": 0,
+    "failed_num_28d": 1,
+    "total_failed_num": 1
+  },
+  {
     "failed_test": "org.apache.spark.sql.JsonFunctionsSuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
@@ -847,6 +882,13 @@
     "total_failed_num": 1
   },
   {
+    "failed_test": "org.apache.spark.ml.classification.GBTClassifierSuite",
+    "failed_num_7d": 0,
+    "failed_num_14d": 0,
+    "failed_num_28d": 1,
+    "total_failed_num": 1
+  },
+  {
     "failed_test": "org.apache.spark.sql.hive.orc.HiveOrcSourceSuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
@@ -879,6 +921,13 @@
     "failed_num_7d": 0,
     "failed_num_14d": 0,
     "failed_num_28d": 0,
+    "total_failed_num": 1
+  },
+  {
+    "failed_test": "org.apache.spark.ml.clustering.PowerIterationClusteringSuite",
+    "failed_num_7d": 0,
+    "failed_num_14d": 0,
+    "failed_num_28d": 1,
     "total_failed_num": 1
   },
   {
@@ -917,6 +966,13 @@
     "total_failed_num": 2
   },
   {
+    "failed_test": "org.apache.spark.sql.hive.execution.command.ShowTablesSuite",
+    "failed_num_7d": 0,
+    "failed_num_14d": 0,
+    "failed_num_28d": 0,
+    "total_failed_num": 3
+  },
+  {
     "failed_test": "org.apache.spark.sql.catalyst.analysis.AnalysisSuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
@@ -924,25 +980,11 @@
     "total_failed_num": 1
   },
   {
-    "failed_test": "org.apache.spark.sql.hive.execution.command.ShowTablesSuite",
-    "failed_num_7d": 0,
-    "failed_num_14d": 0,
-    "failed_num_28d": 0,
-    "total_failed_num": 2
-  },
-  {
     "failed_test": "org.apache.spark.sql.execution.datasources.SchemaPruningSuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
     "failed_num_28d": 0,
     "total_failed_num": 1
-  },
-  {
-    "failed_test": "org.apache.spark.sql.DateFunctionsSuite",
-    "failed_num_7d": 0,
-    "failed_num_14d": 0,
-    "failed_num_28d": 0,
-    "total_failed_num": 2
   },
   {
     "failed_test": "org.apache.spark.sql.catalyst.analysis.ResolvedUuidExpressionsSuite",
@@ -966,10 +1008,24 @@
     "total_failed_num": 1
   },
   {
+    "failed_test": "org.apache.spark.sql.DateFunctionsSuite",
+    "failed_num_7d": 0,
+    "failed_num_14d": 0,
+    "failed_num_28d": 0,
+    "total_failed_num": 2
+  },
+  {
     "failed_test": "org.apache.spark.sql.ApproximatePercentileQuerySuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
     "failed_num_28d": 0,
+    "total_failed_num": 1
+  },
+  {
+    "failed_test": "org.apache.spark.ml.regression.GBTRegressorSuite",
+    "failed_num_7d": 0,
+    "failed_num_14d": 0,
+    "failed_num_28d": 1,
     "total_failed_num": 1
   },
   {
@@ -984,7 +1040,7 @@
     "failed_num_7d": 0,
     "failed_num_14d": 0,
     "failed_num_28d": 0,
-    "total_failed_num": 1
+    "total_failed_num": 2
   },
   {
     "failed_test": "org.apache.spark.sql.hive.execution.command.TruncateTableSuite",
@@ -1057,11 +1113,11 @@
     "total_failed_num": 1
   },
   {
-    "failed_test": "org.apache.spark.sql.catalyst.parser.ExpressionParserSuite",
+    "failed_test": "org.apache.spark.sql.hive.thriftserver.ThriftServerQueryTestSuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
-    "failed_num_28d": 0,
-    "total_failed_num": 1
+    "failed_num_28d": 3,
+    "total_failed_num": 3
   },
   {
     "failed_test": "org.apache.spark.sql.ExpressionsSchemaSuite",
@@ -1086,6 +1142,13 @@
   },
   {
     "failed_test": "org.apache.spark.sql.test.TestSparkSessionSuite",
+    "failed_num_7d": 0,
+    "failed_num_14d": 0,
+    "failed_num_28d": 0,
+    "total_failed_num": 1
+  },
+  {
+    "failed_test": "org.apache.spark.sql.catalyst.parser.ExpressionParserSuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
     "failed_num_28d": 0,
@@ -1172,8 +1235,8 @@
     "failed_test": "org.apache.spark.sql.DSV2SQLInsertTestSuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
-    "failed_num_28d": 0,
-    "total_failed_num": 1
+    "failed_num_28d": 2,
+    "total_failed_num": 3
   },
   {
     "failed_test": "org.apache.spark.sql.jdbc.MySQLIntegrationSuite",
@@ -1186,8 +1249,8 @@
     "failed_test": "org.apache.spark.sql.hive.execution.SQLMetricsSuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
-    "failed_num_28d": 0,
-    "total_failed_num": 1
+    "failed_num_28d": 1,
+    "total_failed_num": 2
   },
   {
     "failed_test": "org.apache.spark.sql.CsvFunctionsSuite",
@@ -1365,6 +1428,13 @@
     "total_failed_num": 1
   },
   {
+    "failed_test": "org.apache.spark.ml.classification.DecisionTreeClassifierSuite",
+    "failed_num_7d": 0,
+    "failed_num_14d": 0,
+    "failed_num_28d": 1,
+    "total_failed_num": 1
+  },
+  {
     "failed_test": "org.apache.spark.sql.hive.client.VersionsSuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
@@ -1397,7 +1467,7 @@
     "failed_num_7d": 0,
     "failed_num_14d": 0,
     "failed_num_28d": 0,
-    "total_failed_num": 4
+    "total_failed_num": 6
   },
   {
     "failed_test": "org.apache.spark.sql.hive.MultiDatabaseSuite",
@@ -1550,8 +1620,8 @@
     "failed_test": "org.apache.spark.sql.DynamicPartitionPruningV2Suite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
-    "failed_num_28d": 0,
-    "total_failed_num": 2
+    "failed_num_28d": 1,
+    "total_failed_num": 3
   },
   {
     "failed_test": "org.apache.spark.sql.catalyst.analysis.LookupFunctionsSuite",
@@ -1596,6 +1666,13 @@
     "total_failed_num": 1
   },
   {
+    "failed_test": "pyspark.ml.tests.test_algorithms",
+    "failed_num_7d": 0,
+    "failed_num_14d": 0,
+    "failed_num_28d": 1,
+    "total_failed_num": 1
+  },
+  {
     "failed_test": "org.apache.spark.sql.hive.execution.HiveCommandSuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
@@ -1634,8 +1711,8 @@
     "failed_test": "org.apache.spark.sql.SQLQueryTestSuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
-    "failed_num_28d": 0,
-    "total_failed_num": 9
+    "failed_num_28d": 3,
+    "total_failed_num": 12
   },
   {
     "failed_test": "org.apache.spark.sql.DataFrameNaFunctionsSuite",
@@ -1691,7 +1768,7 @@
     "failed_num_7d": 0,
     "failed_num_14d": 0,
     "failed_num_28d": 0,
-    "total_failed_num": 1
+    "total_failed_num": 2
   },
   {
     "failed_test": "org.apache.spark.sql.SubquerySuite",
@@ -1893,8 +1970,8 @@
     "failed_test": "org.apache.spark.sql.TPCHPlanStabilitySuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
-    "failed_num_28d": 0,
-    "total_failed_num": 1
+    "failed_num_28d": 1,
+    "total_failed_num": 2
   },
   {
     "failed_test": "org.apache.spark.sql.hive.orc.HiveOrcPartitionDiscoverySuite",
@@ -2058,6 +2135,13 @@
     "total_failed_num": 1
   },
   {
+    "failed_test": "org.apache.spark.ml.regression.RandomForestRegressorSuite",
+    "failed_num_7d": 0,
+    "failed_num_14d": 0,
+    "failed_num_28d": 1,
+    "total_failed_num": 1
+  },
+  {
     "failed_test": "org.apache.spark.sql.catalyst.expressions.StringExpressionsSuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
@@ -2156,6 +2240,13 @@
     "total_failed_num": 2
   },
   {
+    "failed_test": "pyspark.pandas.tests.data_type_ops.test_num_ops",
+    "failed_num_7d": 0,
+    "failed_num_14d": 0,
+    "failed_num_28d": 0,
+    "total_failed_num": 1
+  },
+  {
     "failed_test": "org.apache.spark.sql.execution.command.AlterTableAddPartitionParserSuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
@@ -2244,6 +2335,13 @@
     "failed_num_7d": 0,
     "failed_num_14d": 0,
     "failed_num_28d": 0,
+    "total_failed_num": 1
+  },
+  {
+    "failed_test": "org.apache.spark.ml.regression.DecisionTreeRegressorSuite",
+    "failed_num_7d": 0,
+    "failed_num_14d": 0,
+    "failed_num_28d": 1,
     "total_failed_num": 1
   },
   {
@@ -2383,8 +2481,8 @@
     "failed_test": "org.apache.spark.sql.execution.debug.DebuggingSuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
-    "failed_num_28d": 0,
-    "total_failed_num": 1
+    "failed_num_28d": 1,
+    "total_failed_num": 2
   },
   {
     "failed_test": "org.apache.spark.sql.catalyst.analysis.ResolveNaturalJoinSuite",
@@ -2482,6 +2580,13 @@
     "failed_num_7d": 0,
     "failed_num_14d": 0,
     "failed_num_28d": 0,
+    "total_failed_num": 1
+  },
+  {
+    "failed_test": "org.apache.spark.mllib.classification.LogisticRegressionSuite",
+    "failed_num_7d": 0,
+    "failed_num_14d": 0,
+    "failed_num_28d": 1,
     "total_failed_num": 1
   },
   {
@@ -2635,8 +2740,8 @@
     "failed_test": "org.apache.spark.sql.TPCDSModifiedPlanStabilityWithStatsSuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
-    "failed_num_28d": 0,
-    "total_failed_num": 2
+    "failed_num_28d": 2,
+    "total_failed_num": 4
   },
   {
     "failed_test": "org.apache.spark.sql.util.ExecutionListenerManagerSuite",
@@ -2898,6 +3003,13 @@
     "total_failed_num": 1
   },
   {
+    "failed_test": "pyspark.pandas.tests.data_type_ops.test_complex_ops",
+    "failed_num_7d": 0,
+    "failed_num_14d": 0,
+    "failed_num_28d": 1,
+    "total_failed_num": 1
+  },
+  {
     "failed_test": "org.apache.spark.sql.jdbc.JDBCV2Suite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
@@ -3017,6 +3129,20 @@
     "total_failed_num": 1
   },
   {
+    "failed_test": "org.apache.spark.sql.SQLContextSuite",
+    "failed_num_7d": 0,
+    "failed_num_14d": 0,
+    "failed_num_28d": 0,
+    "total_failed_num": 2
+  },
+  {
+    "failed_test": "org.apache.spark.sql.execution.command.v2.DropTableSuite",
+    "failed_num_7d": 0,
+    "failed_num_14d": 0,
+    "failed_num_28d": 0,
+    "total_failed_num": 2
+  },
+  {
     "failed_test": "org.apache.spark.sql.hive.execution.command.MsckRepairTableSuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
@@ -3038,13 +3164,6 @@
     "total_failed_num": 1
   },
   {
-    "failed_test": "org.apache.spark.sql.SQLContextSuite",
-    "failed_num_7d": 0,
-    "failed_num_14d": 0,
-    "failed_num_28d": 0,
-    "total_failed_num": 1
-  },
-  {
     "failed_test": "org.apache.spark.sql.DatasetAggregatorSuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
@@ -3053,13 +3172,6 @@
   },
   {
     "failed_test": "org.apache.spark.sql.execution.datasources.v2.FileTableSuite",
-    "failed_num_7d": 0,
-    "failed_num_14d": 0,
-    "failed_num_28d": 0,
-    "total_failed_num": 1
-  },
-  {
-    "failed_test": "org.apache.spark.sql.execution.command.v2.DropTableSuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
     "failed_num_28d": 0,
@@ -3182,7 +3294,7 @@
     "failed_num_7d": 0,
     "failed_num_14d": 0,
     "failed_num_28d": 0,
-    "total_failed_num": 2
+    "total_failed_num": 3
   },
   {
     "failed_test": "org.apache.spark.sql.execution.streaming.state.RocksDBStateStoreSuite",
@@ -3190,6 +3302,13 @@
     "failed_num_14d": 0,
     "failed_num_28d": 0,
     "total_failed_num": 1
+  },
+  {
+    "failed_test": "org.apache.spark.sql.execution.command.v1.DropTableSuite",
+    "failed_num_7d": 0,
+    "failed_num_14d": 0,
+    "failed_num_28d": 0,
+    "total_failed_num": 2
   },
   {
     "failed_test": "org.apache.spark.sql.hive.CompressionCodecSuite",
@@ -3200,13 +3319,6 @@
   },
   {
     "failed_test": "org.apache.spark.sql.execution.command.v2.AlterTableAddPartitionSuite",
-    "failed_num_7d": 0,
-    "failed_num_14d": 0,
-    "failed_num_28d": 0,
-    "total_failed_num": 1
-  },
-  {
-    "failed_test": "org.apache.spark.sql.execution.command.v1.DropTableSuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
     "failed_num_28d": 0,
@@ -3318,6 +3430,13 @@
     "total_failed_num": 1
   },
   {
+    "failed_test": "org.apache.spark.ml.classification.RandomForestClassifierSuite",
+    "failed_num_7d": 0,
+    "failed_num_14d": 0,
+    "failed_num_28d": 1,
+    "total_failed_num": 1
+  },
+  {
     "failed_test": "org.apache.spark.sql.jdbc.OracleIntegrationSuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
@@ -3329,6 +3448,13 @@
     "failed_num_7d": 0,
     "failed_num_14d": 0,
     "failed_num_28d": 0,
+    "total_failed_num": 1
+  },
+  {
+    "failed_test": "org.apache.spark.ml.regression.LinearRegressionSuite",
+    "failed_num_7d": 0,
+    "failed_num_14d": 0,
+    "failed_num_28d": 1,
     "total_failed_num": 1
   },
   {
@@ -3392,6 +3518,13 @@
     "failed_num_7d": 0,
     "failed_num_14d": 0,
     "failed_num_28d": 0,
+    "total_failed_num": 1
+  },
+  {
+    "failed_test": "org.apache.spark.mllib.clustering.KMeansSuite",
+    "failed_num_7d": 0,
+    "failed_num_14d": 0,
+    "failed_num_28d": 1,
     "total_failed_num": 1
   },
   {
@@ -3479,6 +3612,13 @@
     "total_failed_num": 1
   },
   {
+    "failed_test": "pyspark.pandas.tests.indexes.test_datetime",
+    "failed_num_7d": 0,
+    "failed_num_14d": 0,
+    "failed_num_28d": 1,
+    "total_failed_num": 1
+  },
+  {
     "failed_test": "org.apache.spark.sql.CTEHintSuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
@@ -3528,6 +3668,13 @@
     "total_failed_num": 1
   },
   {
+    "failed_test": "org.apache.spark.ml.tuning.CrossValidatorSuite",
+    "failed_num_7d": 0,
+    "failed_num_14d": 0,
+    "failed_num_28d": 1,
+    "total_failed_num": 1
+  },
+  {
     "failed_test": "org.apache.spark.sql.hive.execution.SQLQuerySuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
@@ -3539,7 +3686,7 @@
     "failed_num_7d": 0,
     "failed_num_14d": 0,
     "failed_num_28d": 0,
-    "total_failed_num": 1
+    "total_failed_num": 2
   },
   {
     "failed_test": "org.apache.spark.sql.jdbc.v2.MsSqlServerIntegrationSuite",
@@ -3661,6 +3808,13 @@
     "total_failed_num": 1
   },
   {
+    "failed_test": "org.apache.spark.sql.streaming.FlatMapGroupsWithStateSuite",
+    "failed_num_7d": 0,
+    "failed_num_14d": 0,
+    "failed_num_28d": 0,
+    "total_failed_num": 2
+  },
+  {
     "failed_test": "org.apache.spark.sql.avro.AvroCatalystDataConversionSuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
@@ -3682,13 +3836,6 @@
     "total_failed_num": 1
   },
   {
-    "failed_test": "org.apache.spark.sql.streaming.FlatMapGroupsWithStateSuite",
-    "failed_num_7d": 0,
-    "failed_num_14d": 0,
-    "failed_num_28d": 0,
-    "total_failed_num": 2
-  },
-  {
     "failed_test": "org.apache.spark.sql.execution.joins.ExistenceJoinSuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
@@ -3696,18 +3843,18 @@
     "total_failed_num": 1
   },
   {
+    "failed_test": "org.apache.spark.sql.catalyst.analysis.AnalysisErrorSuite",
+    "failed_num_7d": 0,
+    "failed_num_14d": 0,
+    "failed_num_28d": 0,
+    "total_failed_num": 4
+  },
+  {
     "failed_test": "org.apache.spark.sql.streaming.StreamingLeftSemiJoinSuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
     "failed_num_28d": 0,
     "total_failed_num": 3
-  },
-  {
-    "failed_test": "org.apache.spark.sql.catalyst.analysis.AnalysisErrorSuite",
-    "failed_num_7d": 0,
-    "failed_num_14d": 0,
-    "failed_num_28d": 0,
-    "total_failed_num": 2
   },
   {
     "failed_test": "org.apache.spark.sql.hive.HiveUDFDynamicLoadSuite",
@@ -3724,6 +3871,13 @@
     "total_failed_num": 1
   },
   {
+    "failed_test": "org.apache.spark.graphx.lib.PageRankSuite",
+    "failed_num_7d": 0,
+    "failed_num_14d": 0,
+    "failed_num_28d": 1,
+    "total_failed_num": 1
+  },
+  {
     "failed_test": "org.apache.spark.sql.jdbc.MariaDBKrbIntegrationSuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
@@ -3735,6 +3889,13 @@
     "failed_num_7d": 0,
     "failed_num_14d": 0,
     "failed_num_28d": 0,
+    "total_failed_num": 1
+  },
+  {
+    "failed_test": "org.apache.spark.ml.classification.FMClassifierSuite",
+    "failed_num_7d": 0,
+    "failed_num_14d": 0,
+    "failed_num_28d": 1,
     "total_failed_num": 1
   },
   {
@@ -3808,6 +3969,13 @@
     "total_failed_num": 1
   },
   {
+    "failed_test": "org.apache.spark.sql.execution.QueryExecutionSuite",
+    "failed_num_7d": 0,
+    "failed_num_14d": 0,
+    "failed_num_28d": 0,
+    "total_failed_num": 2
+  },
+  {
     "failed_test": "org.apache.spark.sql.hive.execution.command.AlterTableRenameSuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
@@ -3816,13 +3984,6 @@
   },
   {
     "failed_test": "org.apache.spark.sql.execution.datasources.DataSourceStrategySuite",
-    "failed_num_7d": 0,
-    "failed_num_14d": 0,
-    "failed_num_28d": 0,
-    "total_failed_num": 1
-  },
-  {
-    "failed_test": "org.apache.spark.sql.execution.QueryExecutionSuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
     "failed_num_28d": 0,
@@ -4025,6 +4186,13 @@
     "total_failed_num": 1
   },
   {
+    "failed_test": "pyspark.mllib.tests.test_algorithms",
+    "failed_num_7d": 0,
+    "failed_num_14d": 0,
+    "failed_num_28d": 1,
+    "total_failed_num": 1
+  },
+  {
     "failed_test": "org.apache.spark.sql.ReplaceNullWithFalseInPredicateEndToEndSuite",
     "failed_num_7d": 0,
     "failed_num_14d": 0,
@@ -4050,7 +4218,7 @@
     "failed_num_7d": 0,
     "failed_num_14d": 0,
     "failed_num_28d": 0,
-    "total_failed_num": 4
+    "total_failed_num": 5
   },
   {
     "failed_test": "org.apache.spark.sql.execution.datasources.parquet.ParquetEncodingSuite",
