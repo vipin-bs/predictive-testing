@@ -420,7 +420,9 @@ def _create_pipelines(funcs: List[Any]) -> Any:
     def _func(df: DataFrame) -> DataFrame:
         for f in funcs:
             assert type(df) is DataFrame
-            df = f(df)
+            transformed_df = f(df)
+            _logger.debug(f"{f.__name__}: {transformed_df.schema.simpleString()} => {df.schema.simpleString()}")
+            df = transformed_df
 
         return df
 
