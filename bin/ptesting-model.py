@@ -21,6 +21,7 @@ import json
 import os
 import pandas as pd  # type: ignore[import]
 import pickle
+import re
 from pyspark.sql import Column, DataFrame, SparkSession, functions as funcs
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -50,7 +51,6 @@ def _create_func_for_path_diff() -> Any:
 
 
 def _create_func_to_transform_path_to_qualified_name() -> Any:
-    import re
     # TODO: Removes package-depenent stuffs
     parse_path = re.compile(f"[a-zA-Z0-9/\-]+/(org\/apache\/spark\/[a-zA-Z0-9/\-]+)\.scala")
 
@@ -93,9 +93,6 @@ def _create_func_to_enumerate_related_tests(spark: SparkSession,
             test_files = broadcasted_test_files.value
 
             def _enumerate_tests_from_dep_graph(target):  # type: ignore
-                if not target:
-                    return []
-
                 result = parse_path(target)
                 if not result:
                     return []
@@ -121,12 +118,15 @@ def _create_func_to_enumerate_related_tests(spark: SparkSession,
 
             ret = []
             for file_path in file_paths:
-                related_tests = _enumerate_tests_from_dep_graph(file_path)
-                if not related_tests and file_path:
-                    # If no related test found, adds the tests whose paths are close to `file_path`
-                    related_tests = [t for t, p in test_files if path_diff(file_path, p) <= 1]
+                if not file_path:
+                    ret.append(json.dumps({'tests': []}))
+                else:
+                    related_tests = _enumerate_tests_from_dep_graph(file_path)
+                    if not related_tests:
+                        # If no related test found, adds the tests whose paths are close to `file_path`
+                        related_tests = [t for t, p in test_files if path_diff(file_path, p) <= 1]
 
-                ret.append(json.dumps({'tests': related_tests}))
+                    ret.append(json.dumps({'tests': related_tests}))
 
             return pd.Series(ret)
 
@@ -643,10 +643,36 @@ def train_main(argv: Any) -> None:
         spark.stop()
 
 
+def _exec_subprocess(cmd: str, raise_error: bool = True) -> Tuple[Any, Any, Any]:
+    import subprocess
+    child = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = child.communicate()
+    rt = child.returncode
+    if rt != 0 and raise_error:
+        raise RuntimeError(f"command return code is not 0. got {rt}. stderr = {stderr}")  # type: ignore
+
+    return stdout, stderr, rt
+
+
+def _get_updated_files(target: str, num_commits: int) -> List[str]:
+    stdout, _, _ = _exec_subprocess(f'git -C {target} diff --name-only HEAD~{num_commits}')
+    return list(filter(lambda f: f, stdout.decode().split('\n')))
+
+
+def _get_updated_file_stats(target: str, num_commits: int) -> Tuple[int, int, int]:
+    stdout, _, _ = _exec_subprocess(f'git -C {target} diff --shortstat HEAD~{num_commits}')
+    stat_summary = stdout.decode()
+    m = re.search('\d+ files changed, (\d+) insertions\(\+\), (\d+) deletions\(\-\)', stdout.decode())
+    num_adds = int(m.group(1))  # type: ignore
+    num_dels = int(m.group(2))  # type: ignore
+    return num_adds, num_dels, num_adds + num_dels
+
+
 def predict_main(argv: Any) -> None:
     # Parses command-line arguments for a prediction mode
     from argparse import ArgumentParser
     parser = ArgumentParser()
+    parser.add_argument('--username', type=str, required=True)
     parser.add_argument('--target', type=str, required=True)
     parser.add_argument('--num-commits', type=int, required=True)
     parser.add_argument('--num-selected-tests', type=int, required=True)
@@ -697,15 +723,15 @@ def predict_main(argv: Any) -> None:
     spark.sparkContext.setLogLevel("ERROR")
 
     try:
+        updated_files = ",".join(list(map(lambda f: f'"{f}"', _get_updated_files(args.target, args.num_commits))))
+        num_adds, num_dels, num_chgs = _get_updated_file_stats(args.target, args.num_commits)
+
         df = spark.range(1).selectExpr([
-            '"" author',
-            'array("README.md") filenames',
-            '0 updated_num_3d',
-            '0 updated_num_14d',
-            '0 updated_num_56d',
-            '0 num_adds',
-            '0 num_dels',
-            '0 num_chgs'
+            f'"{args.username}" author',
+            f'array({updated_files}) filenames',
+            f'{num_adds} num_adds',
+            f'{num_dels} num_dels',
+            f'{num_chgs} num_chgs'
         ])
 
         expected_features = [
@@ -727,6 +753,8 @@ def predict_main(argv: Any) -> None:
         ]
 
         enrich_authors = _create_func_to_enrich_authors(spark, contributor_stats, input_col='author')
+        expand_updated_files = lambda df: df.withColumn('updated_num_3d', funcs.expr('0')) \
+            .withColumn('updated_num_14d', funcs.expr('0')).withColumn('updated_num_56d', funcs.expr('0'))
         enumerate_all_tests = _create_func_to_enumerate_all_tests(spark, test_files)
         enrich_tests = _create_func_to_enrich_tests(spark, failed_tests)
         compute_distances = _create_func_to_compute_distances(spark, dep_graph, test_files,
@@ -735,6 +763,7 @@ def predict_main(argv: Any) -> None:
 
         to_features = _create_pipelines([
             enrich_authors,
+            expand_updated_files,
             enumerate_all_tests,
             lambda df: df.selectExpr('*', 'explode_outer(all_tests) test'),
             enrich_tests,

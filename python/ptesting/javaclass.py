@@ -63,7 +63,7 @@ def create_func_to_extract_refs_from_class_file(target_package: str) -> Any:
     re_extract_refs = re.compile(f"({target_package.replace('.', '/')}/[a-zA-Z0-9/\-]+)")
 
     def extract_refs(path: str) -> List[str]:
-        stdout, stderr, rt = _exec_subprocess(f"{_get_cmd_path('javap')} -c -p {path}", raise_error=False)
+        stdout, _, _ = _exec_subprocess(f"{_get_cmd_path('javap')} -c -p {path}", raise_error=False)
         opcodes = stdout.decode().split('\n')
         invoke_opcodes = list(filter(lambda op: re.search('invoke', op), opcodes))
         refs: List[str] = []

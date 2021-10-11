@@ -28,7 +28,7 @@ if [ ! -z "$CONDA_ENABLED" ]; then
 fi
 
 print_err_msg_and_exit() {
-  echo "Required arguments not specified and usage: ${0} <root_paths> <#commits> <#selected_tests>" 1>&2
+  echo "Required arguments not specified and usage: ${0} <root_paths> <username> <#commits> <#selected_tests>" 1>&2
   exit 1
 }
 
@@ -37,18 +37,24 @@ if [ -z "${TARGET_PATH}" ]; then
   print_err_msg_and_exit
 fi
 
-NUM_COMMITS="$2"
+USERNAME="$2"
+if [ -z "${USERNAME}" ]; then
+  print_err_msg_and_exit
+fi
+
+NUM_COMMITS="$3"
 if [ -z "${NUM_COMMITS}" ]; then
   print_err_msg_and_exit
 fi
 
-NUM_SELECTED_TESTS="$3"
+NUM_SELECTED_TESTS="$4"
 if [ -z "${NUM_SELECTED_TESTS}" ]; then
   print_err_msg_and_exit
 fi
 
 PYTHONPATH="${FWDIR}/python" \
 exec python3 -u ${FWDIR}/bin/ptesting-model.py \
+  --username ${USERNAME} \
   --target ${TARGET_PATH} \
   --num-commits ${NUM_COMMITS} \
   --num-selected-tests ${NUM_SELECTED_TESTS} \
