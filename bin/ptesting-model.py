@@ -60,21 +60,30 @@ def _create_func_to_transform_path_to_qualified_name() -> Any:
     return _func
 
 
-def _create_func_to_enrich_authors(spark: SparkSession, contributor_stats: Optional[List[Tuple[str, str]]]) -> Any:
+def _create_func_to_enrich_authors(spark: SparkSession,
+                                   contributor_stats: Optional[List[Tuple[str, str]]],
+                                   input_col: str) -> Any:
     if not contributor_stats:
-        return lambda df: df.withColumn('num_commits', funcs.expr('0'))
+        return lambda df, _: df.withColumn('num_commits', funcs.expr('0'))
 
-    contributor_stat_df = spark.createDataFrame(contributor_stats, schema='author: string, num_commits: int')
-    return lambda df: df.join(contributor_stat_df, 'author', 'LEFT_OUTER').na.fill({'num_commits': 0})
+    contributor_stat_df = spark.createDataFrame(contributor_stats, schema=f'author: string, num_commits: int')
+
+    def _func(df: DataFrame) -> DataFrame:
+        return df.join(contributor_stat_df, df[input_col] == contributor_stat_df.author, 'LEFT_OUTER') \
+            .na.fill({'num_commits': 0})
+
+    return _func
 
 
 def _create_func_to_enumerate_related_tests(spark: SparkSession,
                                             dep_graph: Dict[str, List[str]],
-                                            test_files: Dict[str, str]) -> Any:
+                                            test_files: Dict[str, str],
+                                            depth: int,
+                                            max_num_tests: Optional[int] = None) -> Any:
     broadcasted_dep_graph = spark.sparkContext.broadcast(dep_graph)
     broadcasted_test_files = spark.sparkContext.broadcast(list(test_files.items()))
 
-    def _func(df: DataFrame, output_col: str, depth: int, max_num_tests: Optional[int] = None) -> DataFrame:
+    def _func(df: DataFrame) -> DataFrame:
         @funcs.pandas_udf("string")  # type: ignore
         def _enumerate_tests(file_paths: pd.Series) -> pd.Series:
             parse_path = _create_func_to_transform_path_to_qualified_name()
@@ -127,8 +136,8 @@ def _create_func_to_enumerate_related_tests(spark: SparkSession,
             .selectExpr('sha', 'explode_outer(tests) test') \
             .groupBy('sha') \
             .agg(funcs.expr(f'collect_set(test) tests')) \
-            .selectExpr('sha', 'size(tests) target_card', f'tests {output_col}') \
-            .where(f'{output_col} IS NOT NULL')
+            .selectExpr('sha', 'size(tests) target_card', f'tests related_tests') \
+            .where(f'related_tests IS NOT NULL')
 
         return df.join(related_test_df, 'sha', 'LEFT_OUTER')
 
@@ -138,14 +147,25 @@ def _create_func_to_enumerate_related_tests(spark: SparkSession,
 def _create_func_to_enumerate_all_tests(spark: SparkSession, test_files: Dict[str, str]) -> Any:
     all_test_df = spark.createDataFrame(list(test_files.items()), ['test', 'path'])
 
-    def _func(df: DataFrame, output_col: str) -> DataFrame:
-        return df.join(all_test_df.selectExpr(f'collect_set(test) {output_col}')) \
-            .withColumn('target_card', funcs.expr(f'size({output_col})'))
+    def _func(df: DataFrame) -> DataFrame:
+        return df.join(all_test_df.selectExpr(f'collect_set(test) all_tests')) \
+            .withColumn('target_card', funcs.expr(f'size(all_tests)'))
 
     return _func
 
 
-def _create_func_to_enrich_tests(failed_test_df: DataFrame) -> Tuple[Any, List[Dict[str, Any]]]:
+def _create_func_to_enrich_tests(spark: SparkSession, failed_tests: List[Dict[str, Any]]) -> Any:
+    failed_test_df = spark.createDataFrame(pd.DataFrame(failed_tests))
+
+    def _func(df: DataFrame) -> DataFrame:
+        return df.join(failed_test_df, df.test == failed_test_df.failed_test, 'LEFT_OUTER') \
+            .na.fill({'failed_num_7d': 0, 'failed_num_14d': 0, 'failed_num_28d': 0, 'total_failed_num': 0}) \
+            .drop('failed_test')
+
+    return _func
+
+
+def _create_func_to_enrich_tests_ex(spark: SparkSession, failed_test_df: DataFrame) -> Tuple[Any, List[Dict[str, Any]]]:
     def _intvl(d: int) -> str:
         return f"current_timestamp() - interval {d} days"
 
@@ -171,21 +191,16 @@ def _create_func_to_enrich_tests(failed_test_df: DataFrame) -> Tuple[Any, List[D
             funcs.expr('sum(failed_7d) failed_num_7d'),
             funcs.expr('sum(failed_14d) failed_num_14d'),
             funcs.expr('sum(failed_28d) failed_num_28d'),
-            funcs.expr('sum(failed) total_failed_num')) \
-        .cache()
-
-    def _func(df: DataFrame) -> DataFrame:
-        return df.join(failed_test_df, df.test == failed_test_df.failed_test, 'LEFT_OUTER') \
-            .na.fill({'failed_num_7d': 0, 'failed_num_14d': 0, 'failed_num_28d': 0, 'total_failed_num': 0}) \
-            .drop('failed_test')
+            funcs.expr('sum(failed) total_failed_num'))
 
     failed_tests = list(map(lambda r: r.asDict(), failed_test_df.collect()))
-    return _func, failed_tests
+    f = _create_func_to_enrich_tests(spark, failed_tests)
+    return f, failed_tests
 
 
 def _create_func_to_compute_distances(spark: SparkSession,
-                                      dep_graph: Dict[str, List[str]],
-                                      test_files: Dict[str, str]) -> Any:
+                                      dep_graph: Dict[str, List[str]], test_files: Dict[str, str],
+                                      input_files: str, input_test: str) -> Any:
     broadcasted_dep_graph = spark.sparkContext.broadcast(dep_graph)
     broadcasted_test_files = spark.sparkContext.broadcast(test_files)
 
@@ -246,102 +261,16 @@ def _create_func_to_compute_distances(spark: SparkSession,
 
         return pd.Series(ret)
 
-    def _func(df: DataFrame, files: str, test: str) -> DataFrame:
-        return df.withColumn('path_difference', _path_diff(funcs.expr(f'to_json({files})'), funcs.expr(test))) \
-            .withColumn('distance', _distance(funcs.expr(f'to_json({files})'), funcs.expr(test)))
+    def _func(df: DataFrame) -> DataFrame:
+        path_diff_udf = _path_diff(funcs.expr(f'to_json({input_files})'), funcs.expr(input_test))
+        return df.withColumn('path_difference', path_diff_udf) \
+            .withColumn('distance', _distance(funcs.expr(f'to_json({input_files})'), funcs.expr(input_test)))
 
     return _func
 
 
-def _expand_updated_files(df: DataFrame) -> DataFrame:
-    def _sum(c: str) -> Column:
-        return funcs.expr(f'aggregate({c}, 0, (x, y) -> int(x) + int(y))')
-
-    def _expand_by_update_rate(df: DataFrame) -> DataFrame:
-        return df \
-            .withColumn('udpated_num_3d', _sum('files.updated[0]')) \
-            .withColumn('udpated_num_14d', _sum('files.updated[1]')) \
-            .withColumn('udpated_num_56d', _sum('files.updated[2]')) \
-            .na.fill({'udpated_num_3d': 0, 'udpated_num_14d': 0, 'udpated_num_56d': 0})
-
-    df = _expand_by_update_rate(df) \
-        .withColumn('num_adds', _sum('files.file.additions')) \
-        .withColumn('num_dels', _sum("files.file.deletions")) \
-        .withColumn('num_chgs', _sum("files.file.changes"))
-
-    return df
-
-
-# This method extracts features from a dataset of historical test outcomes.
-# The current features used in our model are as follows:
-#  - Change history for files: the count of commits made to modified files in the last 3, 14, and 56 days
-#    (`updated_num_3d`, `updated_num_14d`, and `updated_num_15d`, respectively).
-#  - File update statistics: the total number of additions, deletions, and changes made to modified files
-#    (`num_adds`, `num_dels`, and `num_chgs`, respectively).
-#  - File cardinality: the number of files touched in a test run (`file_card`).
-#  - Target cardinality: the number of tests invoked in a test run (`target_card`).
-#  - Historical failure rates: the count of target test failures occurred in the last 7, 14, and 28 days
-#    (`failed_num_7d`, `failed_num_14d`, and `failed_num_28d`, respectively) and the total count
-#    of target test failures in historical test outcomes (`total_failed_num`).
-#  - Minimal distance between one of modified files and a prediction target: the number of different directories
-#    between file paths (`path_difference`). Let's say that we have two files: their file paths are
-#    'xxx/yyy/zzz/file' and 'xxx/aaa/zzz/test_file'. In the example, a minimal distance is 1.
-#
-# NOTE: The Facebook paper [1] reports that the best performance predictive model uses a change history,
-# failure rates, target cardinality, and minimal distances (For more details, see
-# "Section 6.B. Feature Selection" in the paper [1]). Even in our model, change history for files
-# and historical failure rates tend to be more important than the other features.
-#
-# TODO: Needs to improve predictive model performance by checking the other feature candidates
-# that can be found in the Facebook paper (See "Section 4.A. Feature Engineering") [1]
-# and the Google paper (See "Section 4. Hypotheses, Models and Results") [2].
-def _create_train_feature_from(df: DataFrame,
-                               enrich_authors: Any,
-                               enumerate_tests: Any,
-                               enrich_tests: Any,
-                               compute_minimal_distances: Any) -> DataFrame:
-    # TODO: Revisit this feature engineering
-    df = df.selectExpr('sha', 'author', 'commit_date', 'files', 'failed_tests')
-    df = enrich_authors(df).drop('author')
-    df = _expand_updated_files(df)
-
-    related_test_df = enumerate_tests(df, output_col='related_tests', depth=2, max_num_tests=16)
-
-    passed_test_df = related_test_df \
-        .selectExpr('*', 'array_except(related_tests, failed_tests) tests', '0 failed') \
-        .where('size(tests) > 0')
-
-    failed_test_df = related_test_df \
-        .where('size(failed_tests) > 0') \
-        .selectExpr('*', 'failed_tests tests', '1 failed')
-
-    df = passed_test_df.union(failed_test_df) \
-        .selectExpr('*', 'explode(tests) test') \
-        .drop('sha', 'related_tests', 'tests')
-
-    df = enrich_tests(df)
-    df = compute_minimal_distances(df, 'files.file.name', 'test')
-    df = df.withColumn('file_card', funcs.expr('size(files)'))
-    df = df.drop('commit_date', 'files', 'failed_tests', 'test')
-    return df
-
-
-def _create_test_feature_from(df: DataFrame,
-                              enrich_authors: Any,
-                              enumerate_tests: Any,
-                              enrich_tests: Any,
-                              compute_minimal_distances: Any) -> DataFrame:
-    df = df.selectExpr('sha', 'author', 'commit_date', 'files')
-    df = enrich_authors(df).drop('author')
-    df = _expand_updated_files(df)
-    df = enumerate_tests(df, output_col='related_tests') \
-        .selectExpr('*', 'explode_outer(related_tests) test') \
-        .drop('related_tests')
-    df = enrich_tests(df)
-    df = compute_minimal_distances(df, 'files.file.name', 'test')
-    df = df.withColumn('file_card', funcs.expr('size(files)'))
-    df = df.drop('commit_date', 'files')
-    return df
+def _create_func_compute_file_cardinality(input_col: str) -> Any:
+    return lambda df: df.withColumn('file_card', funcs.expr(f'size({input_col})'))
 
 
 # Our predictive model uses LightGBM, an implementation of gradient-boosted decision trees.
@@ -487,6 +416,17 @@ def _save_metrics_as_chart(output_path: str, metrics: List[Dict[str, Any]], max_
     plot.save(output_path)
 
 
+def _create_pipelines(funcs: List[Any]) -> Any:
+    def _func(df: DataFrame) -> DataFrame:
+        for f in funcs:
+            assert type(df) is DataFrame
+            df = f(df)
+
+        return df
+
+    return _func
+
+
 def _train_and_eval_ptest_model(output_path: str, spark: SparkSession, df: DataFrame,
                                 test_files: Dict[str, str],
                                 dep_graph: Dict[str, List[str]],
@@ -495,25 +435,114 @@ def _train_and_eval_ptest_model(output_path: str, spark: SparkSession, df: DataF
     train_df, test_df = _train_test_split(df, test_ratio=test_ratio)
     _logger.info(f"Split data: #total={df.count()}, #train={train_df.count()}, #test={test_df.count()}")
 
-    enrich_authors = _create_func_to_enrich_authors(spark, contributor_stats)
-    enumerate_related_tests = _create_func_to_enumerate_related_tests(spark, dep_graph, test_files)
+    # This pipeline extracts features from a dataset of historical test outcomes.
+    # The current features used in our model are as follows:
+    #  - Change history for files: the count of commits made to modified files in the last 3, 14, and 56 days
+    #    (`updated_num_3d`, `updated_num_14d`, and `updated_num_15d`, respectively).
+    #  - File update statistics: the total number of additions, deletions, and changes made to modified files
+    #    (`num_adds`, `num_dels`, and `num_chgs`, respectively).
+    #  - File cardinality: the number of files touched in a test run (`file_card`).
+    #  - Target cardinality: the number of tests invoked in a test run (`target_card`).
+    #  - Historical failure rates: the count of target test failures occurred in the last 7, 14, and 28 days
+    #    (`failed_num_7d`, `failed_num_14d`, and `failed_num_28d`, respectively) and the total count
+    #    of target test failures in historical test outcomes (`total_failed_num`).
+    #  - Minimal distance between one of modified files and a prediction target: the number of different directories
+    #    between file paths (`path_difference`). Let's say that we have two files: their file paths are
+    #    'xxx/yyy/zzz/file' and 'xxx/aaa/zzz/test_file'. In the example, a minimal distance is 1.
+    #
+    # NOTE: The Facebook paper [1] reports that the best performance predictive model uses a change history,
+    # failure rates, target cardinality, and minimal distances (For more details, see
+    # "Section 6.B. Feature Selection" in the paper [1]). Even in our model, change history for files
+    # and historical failure rates tend to be more important than the other features.
+    #
+    # TODO: Needs to improve predictive model performance by checking the other feature candidates
+    # that can be found in the Facebook paper (See "Section 4.A. Feature Engineering") [1]
+    # and the Google paper (See "Section 4. Hypotheses, Models and Results") [2].
+    def _expand_updated_files(df: DataFrame) -> DataFrame:
+        def _sum(c: str) -> Column:
+            return funcs.expr(f'aggregate({c}, 0, (x, y) -> int(x) + int(y))')
+
+        def _expand_by_update_rate(df: DataFrame) -> DataFrame:
+            return df \
+                .withColumn('udpated_num_3d', _sum('files.updated[0]')) \
+                .withColumn('udpated_num_14d', _sum('files.updated[1]')) \
+                .withColumn('udpated_num_56d', _sum('files.updated[2]')) \
+                .na.fill({'udpated_num_3d': 0, 'udpated_num_14d': 0, 'udpated_num_56d': 0})
+
+        df = _expand_by_update_rate(df) \
+            .withColumn('num_adds', _sum('files.file.additions')) \
+            .withColumn('num_dels', _sum("files.file.deletions")) \
+            .withColumn('num_chgs', _sum("files.file.changes"))
+
+        return df
+
+    def _add_failed_column(df: DataFrame) -> DataFrame:
+        passed_test_df = df \
+            .selectExpr('*', 'array_except(related_tests, failed_tests) tests', '0 failed') \
+            .where('size(tests) > 0')
+        failed_test_df = df \
+            .where('size(failed_tests) > 0') \
+            .selectExpr('*', 'failed_tests tests', '1 failed')
+        return passed_test_df.union(failed_test_df) \
+            .selectExpr('*', 'explode(tests) test')
+
+    expected_train_features = [
+        'num_commits',
+        'udpated_num_3d',
+        'udpated_num_14d',
+        'udpated_num_56d',
+        'num_adds',
+        'num_dels',
+        'num_chgs',
+        'target_card',
+        'failed_num_7d',
+        'failed_num_14d',
+        'failed_num_28d',
+        'total_failed_num',
+        'path_difference',
+        'distance',
+        'file_card'
+    ]
+
+    enrich_authors = _create_func_to_enrich_authors(spark, contributor_stats, input_col='author')
+    enumerate_related_tests = _create_func_to_enumerate_related_tests(spark, dep_graph, test_files, depth=2,
+                                                                      max_num_tests=16)
     enumerate_all_tests = _create_func_to_enumerate_all_tests(spark, test_files)
-    enrich_tests, failed_tests = _create_func_to_enrich_tests(train_df)
-    compute_distances = _create_func_to_compute_distances(spark, dep_graph, test_files)
+    enrich_tests, failed_tests = _create_func_to_enrich_tests_ex(spark, train_df)
+    compute_distances = _create_func_to_compute_distances(spark, dep_graph, test_files,
+                                                          input_files='files.file.name', input_test='test')
+    compute_file_cardinality = _create_func_compute_file_cardinality(input_col='files')
 
-    def _to_features(df: DataFrame, f: Any, enumerate_tests: Any) -> Any:
-        return f(df, enrich_authors, enumerate_tests, enrich_tests, compute_distances)
+    to_train_features = _create_pipelines([
+        enrich_authors,
+        _expand_updated_files,
+        enumerate_related_tests,
+        _add_failed_column,
+        enrich_tests,
+        compute_distances,
+        compute_file_cardinality,
+        lambda df: df.selectExpr(['failed', *expected_train_features])
+    ])
 
-    to_features = lambda df: _to_features(df, _create_train_feature_from, enumerate_related_tests)
-    clf = _build_predictive_model(train_df, to_features)
+    clf = _build_predictive_model(train_df, to_train_features)
 
     with open(f"{output_path}/failed-tests.json", 'w') as f:
         f.write(json.dumps(failed_tests, indent=2))
     with open(f"{output_path}/model.pkl", 'wb') as f:  # type: ignore
         pickle.dump(clf, f)  # type: ignore
 
-    to_features = lambda df: _to_features(df, _create_test_feature_from, enumerate_all_tests)
-    predicted = _predict_failed_probs_for_tests(test_df, clf, to_features)
+    expected_test_features = ['sha', 'test', *expected_train_features]
+    to_test_features = _create_pipelines([
+        enrich_authors,
+        _expand_updated_files,
+        enumerate_all_tests,
+        lambda df: df.selectExpr('*', 'explode_outer(all_tests) test'),
+        enrich_tests,
+        compute_distances,
+        compute_file_cardinality,
+        lambda df: df.selectExpr(expected_test_features)
+    ])
+    predicted = _predict_failed_probs_for_tests(test_df, clf, to_test_features)
     predicted = test_df.selectExpr('sha', 'failed_tests').join(predicted, 'sha', 'LEFT_OUTER') \
         .selectExpr('sha', 'target_card', 'failed_tests', 'coalesce(tests, array()) tests')
 
@@ -580,25 +609,23 @@ def train_main(argv: Any) -> None:
     try:
         # Assigns a random string if 'sha' is an empty string
         # TODO: Needs to validate input log data
+        expected_input_cols = [
+            'author',
+            'case when length(sha) > 0 then sha else sha(string(random())) end sha',
+            'commit_date',
+            'array_distinct(failed_tests) failed_tests',
+            'files'
+        ]
         log_data_df = spark.read.format('json').load(args.train_log_data) \
-            .withColumn('sha_', funcs.expr('case when length(sha) > 0 then sha else sha(string(random())) end')) \
-            .drop('sha') \
-            .withColumnRenamed('sha_', 'sha')
-
-        # Removes reduandant entries in `failed_tests`
-        log_data_df = log_data_df.withColumn('failed_tests_', funcs.expr('array_distinct(failed_tests)')) \
-            .drop('failed_tests') \
-            .withColumnRenamed('failed_tests_', 'failed_tests') \
-            .distinct()
+            .selectExpr(expected_input_cols)
 
         # Excludes failed tests (e.g., flaky ones) if necessary
         if excluded_tests:
             excluded_test_df = spark.createDataFrame(pd.DataFrame(excluded_tests, columns=['excluded_test'])) \
                 .selectExpr('collect_set(excluded_test) excluded_tests')
+            array_except_expr = 'array_except(failed_tests, excluded_tests) failed_tests'
             log_data_df = log_data_df.join(excluded_test_df) \
-                .withColumn('failed_tests_', funcs.expr('array_except(failed_tests, excluded_tests)')) \
-                .drop('failed_tests', 'excluded_tests') \
-                .withColumnRenamed('failed_tests_', 'failed_tests')
+                .selectExpr('author', 'sha', 'commit_date', array_except_expr, 'files')
 
         # Checks if all the failed tests exist in `test_files`
         failed_tests = log_data_df \
@@ -670,31 +697,52 @@ def predict_main(argv: Any) -> None:
     spark.sparkContext.setLogLevel("ERROR")
 
     try:
-        commit_info = [{
-            'num_commits': 0,
-            'udpated_num_3d': 0,
-            'udpated_num_14d': 0,
-            'udpated_num_56d': 0,
-            'num_adds': 0,
-            'num_dels': 0,
-            'num_chgs': 0
-        }]
+        df = spark.range(1).selectExpr([
+            '"" author',
+            'array("README.md") filenames',
+            '0 updated_num_3d',
+            '0 updated_num_14d',
+            '0 updated_num_56d',
+            '0 num_adds',
+            '0 num_dels',
+            '0 num_chgs'
+        ])
 
-        compute_distances = _create_func_to_compute_distances(spark, dep_graph, test_files)
-        commit_df = spark.createDataFrame(pd.DataFrame(commit_info)) \
-            .withColumn('filenames', funcs.expr('array("README.md")')) \
-            .withColumn('file_card', funcs.expr('size(filenames)'))
+        expected_features = [
+            'test',
+            'num_commits',
+            'updated_num_3d',
+            'updated_num_14d',
+            'updated_num_56d',
+            'num_adds',
+            'num_dels',
+            'num_chgs',
+            'size(filenames) file_card',
+            'failed_num_7d',
+            'failed_num_14d',
+            'failed_num_28d',
+            'total_failed_num',
+            'path_difference',
+            'distance'
+        ]
 
-        failed_test_df = spark.createDataFrame(pd.DataFrame(failed_tests)) \
-            .withColumnRenamed('failed_test', 'test')
+        enrich_authors = _create_func_to_enrich_authors(spark, contributor_stats, input_col='author')
+        enumerate_all_tests = _create_func_to_enumerate_all_tests(spark, test_files)
+        enrich_tests = _create_func_to_enrich_tests(spark, failed_tests)
+        compute_distances = _create_func_to_compute_distances(spark, dep_graph, test_files,
+                                                              input_files='filenames', input_test='test')
+        compute_file_cardinality = _create_func_compute_file_cardinality(input_col='filenames')
 
-        all_test_df = spark.createDataFrame(list(test_files.items()), ['test', 'path']).drop('path')
-        all_test_df = all_test_df.join(failed_test_df, 'test', 'LEFT_OUTER') \
-            .na.fill({'failed_num_7d': 0, 'failed_num_14d': 0, 'failed_num_28d': 0, 'total_failed_num': 0})
-        all_test_df = compute_distances(all_test_df.join(commit_df), 'filenames', 'test') \
-            .drop('filenames')
-
-        predicted = _predict_failed_probs(all_test_df, clf)
+        to_features = _create_pipelines([
+            enrich_authors,
+            enumerate_all_tests,
+            lambda df: df.selectExpr('*', 'explode_outer(all_tests) test'),
+            enrich_tests,
+            compute_distances,
+            compute_file_cardinality,
+            lambda df: df.selectExpr(expected_features)
+        ])
+        predicted = _predict_failed_probs(to_features(df), clf)
         selected_test_df = predicted \
             .selectExpr(f'slice(tests, 1, {args.num_selected_tests}) selected_tests') \
             .selectExpr('selected_tests.test selected_tests')
