@@ -17,6 +17,7 @@
 # limitations under the License.
 #
 
+import dateutil  # type: ignore
 import json
 import os
 import shutil
@@ -209,12 +210,12 @@ def _traverse_pull_requests(output_path: str,
 def _traverse_github_logs(argv: Any) -> None:
     from argparse import ArgumentParser
     parser = ArgumentParser()
-    parser.add_argument('--output', type=str, default='', required=True)
+    parser.add_argument('--output', type=str, required=True)
     parser.add_argument('--overwrite', action='store_true')
     parser.add_argument('--max-num-pullreqs', type=int, default=100000)
     parser.add_argument('--until', type=str)
     parser.add_argument('--since', type=str)
-    parser.add_argument('--github-token', type=str, default='', required=True)
+    parser.add_argument('--github-token', type=str, required=True)
     parser.add_argument('--github-owner', type=str, default='')
     parser.add_argument('--github-repo', type=str, default='')
     parser.add_argument('--resume', action='store_true')
@@ -242,9 +243,8 @@ def _traverse_github_logs(argv: Any) -> None:
     logger.info(f"rate_limit: {_rate_limit_msg(args.github_token)}")
 
     # Parses a specified datetime string if necessary
-    import dateutil.parser as parser  # type: ignore
-    until = parser.parse(args.until) if args.until else None
-    since = parser.parse(args.since) if args.since else None
+    until = dateutil.parser.parse(args.until) if args.until else None
+    since = dateutil.parser.parse(args.since) if args.since else None
 
     _traverse_pull_requests(args.output, args.github_owner, args.github_repo, args.github_token,
                             until, since, args.max_num_pullreqs, args.resume,
@@ -255,7 +255,7 @@ def _traverse_github_logs(argv: Any) -> None:
 def _show_rate_limit(argv: Any) -> None:
     from argparse import ArgumentParser
     parser = ArgumentParser()
-    parser.add_argument('--github-token', type=str, default='', required=True)
+    parser.add_argument('--github-token', type=str, required=True)
     args, _ = parser.parse_known_args(argv)
 
     print('======== GitHub Rate Limit ========')
@@ -265,11 +265,11 @@ def _show_rate_limit(argv: Any) -> None:
 def _list_contributor_stats(argv: Any) -> None:
     from argparse import ArgumentParser
     parser = ArgumentParser()
-    parser.add_argument('--output', type=str, default='', required=True)
+    parser.add_argument('--output', type=str, required=True)
     parser.add_argument('--overwrite', action='store_true')
-    parser.add_argument('--github-token', type=str, default='', required=True)
-    parser.add_argument('--github-owner', type=str, default='', required=True)
-    parser.add_argument('--github-repo', type=str, default='', required=True)
+    parser.add_argument('--github-token', type=str, required=True)
+    parser.add_argument('--github-owner', type=str, required=True)
+    parser.add_argument('--github-repo', type=str, required=True)
     args = parser.parse_args(argv)
 
     if args.overwrite:
@@ -283,16 +283,59 @@ def _list_contributor_stats(argv: Any) -> None:
         f.write(json.dumps(contributor_stats, indent=2))
 
 
+def _list_updated_file_stats(argv: Any) -> None:
+    from argparse import ArgumentParser
+    parser = ArgumentParser()
+    parser.add_argument('--output', type=str, required=True)
+    parser.add_argument('--overwrite', action='store_true')
+    parser.add_argument('--github-token', type=str, required=True)
+    parser.add_argument('--github-owner', type=str, required=True)
+    parser.add_argument('--github-repo', type=str, required=True)
+    parser.add_argument('--since', type=str, required=True)
+    args = parser.parse_args(argv)
+
+    if args.overwrite:
+        shutil.rmtree(args.output, ignore_errors=True)
+
+    # Make an output dir in advance
+    os.mkdir(args.output)
+
+    # Parses a specified datetime string
+    since_date = dateutil.parser.parse(args.since)
+
+    updated_files: List[Tuple[str, str, str, str, str]] = []
+    repo_commits = github_apis.list_repo_commits(args.github_owner, args.github_repo, args.github_token,
+                                                 since=since_date)
+    for sha, _, date, _ in tqdm.tqdm(repo_commits, desc=f"Commits ({args.github_owner}/{args.github_repo})"):
+        _, _, files = github_apis.list_change_files_from(sha, args.github_owner, args.github_repo, args.github_token)
+        for filename, adds, dels, chgs in files:
+            updated_files.append((filename, date, adds, dels, chgs))
+
+    updated_file_stats: Dict[str, List[Tuple[str, str, str, str]]] = {}
+    for filename, date, adds, dels, chgs in updated_files:
+        if filename not in updated_file_stats:
+            updated_file_stats[filename] = []
+
+        updated_file_stats[filename].append((date, adds, dels, chgs))
+
+    for key in updated_file_stats.keys():
+        f = lambda v: github_utils.from_github_datetime(v[0])
+        updated_file_stats[key] = sorted(updated_file_stats[key], key=f, reverse=True)
+
+    with open(f"{args.output}/updated-file-stats.json", mode='w') as f:  # type: ignore
+        f.write(json.dumps(updated_file_stats, indent=2))  # type: ignore
+
+
 def main() -> None:
     from argparse import ArgumentParser
     parser = ArgumentParser()
-    parser.add_argument('--list-file-update-stats', action='store_true')
+    parser.add_argument('--list-updated-file-stats', action='store_true')
     parser.add_argument('--list-contributor-stats', action='store_true')
     parser.add_argument('--show-rate-limit', action='store_true')
     args, rest_argv = parser.parse_known_args()
 
-    if args.list_file_update_stats:
-        _list_file_update_stats(rest_argv)
+    if args.list_updated_file_stats:
+        _list_updated_file_stats(rest_argv)
     elif args.list_contributor_stats:
         _list_contributor_stats(rest_argv)
     elif args.show_rate_limit:
