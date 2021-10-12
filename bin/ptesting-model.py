@@ -22,10 +22,11 @@ import os
 import pandas as pd  # type: ignore[import]
 import pickle
 import re
-from pyspark.sql import Column, DataFrame, SparkSession, functions as funcs
+from datetime import datetime, timedelta, timezone
+from pyspark.sql import DataFrame, SparkSession, functions as funcs
 from typing import Any, Dict, List, Optional, Tuple
 
-from ptesting import train
+from ptesting import github_utils, train
 
 
 def _setup_logger() -> Any:
@@ -64,13 +65,63 @@ def _create_func_to_enrich_authors(spark: SparkSession,
                                    contributor_stats: Optional[List[Tuple[str, str]]],
                                    input_col: str) -> Any:
     if not contributor_stats:
-        return lambda df, _: df.withColumn('num_commits', funcs.expr('0'))
+        return lambda df: df.withColumn('num_commits', funcs.expr('0'))
 
     contributor_stat_df = spark.createDataFrame(contributor_stats, schema=f'author: string, num_commits: int')
 
     def _func(df: DataFrame) -> DataFrame:
         return df.join(contributor_stat_df, df[input_col] == contributor_stat_df.author, 'LEFT_OUTER') \
             .na.fill({'num_commits': 0})
+
+    return _func
+
+
+def _create_func_to_enrich_files(spark: SparkSession,
+                                 updated_file_stats: Dict[str, List[Tuple[str, str, str, str]]],
+                                 input_commit_date: str,
+                                 input_filenames: str) -> Any:
+    broadcasted_updated_file_stats = spark.sparkContext.broadcast(updated_file_stats)
+
+    def _func(df: DataFrame) -> DataFrame:
+        @funcs.pandas_udf("string")  # type: ignore
+        def _enrich_files(dates: pd.Series, filenames: pd.Series) -> pd.Series:
+            updated_file_stats = broadcasted_updated_file_stats.value
+            ret = []
+            for commit_date, files in zip(dates, filenames):
+                base_date = datetime.strptime(commit_date, '%Y/%m/%d %H:%M:%S').replace(tzinfo=timezone.utc)
+                is_updated_in = lambda interval, date: \
+                    base_date - timedelta(interval) <= date and base_date >= date
+
+                updated_num_3d = 0
+                updated_num_14d = 0
+                updated_num_56d = 0
+
+                for file in json.loads(files):
+                    if file in updated_file_stats:
+                        history = updated_file_stats[file]
+                        for update_date, _, _, _ in history:
+                            update_date = github_utils.from_github_datetime(update_date)
+                            if is_updated_in(3, update_date):
+                                updated_num_3d += 1
+                            if is_updated_in(14, update_date):
+                                updated_num_14d += 1
+                            if is_updated_in(56, update_date):
+                                updated_num_56d += 1
+
+                ret.append(json.dumps({
+                    'n3d': updated_num_3d,
+                    'n14d': updated_num_14d,
+                    'n56d': updated_num_56d
+                }))
+
+            return pd.Series(ret)
+
+        enrich_files_expr = _enrich_files(funcs.expr(input_commit_date), funcs.expr(f'to_json({input_filenames})'))
+        return df.withColumn('updated_file_stats', enrich_files_expr)  \
+            .withColumn('ufs', funcs.expr('from_json(updated_file_stats, "struct<n3d: int, n14d: int, n56d: int>")')) \
+            .withColumn('updated_num_3d', funcs.expr('ufs.n3d')) \
+            .withColumn('updated_num_14d', funcs.expr('ufs.n14d')) \
+            .withColumn('updated_num_56d', funcs.expr('ufs.n56d'))
 
     return _func
 
@@ -284,8 +335,7 @@ def _build_predictive_model(df: DataFrame, to_features: Any) -> Any:
     X = pdf[pdf.columns[pdf.columns != 'failed']]  # type: ignore
     y = pdf['failed']
     X, y = train.rebalance_training_data(X, y)
-    # clf, score = train.build_model(X, y, opts={'hp.timeout': '3600', 'hp.no_progress_loss': '1000'})
-    clf, score = train.build_model(X, y, opts={'hp.timeout': '3600', 'hp.no_progress_loss': '1'})
+    clf, score = train.build_model(X, y, opts={'hp.timeout': '3600', 'hp.no_progress_loss': '1000'})
     _logger.info(f"model score: {score}")
     return clf
 
@@ -432,6 +482,7 @@ def _create_pipelines(funcs: List[Any]) -> Any:
 def _train_and_eval_ptest_model(output_path: str, spark: SparkSession, df: DataFrame,
                                 test_files: Dict[str, str],
                                 dep_graph: Dict[str, List[str]],
+                                updated_file_stats: Dict[str, List[Tuple[str, str, str, str]]],
                                 contributor_stats: Optional[List[Tuple[str, str]]],
                                 test_ratio: float = 0.20) -> None:
     train_df, test_df = _train_test_split(df, test_ratio=test_ratio)
@@ -460,39 +511,11 @@ def _train_and_eval_ptest_model(output_path: str, spark: SparkSession, df: DataF
     # TODO: Needs to improve predictive model performance by checking the other feature candidates
     # that can be found in the Facebook paper (See "Section 4.A. Feature Engineering") [1]
     # and the Google paper (See "Section 4. Hypotheses, Models and Results") [2].
-    def _expand_updated_files(df: DataFrame) -> DataFrame:
-        def _sum(c: str) -> Column:
-            return funcs.expr(f'aggregate({c}, 0, (x, y) -> int(x) + int(y))')
-
-        def _expand_by_update_rate(df: DataFrame) -> DataFrame:
-            return df \
-                .withColumn('udpated_num_3d', _sum('files.updated[0]')) \
-                .withColumn('udpated_num_14d', _sum('files.updated[1]')) \
-                .withColumn('udpated_num_56d', _sum('files.updated[2]')) \
-                .na.fill({'udpated_num_3d': 0, 'udpated_num_14d': 0, 'udpated_num_56d': 0})
-
-        df = _expand_by_update_rate(df) \
-            .withColumn('num_adds', _sum('files.file.additions')) \
-            .withColumn('num_dels', _sum("files.file.deletions")) \
-            .withColumn('num_chgs', _sum("files.file.changes"))
-
-        return df
-
-    def _add_failed_column(df: DataFrame) -> DataFrame:
-        passed_test_df = df \
-            .selectExpr('*', 'array_except(related_tests, failed_tests) tests', '0 failed') \
-            .where('size(tests) > 0')
-        failed_test_df = df \
-            .where('size(failed_tests) > 0') \
-            .selectExpr('*', 'failed_tests tests', '1 failed')
-        return passed_test_df.union(failed_test_df) \
-            .selectExpr('*', 'explode(tests) test')
-
     expected_train_features = [
         'num_commits',
-        'udpated_num_3d',
-        'udpated_num_14d',
-        'udpated_num_56d',
+        'updated_num_3d',
+        'updated_num_14d',
+        'updated_num_56d',
         'num_adds',
         'num_dels',
         'num_chgs',
@@ -507,6 +530,8 @@ def _train_and_eval_ptest_model(output_path: str, spark: SparkSession, df: DataF
     ]
 
     enrich_authors = _create_func_to_enrich_authors(spark, contributor_stats, input_col='author')
+    enrich_files = _create_func_to_enrich_files(spark, updated_file_stats, input_commit_date='commit_date',
+                                                input_filenames='files.file.name')
     enumerate_related_tests = _create_func_to_enumerate_related_tests(spark, dep_graph, test_files, depth=2,
                                                                       max_num_tests=16)
     enumerate_all_tests = _create_func_to_enumerate_all_tests(spark, test_files)
@@ -515,9 +540,26 @@ def _train_and_eval_ptest_model(output_path: str, spark: SparkSession, df: DataF
                                                           input_files='files.file.name', input_test='test')
     compute_file_cardinality = _create_func_compute_file_cardinality(input_col='files')
 
+    def _expand_updated_stats(df: DataFrame) -> DataFrame:
+        sum_expr = lambda c: funcs.expr(f'aggregate({c}, 0, (x, y) -> int(x) + int(y))')
+        return df.withColumn('num_adds', sum_expr('files.file.additions')) \
+            .withColumn('num_dels', sum_expr("files.file.deletions")) \
+            .withColumn('num_chgs', sum_expr("files.file.changes"))
+
+    def _add_failed_column(df: DataFrame) -> DataFrame:
+        passed_test_df = df \
+            .selectExpr('*', 'array_except(related_tests, failed_tests) tests', '0 failed') \
+            .where('size(tests) > 0')
+        failed_test_df = df \
+            .where('size(failed_tests) > 0') \
+            .selectExpr('*', 'failed_tests tests', '1 failed')
+        return passed_test_df.union(failed_test_df) \
+            .selectExpr('*', 'explode(tests) test')
+
     to_train_features = _create_pipelines([
         enrich_authors,
-        _expand_updated_files,
+        enrich_files,
+        _expand_updated_stats,
         enumerate_related_tests,
         _add_failed_column,
         enrich_tests,
@@ -536,7 +578,8 @@ def _train_and_eval_ptest_model(output_path: str, spark: SparkSession, df: DataF
     expected_test_features = ['sha', 'test', *expected_train_features]
     to_test_features = _create_pipelines([
         enrich_authors,
-        _expand_updated_files,
+        enrich_files,
+        _expand_updated_stats,
         enumerate_all_tests,
         lambda df: df.selectExpr('*', 'explode_outer(all_tests) test'),
         enrich_tests,
@@ -568,6 +611,7 @@ def train_main(argv: Any) -> None:
     parser.add_argument('--output', type=str, required=True)
     parser.add_argument('--train-log-data', type=str, required=True)
     parser.add_argument('--test-files', type=str, required=True)
+    parser.add_argument('--updated-file-stats', type=str, required=True)
     parser.add_argument('--contributor-stats', type=str, required=False)
     # TODO: Makes `--build-dep` optional
     parser.add_argument('--build-dep', type=str, required=True)
@@ -580,6 +624,8 @@ def train_main(argv: Any) -> None:
         raise ValueError(f"Training data not found in {os.path.abspath(args.train_log_data)}")
     if not os.path.exists(args.test_files):
         raise ValueError(f"Test list file not found in {os.path.abspath(args.test_files)}")
+    if not os.path.exists(args.updated_file_stats):
+        raise ValueError(f"Updated file stats not found in {os.path.abspath(args.updated_file_stats)}")
     if args.contributor_stats and not os.path.exists(args.contributor_stats):
         raise ValueError(f"Contributor stats not found in {os.path.abspath(args.contributor_stats)}")
     if args.build_dep and not os.path.exists(args.build_dep):
@@ -589,6 +635,7 @@ def train_main(argv: Any) -> None:
 
     from pathlib import Path
     test_files = json.loads(Path(args.test_files).read_text())
+    updated_file_stats = json.loads(Path(args.updated_file_stats).read_text())
     contributor_stats = json.loads(Path(args.contributor_stats).read_text()) \
         if args.contributor_stats else None
     dep_graph = json.loads(Path(args.build_dep).read_text()) \
@@ -640,7 +687,8 @@ def train_main(argv: Any) -> None:
             _logger.warning(f'Unknown failed tests found: {",".join(unknown_failed_tests)}')
 
         _train_and_eval_ptest_model(args.output, spark, log_data_df, test_files, dep_graph,
-                                    contributor_stats, test_ratio=0.10)
+                                    updated_file_stats, contributor_stats,
+                                    test_ratio=0.10)
     finally:
         spark.stop()
 
@@ -670,6 +718,13 @@ def _get_updated_file_stats(target: str, num_commits: int) -> Tuple[int, int, in
     return num_adds, num_dels, num_adds + num_dels
 
 
+def _get_latest_commit_date(target: str) -> str:
+    stdout, _, _ = _exec_subprocess(f'git -C {target} log -1 --format=%cd --date=iso')
+    import dateutil  # type: ignore
+    commit_date = dateutil.parser.parse(stdout.decode())
+    return commit_date.utcnow().strftime('%Y/%m/%d %H:%M:%S')
+
+
 def predict_main(argv: Any) -> None:
     # Parses command-line arguments for a prediction mode
     from argparse import ArgumentParser
@@ -681,6 +736,7 @@ def predict_main(argv: Any) -> None:
     parser.add_argument('--model', type=str, required=True)
     parser.add_argument('--test-files', type=str, required=True)
     parser.add_argument('--failed-tests', type=str, required=True)
+    parser.add_argument('--updated-file-stats', type=str, required=True)
     parser.add_argument('--contributor-stats', type=str, required=False)
     # TODO: Makes `--build-dep` optional
     parser.add_argument('--build-dep', type=str, required=True)
@@ -698,6 +754,8 @@ def predict_main(argv: Any) -> None:
         raise ValueError(f"Test list file not found in {os.path.abspath(args.test_files)}")
     if not os.path.exists(args.failed_tests):
         raise ValueError(f"Failed test list file not found in {os.path.abspath(args.failed_tests)}")
+    if not os.path.exists(args.updated_file_stats):
+        raise ValueError(f"Updated file stats not found in {os.path.abspath(args.updated_file_stats)}")
     if args.contributor_stats and not os.path.exists(args.contributor_stats):
         raise ValueError(f"Contributor stats not found in {os.path.abspath(args.contributor_stats)}")
     if args.build_dep and not os.path.exists(args.build_dep):
@@ -706,6 +764,7 @@ def predict_main(argv: Any) -> None:
     from pathlib import Path
     clf = pickle.loads(Path(args.model).read_bytes())
     test_files = json.loads(Path(args.test_files).read_text())
+    updated_file_stats = json.loads(Path(args.updated_file_stats).read_text())
     failed_tests = json.loads(Path(args.failed_tests).read_text())
     contributor_stats = json.loads(Path(args.contributor_stats).read_text()) \
         if args.contributor_stats else None
@@ -725,11 +784,13 @@ def predict_main(argv: Any) -> None:
     spark.sparkContext.setLogLevel("ERROR")
 
     try:
+        commit_date = _get_latest_commit_date(args.target)
         updated_files = ",".join(list(map(lambda f: f'"{f}"', _get_updated_files(args.target, args.num_commits))))
         num_adds, num_dels, num_chgs = _get_updated_file_stats(args.target, args.num_commits)
 
         df = spark.range(1).selectExpr([
             f'"{args.username}" author',
+            f'"{commit_date}" commit_date',
             f'array({updated_files}) filenames',
             f'{num_adds} num_adds',
             f'{num_dels} num_dels',
@@ -755,8 +816,8 @@ def predict_main(argv: Any) -> None:
         ]
 
         enrich_authors = _create_func_to_enrich_authors(spark, contributor_stats, input_col='author')
-        expand_updated_files = lambda df: df.withColumn('updated_num_3d', funcs.expr('0')) \
-            .withColumn('updated_num_14d', funcs.expr('0')).withColumn('updated_num_56d', funcs.expr('0'))
+        enrich_files = _create_func_to_enrich_files(spark, updated_file_stats, input_commit_date='commit_date',
+                                                    input_filenames='filenames')
         enumerate_all_tests = _create_func_to_enumerate_all_tests(spark, test_files)
         enrich_tests = _create_func_to_enrich_tests(spark, failed_tests)
         compute_distances = _create_func_to_compute_distances(spark, dep_graph, test_files,
@@ -765,7 +826,7 @@ def predict_main(argv: Any) -> None:
 
         to_features = _create_pipelines([
             enrich_authors,
-            expand_updated_files,
+            enrich_files,
             enumerate_all_tests,
             lambda df: df.selectExpr('*', 'explode_outer(all_tests) test'),
             enrich_tests,

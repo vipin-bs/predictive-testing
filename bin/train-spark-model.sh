@@ -35,4 +35,5 @@ exec python3 -u ${FWDIR}/bin/ptesting-model.py \
   --test-files ${FWDIR}/models/spark/indexes/latest/test-files.json \
   --excluded-tests ${FWDIR}/models/spark/logs/excluded-tests.json \
   --build-dep ${FWDIR}/models/spark/indexes/latest/dep-graph.json \
+  --updated-file-stats ${FWDIR}/models/spark/logs/updated-file-stats.json
   --contributor-stats ${FWDIR}/models/spark/logs/contributor-stats.json
