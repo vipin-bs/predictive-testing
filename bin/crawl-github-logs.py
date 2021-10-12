@@ -206,97 +206,99 @@ def _traverse_pull_requests(output_path: str,
         os.remove(resume_meta_fpath)
 
 
-def _traverse_github_logs(traverse_func: Any, output_path: str, overwrite: bool,
-                          owner: str, repo: str, token: str,
-                          until: Optional[str], since: Optional[str],
-                          max_num_pullreqs: int, resume: bool,
-                          sleep_if_limit_exceeded: bool) -> None:
-    if len(output_path) == 0:
-        raise ValueError("Output Path must be specified in '--output'")
-    if len(token) == 0:
-        raise ValueError("GitHub token must be specified in '--github-token'")
-    if not resume and len(owner) == 0:
+def _traverse_github_logs(argv: Any) -> None:
+    from argparse import ArgumentParser
+    parser = ArgumentParser()
+    parser.add_argument('--output', type=str, default='', required=True)
+    parser.add_argument('--overwrite', action='store_true')
+    parser.add_argument('--max-num-pullreqs', type=int, default=100000)
+    parser.add_argument('--until', type=str)
+    parser.add_argument('--since', type=str)
+    parser.add_argument('--github-token', type=str, default='', required=True)
+    parser.add_argument('--github-owner', type=str, default='')
+    parser.add_argument('--github-repo', type=str, default='')
+    parser.add_argument('--resume', action='store_true')
+    parser.add_argument('--sleep-if-limit-exceeded', action='store_true')
+    args = parser.parse_args(argv)
+
+    if not args.resume and len(args.github_owner) == 0:
         raise ValueError("GitHub owner must be specified in '--github-owner'")
-    if not resume and len(repo) == 0:
+    if not args.resume and len(args.github_repo) == 0:
         raise ValueError("GitHub repository must be specified in '--github-repo'")
 
-    if resume and not os.path.exists(output_path):
-        raise RuntimeError(f'Output path not found in {os.path.abspath(output_path)}')
-    elif not resume:
-        if overwrite:
-            shutil.rmtree(output_path, ignore_errors=True)
+    if args.resume and not os.path.exists(args.output):
+        raise RuntimeError(f'Output path not found in {os.path.abspath(args.output)}')
+    elif not args.resume:
+        if args.overwrite:
+            shutil.rmtree(args.output, ignore_errors=True)
 
         # Make an output dir in advance
-        os.mkdir(output_path)
+        os.mkdir(args.output)
 
     # For logger setup
-    logger = _setup_logger(f'{output_path}/debug-info.log')
+    logger = _setup_logger(f'{args.output}/debug-info.log')
 
     # logger rate limit
-    logger.info(f"rate_limit: {_rate_limit_msg(token)}")
+    logger.info(f"rate_limit: {_rate_limit_msg(args.github_token)}")
 
     # Parses a specified datetime string if necessary
     import dateutil.parser as parser  # type: ignore
-    until = parser.parse(until) if until else None
-    since = parser.parse(since) if since else None
+    until = parser.parse(args.until) if args.until else None
+    since = parser.parse(args.since) if args.since else None
 
-    traverse_func(output_path, owner, repo, token,
-                  until, since, max_num_pullreqs, resume,
-                  sleep_if_limit_exceeded,
-                  logger)
+    _traverse_pull_requests(args.output, args.github_owner, args.github_repo, args.github_token,
+                            until, since, args.max_num_pullreqs, args.resume,
+                            args.sleep_if_limit_exceeded,
+                            logger)
 
 
-def _show_rate_limit(token: str) -> None:
+def _show_rate_limit(argv: Any) -> None:
+    from argparse import ArgumentParser
+    parser = ArgumentParser()
+    parser.add_argument('--github-token', type=str, default='', required=True)
+    args, _ = parser.parse_known_args(argv)
+
     print('======== GitHub Rate Limit ========')
-    print(_rate_limit_msg(token))
+    print(_rate_limit_msg(args.github_token))
 
 
-def _list_contributor_stats(output_path: str, overwrite: bool, owner: str, repo: str, token: str) -> None:
-    if len(output_path) == 0:
-        raise ValueError("Output Path must be specified in '--output'")
-    if len(token) == 0:
-        raise ValueError("GitHub token must be specified in '--github-token'")
+def _list_contributor_stats(argv: Any) -> None:
+    from argparse import ArgumentParser
+    parser = ArgumentParser()
+    parser.add_argument('--output', type=str, default='', required=True)
+    parser.add_argument('--overwrite', action='store_true')
+    parser.add_argument('--github-token', type=str, default='', required=True)
+    parser.add_argument('--github-owner', type=str, default='', required=True)
+    parser.add_argument('--github-repo', type=str, default='', required=True)
+    args = parser.parse_args(argv)
 
-    if overwrite:
-        shutil.rmtree(output_path, ignore_errors=True)
+    if args.overwrite:
+        shutil.rmtree(args.output, ignore_errors=True)
 
     # Make an output dir in advance
-    os.mkdir(output_path)
+    os.mkdir(args.output)
 
-    contributor_stats = github_apis.list_contributor_stats(owner, repo, token)
-    with open(f"{output_path}/contributor-stats.json", mode='w') as f:
+    contributor_stats = github_apis.list_contributor_stats(args.github_owner, args.github_repo, args.github_token)
+    with open(f"{args.output}/contributor-stats.json", mode='w') as f:
         f.write(json.dumps(contributor_stats, indent=2))
 
 
 def main() -> None:
-    # Parses command-line arguments
     from argparse import ArgumentParser
     parser = ArgumentParser()
-    parser.add_argument('--output', dest='output', type=str, default='')
-    parser.add_argument('--overwrite', dest='overwrite', action='store_true')
-    parser.add_argument('--max-num-pullreqs', dest='max_num_pullreqs', type=int, default=100000)
-    parser.add_argument('--until', dest='until', type=str)
-    parser.add_argument('--since', dest='since', type=str)
-    parser.add_argument('--github-token', dest='github_token', type=str, default='')
-    parser.add_argument('--github-owner', dest='github_owner', type=str, default='')
-    parser.add_argument('--github-repo', dest='github_repo', type=str, default='')
-    parser.add_argument('--resume', dest='resume', action='store_true')
-    parser.add_argument('--sleep-if-limit-exceeded', dest='sleep_if_limit_exceeded', action='store_true')
-    parser.add_argument('--list-contributor-stats', dest='list_contributor_stats', action='store_true')
-    parser.add_argument('--show-rate-limit', dest='show_rate_limit', action='store_true')
-    args = parser.parse_args()
+    parser.add_argument('--list-file-update-stats', action='store_true')
+    parser.add_argument('--list-contributor-stats', action='store_true')
+    parser.add_argument('--show-rate-limit', action='store_true')
+    args, rest_argv = parser.parse_known_args()
 
-    if not args.show_rate_limit and not args.list_contributor_stats:
-        _traverse_github_logs(_traverse_pull_requests, args.output, args.overwrite,
-                              args.github_owner, args.github_repo, args.github_token,
-                              args.until, args.since,
-                              args.max_num_pullreqs, args.resume,
-                              args.sleep_if_limit_exceeded)
+    if args.list_file_update_stats:
+        _list_file_update_stats(rest_argv)
     elif args.list_contributor_stats:
-        _list_contributor_stats(args.output, args.overwrite,
-                                args.github_owner, args.github_repo, args.github_token)
+        _list_contributor_stats(rest_argv)
+    elif args.show_rate_limit:
+        _show_rate_limit(rest_argv)
     else:
-        _show_rate_limit(args.github_token)
+        _traverse_github_logs(rest_argv)
 
 
 if __name__ == "__main__":
