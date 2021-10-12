@@ -98,8 +98,7 @@ def _create_func_to_enrich_files(spark: SparkSession,
 
                 for file in json.loads(files):
                     if file in updated_file_stats:
-                        history = updated_file_stats[file]
-                        for update_date, _, _, _ in history:
+                        for update_date, _, _, _ in updated_file_stats[file]:
                             update_date = github_utils.from_github_datetime(update_date)
                             if is_updated_in(3, update_date):
                                 updated_num_3d += 1
@@ -205,48 +204,72 @@ def _create_func_to_enumerate_all_tests(spark: SparkSession, test_files: Dict[st
     return _func
 
 
-def _create_func_to_enrich_tests(spark: SparkSession, failed_tests: List[Dict[str, Any]]) -> Any:
-    failed_test_df = spark.createDataFrame(pd.DataFrame(failed_tests))
+def _build_failed_tests(train_df: DataFrame) -> Dict[str, List[str]]:
+    df = train_df.where('size(failed_tests) > 0') \
+        .selectExpr('commit_date', 'explode(failed_tests) failed_test') \
+        .groupBy('failed_test') \
+        .agg(funcs.expr('collect_set(commit_date)').alias('commit_dates'))
+
+    failed_tests: List[Tuple[str, List[str]]] = []
+    for row in df.collect():
+        commit_dates = sorted(row.commit_dates, key=lambda d: datetime.strptime(d, '%Y/%m/%d %H:%M:%S'), reverse=True)
+        failed_tests.append((row.failed_test, commit_dates))
+
+    return dict(failed_tests)
+
+
+def _create_func_to_enrich_tests(spark: SparkSession,
+                                 failed_tests: Dict[str, List[str]],
+                                 input_commit_date: str,
+                                 input_test: str) -> Any:
+    broadcasted_failed_tests = spark.sparkContext.broadcast(failed_tests)
 
     def _func(df: DataFrame) -> DataFrame:
-        return df.join(failed_test_df, df.test == failed_test_df.failed_test, 'LEFT_OUTER') \
-            .na.fill({'failed_num_7d': 0, 'failed_num_14d': 0, 'failed_num_28d': 0, 'total_failed_num': 0}) \
-            .drop('failed_test')
+        @funcs.pandas_udf("string")  # type: ignore
+        def _enrich_tests(dates: pd.Series, tests: pd.Series) -> pd.Series:
+            failed_tests = broadcasted_failed_tests.value
+            ret = []
+            for commit_date, test in zip(dates, tests):
+                base_date = datetime.strptime(commit_date, '%Y/%m/%d %H:%M:%S')
+                failed_in = lambda interval, date: \
+                    base_date - timedelta(interval) <= date and base_date >= date
+
+                failed_num_7d = 0
+                failed_num_14d = 0
+                failed_num_28d = 0
+                total_failed_num = 0
+
+                if test in failed_tests:
+                    for failed_date in failed_tests[test]:
+                        failed_date = datetime.strptime(failed_date, '%Y/%m/%d %H:%M:%S')  # type: ignore
+                        if failed_in(7, failed_date):
+                            failed_num_7d += 1
+                        if failed_in(14, failed_date):
+                            failed_num_14d += 1
+                        if failed_in(28, failed_date):
+                            failed_num_28d += 1
+
+                        total_failed_num += 1
+
+                ret.append(json.dumps({
+                    'n7d': failed_num_7d,
+                    'n14d': failed_num_14d,
+                    'n28d': failed_num_28d,
+                    'total': total_failed_num
+                }))
+
+            return pd.Series(ret)
+
+        enrich_tests_expr = _enrich_tests(funcs.expr(input_commit_date), funcs.expr(input_test))
+        failed_test_stats_schema = 'struct<n7d: int, n14d: int, n28d: int, total: int>'
+        return df.withColumn('failed_test_stats', enrich_tests_expr)  \
+            .withColumn('fts', funcs.expr(f'from_json(failed_test_stats, "{failed_test_stats_schema}")')) \
+            .withColumn('failed_num_7d', funcs.expr('fts.n7d')) \
+            .withColumn('failed_num_14d', funcs.expr('fts.n14d')) \
+            .withColumn('failed_num_28d', funcs.expr('fts.n28d')) \
+            .withColumn('total_failed_num', funcs.expr('fts.total'))
 
     return _func
-
-
-def _create_func_to_enrich_tests_ex(spark: SparkSession, failed_test_df: DataFrame) -> Tuple[Any, List[Dict[str, Any]]]:
-    def _intvl(d: int) -> str:
-        return f"current_timestamp() - interval {d} days"
-
-    def _failed(d: int) -> str:
-        return f'case when commit_date > intvl_{d}d then 1 else 0 end'
-
-    failed_test_df = failed_test_df \
-        .where('size(failed_tests) > 0') \
-        .selectExpr(
-            'to_timestamp(commit_date, "yyy/MM/dd HH:mm:ss") commit_date',
-            'explode_outer(failed_tests) failed_test',
-            f'{_intvl(7)} intvl_7d',
-            f'{_intvl(14)} intvl_14d',
-            f'{_intvl(28)} intvl_28d') \
-        .where('failed_test IS NOT NULL') \
-        .selectExpr(
-            'failed_test',
-            f'{_failed(7)} failed_7d',
-            f'{_failed(14)} failed_14d',
-            f'{_failed(28)} failed_28d',
-            '1 failed') \
-        .groupBy('failed_test').agg(
-            funcs.expr('sum(failed_7d) failed_num_7d'),
-            funcs.expr('sum(failed_14d) failed_num_14d'),
-            funcs.expr('sum(failed_28d) failed_num_28d'),
-            funcs.expr('sum(failed) total_failed_num'))
-
-    failed_tests = list(map(lambda r: r.asDict(), failed_test_df.collect()))
-    f = _create_func_to_enrich_tests(spark, failed_tests)
-    return f, failed_tests
 
 
 def _create_func_to_compute_distances(spark: SparkSession,
@@ -335,7 +358,7 @@ def _build_predictive_model(df: DataFrame, to_features: Any) -> Any:
     X = pdf[pdf.columns[pdf.columns != 'failed']]  # type: ignore
     y = pdf['failed']
     X, y = train.rebalance_training_data(X, y)
-    clf, score = train.build_model(X, y, opts={'hp.timeout': '3600', 'hp.no_progress_loss': '1000'})
+    clf, score = train.build_model(X, y, opts={'hp.timeout': '3600', 'hp.no_progress_loss': '1'})
     _logger.info(f"model score: {score}")
     return clf
 
@@ -535,7 +558,9 @@ def _train_and_eval_ptest_model(output_path: str, spark: SparkSession, df: DataF
     enumerate_related_tests = _create_func_to_enumerate_related_tests(spark, dep_graph, test_files, depth=2,
                                                                       max_num_tests=16)
     enumerate_all_tests = _create_func_to_enumerate_all_tests(spark, test_files)
-    enrich_tests, failed_tests = _create_func_to_enrich_tests_ex(spark, train_df)
+    failed_tests = _build_failed_tests(train_df)
+    enrich_tests = _create_func_to_enrich_tests(spark, failed_tests, input_commit_date='commit_date',
+                                                input_test='test')
     compute_distances = _create_func_to_compute_distances(spark, dep_graph, test_files,
                                                           input_files='files.file.name', input_test='test')
     compute_file_cardinality = _create_func_compute_file_cardinality(input_col='files')
@@ -819,7 +844,8 @@ def predict_main(argv: Any) -> None:
         enrich_files = _create_func_to_enrich_files(spark, updated_file_stats, input_commit_date='commit_date',
                                                     input_filenames='filenames')
         enumerate_all_tests = _create_func_to_enumerate_all_tests(spark, test_files)
-        enrich_tests = _create_func_to_enrich_tests(spark, failed_tests)
+        enrich_tests = _create_func_to_enrich_tests(spark, failed_tests, input_commit_date='commit_date',
+                                                    input_test='test')
         compute_distances = _create_func_to_compute_distances(spark, dep_graph, test_files,
                                                               input_files='filenames', input_test='test')
         compute_file_cardinality = _create_func_compute_file_cardinality(input_col='filenames')
