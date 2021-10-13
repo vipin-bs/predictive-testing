@@ -382,10 +382,10 @@ def _create_func_to_add_failed_column() -> Tuple[Any, List[str]]:
 #  - fast model training on commodity hardware
 #  - robustness in imbalanced datasets
 def _build_predictive_model(df: DataFrame, to_features: Any) -> Any:
-    pdf = to_features(df).drop('target_card').toPandas()
+    pdf = to_features(df).toPandas()
     X = pdf[pdf.columns[pdf.columns != 'failed']]  # type: ignore
     y = pdf['failed']
-    X, y = train.rebalance_training_data(X, y, coeff=4.0)
+    X, y = train.rebalance_training_data(X, y, coeff=1.0)
     clf, score = train.build_model(X, y, opts={'hp.timeout': '3600', 'hp.no_progress_loss': '1'})
     _logger.info(f"model score: {score}")
     return clf
@@ -400,8 +400,8 @@ def _train_test_split(df: DataFrame, test_ratio: float) -> Tuple[DataFrame, Data
 
 def _predict_failed_probs_for_tests(test_df: DataFrame, clf: Any, to_features: Any) -> DataFrame:
     test_feature_df = to_features(test_df)
-    pdf = test_feature_df.selectExpr('sha', 'target_card', 'test').toPandas()
-    X = test_feature_df.drop('sha', 'target_card', 'failed', 'test').toPandas()
+    pdf = test_feature_df.selectExpr('sha', 'test').toPandas()
+    X = test_feature_df.drop('sha', 'failed', 'test').toPandas()
     predicted = clf.predict_proba(X)
     pmf = map(lambda p: {"classes": clf.classes_.tolist(), "probs": p.tolist()}, predicted)
     pmf = map(lambda p: json.dumps(p), pmf)  # type: ignore
@@ -410,16 +410,15 @@ def _predict_failed_probs_for_tests(test_df: DataFrame, clf: Any, to_features: A
     to_failed_prob = 'map_from_arrays(pmf.classes, pmf.probs)["1"] failed_prob'
     df_with_failed_probs = test_df.sql_ctx.sparkSession.createDataFrame(pdf) \
         .withColumn('pmf', to_map_expr) \
-        .selectExpr('sha', 'target_card', 'test', to_failed_prob)
+        .selectExpr('sha', 'test', to_failed_prob)
 
     compare = lambda x, y: \
         f"case when {x}.failed_prob < {y}.failed_prob then 1 " \
         f"when {x}.failed_prob > {y}.failed_prob then -1 " \
         "else 0 end"
     df_with_failed_probs = df_with_failed_probs.groupBy('sha') \
-        .agg(funcs.expr('first(target_card)').alias('target_card'),
-             funcs.expr('collect_set(named_struct("test", test, "failed_prob", failed_prob))').alias('tests')) \
-        .selectExpr('sha', 'target_card', f'array_sort(tests, (l, r) -> {compare("l", "r")}) tests')
+        .agg(funcs.expr('collect_set(named_struct("test", test, "failed_prob", failed_prob))').alias('tests')) \
+        .selectExpr('sha', f'array_sort(tests, (l, r) -> {compare("l", "r")}) tests')
 
     return df_with_failed_probs
 
@@ -455,7 +454,7 @@ def _compute_eval_stats(df: DataFrame) -> DataFrame:
         .selectExpr('sha', 'failed_test', 'rank', 'tests[failed_test] score', 'max_score')
 
 
-def _compute_eval_metrics(predicted: DataFrame, eval_num_tests: List[int]) -> Any:
+def _compute_eval_metrics(predicted: DataFrame, total_num_tests: int, eval_num_tests: List[int]) -> Any:
     # This method computes metrics to measure the quality of a selected test set; "test recall", which is computed
     # in the method, represents the emprical probability of a particular test selection strategy catching
     # an individual failure (See "Section 3.B. Measuring Quality of Test Selection" in the Facebook paper [1]).
@@ -470,10 +469,10 @@ def _compute_eval_metrics(predicted: DataFrame, eval_num_tests: List[int]) -> An
         eval_df = predicted.withColumn('filtered_tests', filtered_test_expr) \
             .withColumn('tests_', funcs.expr(f'case when size(filtered_tests) <= {num_tests} then filtered_tests '
                                              f'else slice(tests, 1, {num_tests}) end')) \
-            .selectExpr('sha', 'target_card', 'failed_tests', 'transform(tests_, x -> x.test) tests') \
+            .selectExpr('sha', 'failed_tests', 'transform(tests_, x -> x.test) tests') \
             .selectExpr(
                 'sha',
-                'target_card num_dependent_tests',
+                f'{total_num_tests} num_dependent_tests',
                 'size(failed_tests) num_failed_tests',
                 'size(tests) num_tests',
                 'size(array_intersect(failed_tests, tests)) covered') \
@@ -583,7 +582,7 @@ def _train_and_eval_ptest_model(output_path: str, spark: SparkSession, df: DataF
         'num_adds',
         'num_dels',
         'num_chgs',
-        'target_card',
+        # 'target_card',
         'failed_num_7d',
         'failed_num_14d',
         'failed_num_28d',
@@ -648,11 +647,13 @@ def _train_and_eval_ptest_model(output_path: str, spark: SparkSession, df: DataF
             select_test_features
         ])
 
-    predicted = _predict_failed_probs_for_tests(test_df, clf, to_test_features)
+    predicted = _predict_failed_probs_for_tests(test_df.drop('failed_tests'), clf, to_test_features)
     predicted = test_df.selectExpr('sha', 'failed_tests').join(predicted, 'sha', 'LEFT_OUTER') \
-        .selectExpr('sha', 'target_card', 'failed_tests', 'coalesce(tests, array()) tests')
+        .selectExpr('sha', 'failed_tests', 'coalesce(tests, array()) tests')
 
-    metrics = _compute_eval_metrics(predicted, eval_num_tests=list(range(4, len(test_files) + 1, 4)))
+    num_test_files = len(test_files)
+    metrics = _compute_eval_metrics(predicted, total_num_tests=num_test_files,
+                                    eval_num_tests=list(range(4, num_test_files + 1, 4)))
     stats = _compute_eval_stats(predicted)
 
     with open(f"{output_path}/model-eval-stats.json", 'w') as f:  # type: ignore
