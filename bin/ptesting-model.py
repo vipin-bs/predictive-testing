@@ -76,52 +76,88 @@ def _create_func_to_enrich_authors(spark: SparkSession,
     return enrich_authors, [input_col]
 
 
+def _to_datetime(d: str, fmt: str) -> datetime:
+    return datetime.strptime(d, fmt).replace(tzinfo=timezone.utc)  # type: ignore
+
+
 def _create_func_to_enrich_files(spark: SparkSession,
-                                 commits: List[Tuple[str, str]],
+                                 commits: List[datetime],
                                  updated_file_stats: Dict[str, List[Tuple[str, str, str, str]]],
                                  input_commit_date: str,
                                  input_filenames: str) -> Tuple[Any, List[str]]:
     broadcasted_updated_file_stats = spark.sparkContext.broadcast(updated_file_stats)
+    broadcasted_commits = spark.sparkContext.broadcast(commits)
 
     def enrich_files(df: DataFrame) -> DataFrame:
         @funcs.pandas_udf("string")  # type: ignore
         def _enrich_files(dates: pd.Series, filenames: pd.Series) -> pd.Series:
             updated_file_stats = broadcasted_updated_file_stats.value
+            commits = broadcasted_commits.value
             ret = []
             for commit_date, files in zip(dates, filenames):
-                base_date = datetime.strptime(commit_date, '%Y/%m/%d %H:%M:%S').replace(tzinfo=timezone.utc)
-                is_updated_in = lambda interval, date: \
+                base_date = _to_datetime(commit_date, '%Y/%m/%d %H:%M:%S')
+                is_updated_in_days = lambda interval, date: \
                     base_date - timedelta(interval) <= date and base_date >= date
 
+                def is_updated_in_commits(num_commits: int, date: Any) -> bool:
+                    cur_pos = 0
+                    while cur_pos < len(commits):
+                        if commits[cur_pos] <= base_date:
+                            target_pos = cur_pos + min([num_commits, len(commits) - cur_pos - 1])
+                            return commits[target_pos] <= date and commits[cur_pos] >= date
+
+                        cur_pos += 1
+
+                    return False
+
+                # Time-dependent features
                 updated_num_3d = 0
                 updated_num_14d = 0
                 updated_num_56d = 0
+
+                # Commit-dependent features
+                updated_num_3c = 0
+                updated_num_14c = 0
+                updated_num_56c = 0
 
                 for file in json.loads(files):
                     if file in updated_file_stats:
                         for update_date, _, _, _ in updated_file_stats[file]:
                             update_date = github_utils.from_github_datetime(update_date)
-                            if is_updated_in(3, update_date):
+                            if is_updated_in_days(3, update_date):
                                 updated_num_3d += 1
-                            if is_updated_in(14, update_date):
+                            if is_updated_in_days(14, update_date):
                                 updated_num_14d += 1
-                            if is_updated_in(56, update_date):
+                            if is_updated_in_days(56, update_date):
                                 updated_num_56d += 1
+                            if is_updated_in_commits(3, update_date):
+                                updated_num_3c += 1
+                            if is_updated_in_commits(14, update_date):
+                                updated_num_14c += 1
+                            if is_updated_in_commits(56, update_date):
+                                updated_num_56c += 1
 
                 ret.append(json.dumps({
                     'n3d': updated_num_3d,
                     'n14d': updated_num_14d,
-                    'n56d': updated_num_56d
+                    'n56d': updated_num_56d,
+                    'n3c': updated_num_3c,
+                    'n14c': updated_num_14c,
+                    'n56c': updated_num_56c
                 }))
 
             return pd.Series(ret)
 
         enrich_files_expr = _enrich_files(funcs.expr(input_commit_date), funcs.expr(f'to_json({input_filenames})'))
+        enrich_files_schema = 'struct<n3d: int, n14d: int, n56d: int, n3c: int, n14c: int, n56c: int>'
         return df.withColumn('updated_file_stats', enrich_files_expr)  \
-            .withColumn('ufs', funcs.expr('from_json(updated_file_stats, "struct<n3d: int, n14d: int, n56d: int>")')) \
+            .withColumn('ufs', funcs.expr(f'from_json(updated_file_stats, "{enrich_files_schema}")')) \
             .withColumn('updated_num_3d', funcs.expr('ufs.n3d')) \
             .withColumn('updated_num_14d', funcs.expr('ufs.n14d')) \
-            .withColumn('updated_num_56d', funcs.expr('ufs.n56d'))
+            .withColumn('updated_num_56d', funcs.expr('ufs.n56d')) \
+            .withColumn('updated_num_3c', funcs.expr('ufs.n3c')) \
+            .withColumn('updated_num_14c', funcs.expr('ufs.n14c')) \
+            .withColumn('updated_num_56c', funcs.expr('ufs.n56c'))
 
     return enrich_files, [input_commit_date, input_filenames]
 
@@ -213,43 +249,69 @@ def _build_failed_tests(train_df: DataFrame) -> Dict[str, List[str]]:
 
     failed_tests: List[Tuple[str, List[str]]] = []
     for row in df.collect():
-        commit_dates = sorted(row.commit_dates, key=lambda d: datetime.strptime(d, '%Y/%m/%d %H:%M:%S'), reverse=True)
+        commit_dates = sorted(row.commit_dates, key=lambda d: _to_datetime(d, '%Y/%m/%d %H:%M:%S'), reverse=True)
         failed_tests.append((row.failed_test, commit_dates))
 
     return dict(failed_tests)
 
 
 def _create_func_to_enrich_tests(spark: SparkSession,
-                                 commits: List[Tuple[str, str]],
+                                 commits: List[datetime],
                                  failed_tests: Dict[str, List[str]],
                                  input_commit_date: str,
                                  input_test: str) -> Tuple[Any, List[str]]:
     broadcasted_failed_tests = spark.sparkContext.broadcast(failed_tests)
+    broadcasted_commits = spark.sparkContext.broadcast(commits)
 
     def enrich_tests(df: DataFrame) -> DataFrame:
         @funcs.pandas_udf("string")  # type: ignore
         def _enrich_tests(dates: pd.Series, tests: pd.Series) -> pd.Series:
             failed_tests = broadcasted_failed_tests.value
+            commits = broadcasted_commits.value
             ret = []
             for commit_date, test in zip(dates, tests):
-                base_date = datetime.strptime(commit_date, '%Y/%m/%d %H:%M:%S')
-                failed_in = lambda interval, date: \
+                base_date = _to_datetime(commit_date, '%Y/%m/%d %H:%M:%S')
+                failed_in_days = lambda interval, date: \
                     base_date - timedelta(interval) <= date and base_date >= date
 
+                def failed_in_commits(num_commits: int, date: Any) -> bool:
+                    cur_pos = 0
+                    while cur_pos < len(commits):
+                        if commits[cur_pos] <= base_date:
+                            target_pos = cur_pos + min([num_commits, len(commits) - cur_pos - 1])
+                            return commits[target_pos] <= date and commits[cur_pos] >= date
+
+                        cur_pos += 1
+
+                    return False
+
+                # Time-dependent features
                 failed_num_7d = 0
                 failed_num_14d = 0
                 failed_num_28d = 0
+
+                # Commit-dependent features
+                failed_num_7c = 0
+                failed_num_14c = 0
+                failed_num_28c = 0
+
                 total_failed_num = 0
 
                 if test in failed_tests:
                     for failed_date in failed_tests[test]:
-                        failed_date = datetime.strptime(failed_date, '%Y/%m/%d %H:%M:%S')  # type: ignore
-                        if failed_in(7, failed_date):
+                        failed_date = _to_datetime(failed_date, '%Y/%m/%d %H:%M:%S')
+                        if failed_in_days(7, failed_date):
                             failed_num_7d += 1
-                        if failed_in(14, failed_date):
+                        if failed_in_days(14, failed_date):
                             failed_num_14d += 1
-                        if failed_in(28, failed_date):
+                        if failed_in_days(28, failed_date):
                             failed_num_28d += 1
+                        if failed_in_commits(7, failed_date):
+                            failed_num_7c += 1
+                        if failed_in_commits(14, failed_date):
+                            failed_num_14c += 1
+                        if failed_in_commits(28, failed_date):
+                            failed_num_28c += 1
 
                         total_failed_num += 1
 
@@ -257,18 +319,24 @@ def _create_func_to_enrich_tests(spark: SparkSession,
                     'n7d': failed_num_7d,
                     'n14d': failed_num_14d,
                     'n28d': failed_num_28d,
+                    'n7c': failed_num_7c,
+                    'n14c': failed_num_14c,
+                    'n28c': failed_num_28c,
                     'total': total_failed_num
                 }))
 
             return pd.Series(ret)
 
         enrich_tests_expr = _enrich_tests(funcs.expr(input_commit_date), funcs.expr(input_test))
-        failed_test_stats_schema = 'struct<n7d: int, n14d: int, n28d: int, total: int>'
+        failed_test_stats_schema = 'struct<n7d: int, n14d: int, n28d: int, n7c: int, n14c: int, n28c: int, total: int>'
         return df.withColumn('failed_test_stats', enrich_tests_expr)  \
             .withColumn('fts', funcs.expr(f'from_json(failed_test_stats, "{failed_test_stats_schema}")')) \
             .withColumn('failed_num_7d', funcs.expr('fts.n7d')) \
             .withColumn('failed_num_14d', funcs.expr('fts.n14d')) \
             .withColumn('failed_num_28d', funcs.expr('fts.n28d')) \
+            .withColumn('failed_num_7c', funcs.expr('fts.n7c')) \
+            .withColumn('failed_num_14c', funcs.expr('fts.n14c')) \
+            .withColumn('failed_num_28c', funcs.expr('fts.n28c')) \
             .withColumn('total_failed_num', funcs.expr('fts.total'))
 
     return enrich_tests, [input_commit_date, input_test]
@@ -546,7 +614,7 @@ def _create_pipelines(name: str, funcs: List[Tuple[Any, List[str]]]) -> Any:
 
 def _train_and_eval_ptest_model(output_path: str, spark: SparkSession, df: DataFrame,
                                 test_files: Dict[str, str],
-                                commits: List[Tuple[str, str]],
+                                commits: List[datetime],
                                 dep_graph: Dict[str, List[str]],
                                 updated_file_stats: Dict[str, List[Tuple[str, str, str, str]]],
                                 contributor_stats: Optional[List[Tuple[str, str]]],
@@ -582,6 +650,9 @@ def _train_and_eval_ptest_model(output_path: str, spark: SparkSession, df: DataF
         'updated_num_3d',
         'updated_num_14d',
         'updated_num_56d',
+        'updated_num_3c',
+        'updated_num_14c',
+        'updated_num_56c',
         'num_adds',
         'num_dels',
         'num_chgs',
@@ -590,6 +661,9 @@ def _train_and_eval_ptest_model(output_path: str, spark: SparkSession, df: DataF
         'failed_num_7d',
         'failed_num_14d',
         'failed_num_28d',
+        'failed_num_7c',
+        'failed_num_14c',
+        'failed_num_28c',
         'total_failed_num',
         'path_difference',
         'distance'
@@ -706,6 +780,7 @@ def train_main(argv: Any) -> None:
     from pathlib import Path
     test_files = json.loads(Path(args.test_files).read_text())
     commits = json.loads(Path(args.commits).read_text())
+    commits = list(map(lambda c: github_utils.from_github_datetime(c[0]), commits))
     updated_file_stats = json.loads(Path(args.updated_file_stats).read_text())
     contributor_stats = json.loads(Path(args.contributor_stats).read_text()) \
         if args.contributor_stats else None
@@ -839,6 +914,7 @@ def predict_main(argv: Any) -> None:
     clf = pickle.loads(Path(args.model).read_bytes())
     test_files = json.loads(Path(args.test_files).read_text())
     commits = json.loads(Path(args.commits).read_text())
+    commits = list(map(lambda c: github_utils.from_github_datetime(c[0]), commits))
     updated_file_stats = json.loads(Path(args.updated_file_stats).read_text())
     failed_tests = json.loads(Path(args.failed_tests).read_text())
     contributor_stats = json.loads(Path(args.contributor_stats).read_text()) \
@@ -878,6 +954,9 @@ def predict_main(argv: Any) -> None:
             'updated_num_3d',
             'updated_num_14d',
             'updated_num_56d',
+            'updated_num_3c',
+            'updated_num_14c',
+            'updated_num_56c',
             'num_adds',
             'num_dels',
             'num_chgs',
@@ -886,6 +965,9 @@ def predict_main(argv: Any) -> None:
             'failed_num_7d',
             'failed_num_14d',
             'failed_num_28d',
+            'failed_num_7c',
+            'failed_num_14c',
+            'failed_num_28c',
             'total_failed_num',
             'path_difference',
             'distance'
