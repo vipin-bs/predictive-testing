@@ -382,7 +382,7 @@ def _create_func_to_add_failed_column() -> Tuple[Any, List[str]]:
 #  - fast model training on commodity hardware
 #  - robustness in imbalanced datasets
 def _build_predictive_model(df: DataFrame, to_features: Any) -> Any:
-    pdf = to_features(df).toPandas()
+    pdf = to_features(df).drop('target_card').toPandas()
     X = pdf[pdf.columns[pdf.columns != 'failed']]  # type: ignore
     y = pdf['failed']
     X, y = train.rebalance_training_data(X, y, coeff=4.0)
@@ -517,7 +517,7 @@ def _save_metrics_as_chart(output_path: str, metrics: List[Dict[str, Any]], max_
     plot.save(output_path)
 
 
-def _create_pipelines(funcs: List[Tuple[Any, List[str]]]) -> Any:
+def _create_pipelines(name: str, funcs: List[Tuple[Any, List[str]]]) -> Any:
     def _columns_added(src: DataFrame, dst: DataFrame) -> Any:
         return list(set(dst.columns).difference(set(src.columns)))
 
@@ -530,13 +530,13 @@ def _create_pipelines(funcs: List[Tuple[Any, List[str]]]) -> Any:
             assert type(df) is DataFrame
             transformed_df = f(df)
             pipeline_input_columns = pipeline_input_columns.difference(set(input_cols))
-            _logger.debug(f"{f.__name__}({','.join(input_cols)}): "
-                          f"'{','.join(_columns_added(df, transformed_df))}' added, "
-                          f"'{','.join(_columns_removed(df, transformed_df))}' removed")
+            _logger.debug(f"{name}: {f.__name__}({','.join(input_cols)}) -> "
+                          f"[{','.join(_columns_added(df, transformed_df))}] added, "
+                          f"[{','.join(_columns_removed(df, transformed_df))}] removed")
             df = transformed_df
 
         if pipeline_input_columns:
-            _logger.warning(f'expected unused features: {",".join(pipeline_input_columns)}')
+            _logger.warning(f"{name}: expected unused features are [{','.join(pipeline_input_columns)}]")
 
         return df
 
@@ -610,17 +610,18 @@ def _train_and_eval_ptest_model(output_path: str, spark: SparkSession, df: DataF
     select_train_features = lambda df: df.selectExpr(['failed', *expected_train_features]), \
         ['failed', *expected_train_features]
 
-    to_train_features = _create_pipelines([
-        enrich_authors,
-        enrich_files,
-        expand_updated_stats,
-        enumerate_related_tests,
-        add_failed_column,
-        enrich_tests,
-        compute_distances,
-        compute_file_cardinality,
-        select_train_features
-    ])
+    to_train_features = _create_pipelines(
+        'to_train_features', [
+            enrich_authors,
+            enrich_files,
+            expand_updated_stats,
+            enumerate_related_tests,
+            add_failed_column,
+            enrich_tests,
+            compute_distances,
+            compute_file_cardinality,
+            select_train_features
+        ])
 
     clf = _build_predictive_model(train_df, to_train_features)
 
@@ -634,17 +635,19 @@ def _train_and_eval_ptest_model(output_path: str, spark: SparkSession, df: DataF
     explode_tests = lambda df: df.selectExpr('*', 'explode_outer(all_tests) test'), ['all_tests']
     select_test_features = lambda df: df.selectExpr(expected_test_features), expected_test_features
 
-    to_test_features = _create_pipelines([
-        enrich_authors,
-        enrich_files,
-        expand_updated_stats,
-        enumerate_all_tests,
-        explode_tests,
-        enrich_tests,
-        compute_distances,
-        compute_file_cardinality,
-        select_test_features
-    ])
+    to_test_features = _create_pipelines(
+        'to_test_features', [
+            enrich_authors,
+            enrich_files,
+            expand_updated_stats,
+            enumerate_all_tests,
+            explode_tests,
+            enrich_tests,
+            compute_distances,
+            compute_file_cardinality,
+            select_test_features
+        ])
+
     predicted = _predict_failed_probs_for_tests(test_df, clf, to_test_features)
     predicted = test_df.selectExpr('sha', 'failed_tests').join(predicted, 'sha', 'LEFT_OUTER') \
         .selectExpr('sha', 'target_card', 'failed_tests', 'coalesce(tests, array()) tests')
@@ -885,16 +888,18 @@ def predict_main(argv: Any) -> None:
         explode_tests = lambda df: df.selectExpr('*', 'explode_outer(all_tests) test'), ['all_tests']
         select_features = lambda df: df.selectExpr(expected_features), expected_features
 
-        to_features = _create_pipelines([
-            enrich_authors,
-            enrich_files,
-            enumerate_all_tests,
-            explode_tests,
-            enrich_tests,
-            compute_distances,
-            compute_file_cardinality,
-            select_features
-        ])
+        to_features = _create_pipelines(
+            'to_features', [
+                enrich_authors,
+                enrich_files,
+                enumerate_all_tests,
+                explode_tests,
+                enrich_tests,
+                compute_distances,
+                compute_file_cardinality,
+                select_features
+            ])
+
         predicted = _predict_failed_probs(to_features(df), clf)
         selected_test_df = predicted \
             .selectExpr(f'slice(tests, 1, {args.num_selected_tests}) selected_tests') \
