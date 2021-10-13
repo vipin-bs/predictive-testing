@@ -782,7 +782,7 @@ def _get_updated_file_stats(target: str, num_commits: int) -> Tuple[int, int, in
 
 def _get_latest_commit_date(target: str) -> str:
     stdout, _, _ = _exec_subprocess(f'git -C {target} log -1 --format=%cd --date=iso')
-    import dateutil  # type: ignore
+    import dateutil.parser  # type: ignore
     commit_date = dateutil.parser.parse(stdout.decode())
     return commit_date.utcnow().strftime('%Y/%m/%d %H:%M:%S')
 
