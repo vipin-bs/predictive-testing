@@ -194,11 +194,18 @@ def build_model(X: pd.DataFrame, y: pd.Series, opts: Dict[str, str] = {}) -> Any
     return _build_lgb_model(X, y, opts=opts)
 
 
-def rebalance_training_data(X: pd.DataFrame, y: pd.Series) -> Tuple[pd.DataFrame, pd.Series]:
+def rebalance_training_data(X: pd.DataFrame, y: pd.Series, coeff: float = 1.0) -> Tuple[pd.DataFrame, pd.Series]:
     # TODO: To improve model performance, we need to reconsider this sampling method?
-    from imblearn.under_sampling import RandomUnderSampler
-    rus = RandomUnderSampler(random_state=42)
-    X_res, y_res = rus.fit_resample(X, y)
     from collections import Counter
-    _logger.info(f"Rebalancing training data: {dict(Counter(y).items())} => {dict(Counter(y_res).items())}")
+    from imblearn.under_sampling import RandomUnderSampler
+    y_target_hist = dict(Counter(y).items())
+    min_key, min_value = min(y_target_hist.items(), key=lambda kv: kv[1])
+    for k in y_target_hist.keys():
+        if k != min_key:
+            y_target_hist[k] = int(min_value * coeff)
+
+    rus = RandomUnderSampler(sampling_strategy=y_target_hist, random_state=42)
+    X_res, y_res = rus.fit_resample(X, y)
+    _logger.info(f"Sampling training data (strategy={y_target_hist}): {dict(Counter(y).items())}"
+                 f" => {dict(Counter(y_res).items())}")
     return X_res, y_res
