@@ -77,6 +77,7 @@ def _create_func_to_enrich_authors(spark: SparkSession,
 
 
 def _create_func_to_enrich_files(spark: SparkSession,
+                                 commits: List[Tuple[str, str]],
                                  updated_file_stats: Dict[str, List[Tuple[str, str, str, str]]],
                                  input_commit_date: str,
                                  input_filenames: str) -> Tuple[Any, List[str]]:
@@ -219,6 +220,7 @@ def _build_failed_tests(train_df: DataFrame) -> Dict[str, List[str]]:
 
 
 def _create_func_to_enrich_tests(spark: SparkSession,
+                                 commits: List[Tuple[str, str]],
                                  failed_tests: Dict[str, List[str]],
                                  input_commit_date: str,
                                  input_test: str) -> Tuple[Any, List[str]]:
@@ -544,6 +546,7 @@ def _create_pipelines(name: str, funcs: List[Tuple[Any, List[str]]]) -> Any:
 
 def _train_and_eval_ptest_model(output_path: str, spark: SparkSession, df: DataFrame,
                                 test_files: Dict[str, str],
+                                commits: List[Tuple[str, str]],
                                 dep_graph: Dict[str, List[str]],
                                 updated_file_stats: Dict[str, List[Tuple[str, str, str, str]]],
                                 contributor_stats: Optional[List[Tuple[str, str]]],
@@ -583,23 +586,25 @@ def _train_and_eval_ptest_model(output_path: str, spark: SparkSession, df: DataF
         'num_dels',
         'num_chgs',
         # 'target_card',
+        'file_card',
         'failed_num_7d',
         'failed_num_14d',
         'failed_num_28d',
         'total_failed_num',
         'path_difference',
-        'distance',
-        'file_card'
+        'distance'
     ]
 
     enrich_authors = _create_func_to_enrich_authors(spark, contributor_stats, input_col='author')
-    enrich_files = _create_func_to_enrich_files(spark, updated_file_stats, input_commit_date='commit_date',
+    enrich_files = _create_func_to_enrich_files(spark, commits, updated_file_stats,
+                                                input_commit_date='commit_date',
                                                 input_filenames='files.file.name')
     enumerate_related_tests = _create_func_to_enumerate_related_tests(spark, dep_graph, test_files, depth=2,
                                                                       max_num_tests=16)
     enumerate_all_tests = _create_func_to_enumerate_all_tests(spark, test_files)
     failed_tests = _build_failed_tests(train_df)
-    enrich_tests = _create_func_to_enrich_tests(spark, failed_tests, input_commit_date='commit_date',
+    enrich_tests = _create_func_to_enrich_tests(spark, commits, failed_tests,
+                                                input_commit_date='commit_date',
                                                 input_test='test')
     compute_distances = _create_func_to_compute_distances(spark, dep_graph, test_files,
                                                           input_files='files.file.name', input_test='test')
@@ -673,6 +678,7 @@ def train_main(argv: Any) -> None:
     parser.add_argument('--output', type=str, required=True)
     parser.add_argument('--train-log-data', type=str, required=True)
     parser.add_argument('--test-files', type=str, required=True)
+    parser.add_argument('--commits', type=str, required=True)
     parser.add_argument('--updated-file-stats', type=str, required=True)
     parser.add_argument('--contributor-stats', type=str, required=False)
     # TODO: Makes `--build-dep` optional
@@ -686,6 +692,8 @@ def train_main(argv: Any) -> None:
         raise ValueError(f"Training data not found in {os.path.abspath(args.train_log_data)}")
     if not os.path.exists(args.test_files):
         raise ValueError(f"Test list file not found in {os.path.abspath(args.test_files)}")
+    if not os.path.exists(args.commits):
+        raise ValueError(f"Commit history file not found in {os.path.abspath(args.commits)}")
     if not os.path.exists(args.updated_file_stats):
         raise ValueError(f"Updated file stats not found in {os.path.abspath(args.updated_file_stats)}")
     if args.contributor_stats and not os.path.exists(args.contributor_stats):
@@ -697,6 +705,7 @@ def train_main(argv: Any) -> None:
 
     from pathlib import Path
     test_files = json.loads(Path(args.test_files).read_text())
+    commits = json.loads(Path(args.commits).read_text())
     updated_file_stats = json.loads(Path(args.updated_file_stats).read_text())
     contributor_stats = json.loads(Path(args.contributor_stats).read_text()) \
         if args.contributor_stats else None
@@ -748,7 +757,7 @@ def train_main(argv: Any) -> None:
         if len(unknown_failed_tests) > 0:
             _logger.warning(f'Unknown failed tests found: {",".join(unknown_failed_tests)}')
 
-        _train_and_eval_ptest_model(args.output, spark, log_data_df, test_files, dep_graph,
+        _train_and_eval_ptest_model(args.output, spark, log_data_df, test_files, commits, dep_graph,
                                     updated_file_stats, contributor_stats,
                                     test_ratio=0.10)
     finally:
@@ -797,6 +806,7 @@ def predict_main(argv: Any) -> None:
     parser.add_argument('--num-selected-tests', type=int, required=True)
     parser.add_argument('--model', type=str, required=True)
     parser.add_argument('--test-files', type=str, required=True)
+    parser.add_argument('--commits', type=str, required=True)
     parser.add_argument('--failed-tests', type=str, required=True)
     parser.add_argument('--updated-file-stats', type=str, required=True)
     parser.add_argument('--contributor-stats', type=str, required=False)
@@ -814,6 +824,8 @@ def predict_main(argv: Any) -> None:
         raise ValueError(f"Predictive model not found in {os.path.abspath(args.model)}")
     if not os.path.exists(args.test_files):
         raise ValueError(f"Test list file not found in {os.path.abspath(args.test_files)}")
+    if not os.path.exists(args.commits):
+        raise ValueError(f"Commit history file not found in {os.path.abspath(args.commits)}")
     if not os.path.exists(args.failed_tests):
         raise ValueError(f"Failed test list file not found in {os.path.abspath(args.failed_tests)}")
     if not os.path.exists(args.updated_file_stats):
@@ -826,6 +838,7 @@ def predict_main(argv: Any) -> None:
     from pathlib import Path
     clf = pickle.loads(Path(args.model).read_bytes())
     test_files = json.loads(Path(args.test_files).read_text())
+    commits = json.loads(Path(args.commits).read_text())
     updated_file_stats = json.loads(Path(args.updated_file_stats).read_text())
     failed_tests = json.loads(Path(args.failed_tests).read_text())
     contributor_stats = json.loads(Path(args.contributor_stats).read_text()) \
@@ -868,7 +881,8 @@ def predict_main(argv: Any) -> None:
             'num_adds',
             'num_dels',
             'num_chgs',
-            'size(filenames) file_card',
+            # 'target_card',
+            'file_card',
             'failed_num_7d',
             'failed_num_14d',
             'failed_num_28d',
@@ -878,10 +892,12 @@ def predict_main(argv: Any) -> None:
         ]
 
         enrich_authors = _create_func_to_enrich_authors(spark, contributor_stats, input_col='author')
-        enrich_files = _create_func_to_enrich_files(spark, updated_file_stats, input_commit_date='commit_date',
+        enrich_files = _create_func_to_enrich_files(spark, commits, updated_file_stats,
+                                                    input_commit_date='commit_date',
                                                     input_filenames='filenames')
         enumerate_all_tests = _create_func_to_enumerate_all_tests(spark, test_files)
-        enrich_tests = _create_func_to_enrich_tests(spark, failed_tests, input_commit_date='commit_date',
+        enrich_tests = _create_func_to_enrich_tests(spark, commits, failed_tests,
+                                                    input_commit_date='commit_date',
                                                     input_test='test')
         compute_distances = _create_func_to_compute_distances(spark, dep_graph, test_files,
                                                               input_files='filenames', input_test='test')

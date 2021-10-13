@@ -60,6 +60,7 @@ exec python3 -u ${FWDIR}/bin/ptesting-model.py \
   --num-selected-tests ${NUM_SELECTED_TESTS} \
   --model ${FWDIR}/models/spark/model.pkl \
   --test-files ${FWDIR}/models/spark/indexes/latest/test-files.json \
+  --commits ${FWDIR}/models/spark/logs/commits.json \
   --failed-tests ${FWDIR}/models/spark/failed-tests.json \
   --build-dep ${FWDIR}/models/spark/indexes/latest/dep-graph.json \
   --updated-file-stats ${FWDIR}/models/spark/logs/updated-file-stats.json \

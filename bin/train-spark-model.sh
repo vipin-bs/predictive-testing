@@ -33,6 +33,7 @@ exec python3 -u ${FWDIR}/bin/ptesting-model.py \
   --output ${FWDIR}/models/spark \
   --train-log-data ${FWDIR}/models/spark/logs/github-logs.json \
   --test-files ${FWDIR}/models/spark/indexes/latest/test-files.json \
+  --commits ${FWDIR}/models/spark/logs/commits.json \
   --excluded-tests ${FWDIR}/models/spark/logs/excluded-tests.json \
   --build-dep ${FWDIR}/models/spark/indexes/latest/dep-graph.json \
   --updated-file-stats ${FWDIR}/models/spark/logs/updated-file-stats.json \
