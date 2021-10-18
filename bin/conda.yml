@@ -24,3 +24,7 @@ dependencies:
   - altair=4.1.0
   - altair_viewer=0.3.0
   - altair_saver=0.5.0
+  - jupyterlab=3.2.0
+  - jupyter-lsp=1.4.1
+  - nbclassic=0.3.2
+  - nodejs=16.10.0

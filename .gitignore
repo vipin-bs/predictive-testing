@@ -8,3 +8,5 @@ spark-master
 derby.log
 metastore_db
 geckodriver.log
+.ipynb_checkpoints
+Untitled*.ipynb
