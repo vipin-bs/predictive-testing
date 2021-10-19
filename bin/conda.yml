@@ -28,3 +28,5 @@ dependencies:
   - jupyter-lsp=1.4.1
   - nbclassic=0.3.2
   - nodejs=16.10.0
+  - pip:
+    - jupyter-kite==2.0.2

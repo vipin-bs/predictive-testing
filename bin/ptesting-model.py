@@ -299,7 +299,7 @@ def _create_func_to_enrich_tests(spark: SparkSession,
 
                 if test in failed_tests:
                     for failed_date in failed_tests[test]:
-                        failed_date = _to_datetime(failed_date, '%Y/%m/%d %H:%M:%S')
+                        failed_date = _to_datetime(failed_date, '%Y/%m/%d %H:%M:%S')  # type: ignore
                         if failed_in_days(7, failed_date):
                             failed_num_7d += 1
                         if failed_in_days(14, failed_date):
@@ -612,16 +612,13 @@ def _create_pipelines(name: str, funcs: List[Tuple[Any, List[str]]]) -> Any:
     return _func
 
 
-def _train_and_eval_ptest_model(output_path: str, spark: SparkSession, df: DataFrame,
+def _create_train_test_pipeline(spark: SparkSession,
                                 test_files: Dict[str, str],
                                 commits: List[datetime],
                                 dep_graph: Dict[str, List[str]],
                                 updated_file_stats: Dict[str, List[Tuple[str, str, str, str]]],
                                 contributor_stats: Optional[List[Tuple[str, str]]],
-                                test_ratio: float = 0.20) -> None:
-    train_df, test_df = _train_test_split(df, test_ratio=test_ratio)
-    _logger.info(f"Split data: #total={df.count()}, #train={train_df.count()}, #test={test_df.count()}")
-
+                                failed_tests: Dict[str, List[str]]) -> Any:
     # This pipeline extracts features from a dataset of historical test outcomes.
     # The current features used in our model are as follows:
     #  - Change history for files: the count of commits made to modified files in the last 3, 14, and 56 days
@@ -676,7 +673,6 @@ def _train_and_eval_ptest_model(output_path: str, spark: SparkSession, df: DataF
     enumerate_related_tests = _create_func_to_enumerate_related_tests(spark, dep_graph, test_files, depth=2,
                                                                       max_num_tests=16)
     enumerate_all_tests = _create_func_to_enumerate_all_tests(spark, test_files)
-    failed_tests = _build_failed_tests(train_df)
     enrich_tests = _create_func_to_enrich_tests(spark, commits, failed_tests,
                                                 input_commit_date='commit_date',
                                                 input_test='test')
@@ -701,15 +697,7 @@ def _train_and_eval_ptest_model(output_path: str, spark: SparkSession, df: DataF
             select_train_features
         ])
 
-    clf = _build_predictive_model(train_df, to_train_features)
-
-    with open(f"{output_path}/failed-tests.json", 'w') as f:
-        f.write(json.dumps(failed_tests, indent=2))
-    with open(f"{output_path}/model.pkl", 'wb') as f:  # type: ignore
-        pickle.dump(clf, f)  # type: ignore
-
     expected_test_features = ['sha', 'test', *expected_train_features]
-
     explode_tests = lambda df: df.selectExpr('*', 'explode_outer(all_tests) test'), ['all_tests']
     select_test_features = lambda df: df.selectExpr(expected_test_features), expected_test_features
 
@@ -725,6 +713,30 @@ def _train_and_eval_ptest_model(output_path: str, spark: SparkSession, df: DataF
             compute_file_cardinality,
             select_test_features
         ])
+
+    return to_train_features, to_test_features
+
+
+def _train_and_eval_ptest_model(output_path: str, spark: SparkSession, df: DataFrame,
+                                test_files: Dict[str, str],
+                                commits: List[datetime],
+                                dep_graph: Dict[str, List[str]],
+                                updated_file_stats: Dict[str, List[Tuple[str, str, str, str]]],
+                                contributor_stats: Optional[List[Tuple[str, str]]],
+                                test_ratio: float = 0.20) -> None:
+    train_df, test_df = _train_test_split(df, test_ratio=test_ratio)
+    _logger.info(f"Split data: #total={df.count()}, #train={train_df.count()}, #test={test_df.count()}")
+
+    failed_tests = _build_failed_tests(train_df)
+    to_train_features, to_test_features = \
+        _create_train_test_pipeline(spark, test_files, commits, dep_graph, updated_file_stats,
+                                    contributor_stats, failed_tests)
+    clf = _build_predictive_model(train_df, to_train_features)
+
+    with open(f"{output_path}/failed-tests.json", 'w') as f:
+        f.write(json.dumps(failed_tests, indent=2))
+    with open(f"{output_path}/model.pkl", 'wb') as f:  # type: ignore
+        pickle.dump(clf, f)  # type: ignore
 
     predicted = _predict_failed_probs_for_tests(test_df.drop('failed_tests'), clf, to_test_features)
     predicted = test_df.selectExpr('sha', 'failed_tests').join(predicted, 'sha', 'LEFT_OUTER') \
@@ -743,6 +755,15 @@ def _train_and_eval_ptest_model(output_path: str, spark: SparkSession, df: DataF
         f.write(json.dumps(metrics, indent=2))  # type: ignore
 
     _save_metrics_as_chart(f"{output_path}/model-eval-metrics.svg", metrics, len(test_files))
+
+
+def _exclude_tests_from(df: DataFrame, excluded_tests: List[str]) -> DataFrame:
+    spark = df.sql_ctx.sparkSession
+    excluded_test_df = spark.createDataFrame(pd.DataFrame(excluded_tests, columns=['excluded_test'])) \
+        .selectExpr('collect_set(excluded_test) excluded_tests')
+    array_except_expr = 'array_except(failed_tests, excluded_tests) failed_tests'
+    return df.join(excluded_test_df) \
+        .selectExpr('author', 'sha', 'commit_date', array_except_expr, 'files')
 
 
 def train_main(argv: Any) -> None:
@@ -816,11 +837,7 @@ def train_main(argv: Any) -> None:
 
         # Excludes failed tests (e.g., flaky ones) if necessary
         if excluded_tests:
-            excluded_test_df = spark.createDataFrame(pd.DataFrame(excluded_tests, columns=['excluded_test'])) \
-                .selectExpr('collect_set(excluded_test) excluded_tests')
-            array_except_expr = 'array_except(failed_tests, excluded_tests) failed_tests'
-            log_data_df = log_data_df.join(excluded_test_df) \
-                .selectExpr('author', 'sha', 'commit_date', array_except_expr, 'files')
+            log_data_df = _exclude_tests_from(log_data_df, excluded_tests)
 
         # Checks if all the failed tests exist in `test_files`
         failed_tests = log_data_df \

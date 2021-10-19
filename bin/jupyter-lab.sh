@@ -29,9 +29,13 @@ fi
 
 if [ ! -z "$JUPYTER_EXT_INIT" ]; then
   # Install Jupyter extensions
+  jupyter labextension install jupyterlab-code-snippets
   jupyter labextension install @axlair/jupyterlab_vim
-  jupyter labextension install @krassowski/jupyterlab-lsp
+  # jupyter labextension install @krassowski/jupyterlab-lsp
+  jupyter labextension install @kiteco/jupyterlab-kite
   # jupyter labextension install @lckr/jupyterlab_variableinspector
+  jupyter lab clean
+  jupyter lab build
 fi
 
-JUPYTERLAB_SETTINGS_DIR=${FWDIR}/.jupyter jupyter lab
+PYTHONPATH="${FWDIR}/python:${FWDIR}/bin" JUPYTERLAB_SETTINGS_DIR=${FWDIR}/.jupyter jupyter lab
