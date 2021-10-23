@@ -70,8 +70,6 @@ def _create_func_to_enrich_authors(spark: SparkSession,
     contributor_stat_df = spark.createDataFrame(contributor_stats, schema=f'author: string, num_commits: int')
 
     def enrich_authors(df: DataFrame) -> DataFrame:
-        _logger.warning(f'df_schema:{", ".join(df.columns)}')
-        _logger.warning(f'contributor_stats_schema:{", ".join(contributor_stat_df.columns)}')
         return df.join(contributor_stat_df, df[input_col] == contributor_stat_df.author, 'LEFT_OUTER') \
             .na.fill({'num_commits': 0})
 
