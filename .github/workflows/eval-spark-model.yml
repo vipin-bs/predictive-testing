@@ -16,7 +16,7 @@ jobs:
       (contains(github.event.comment.html_url, '/pull/') && startsWith(github.event.comment.body, '/eval')) }}
     runs-on: ubuntu-latest
     env:
-      python: 3.6
+      python: 3.7
     strategy:
       fail-fast: true
     steps:

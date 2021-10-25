@@ -13,7 +13,7 @@ jobs:
   crawl-spark-logs:
     runs-on: ubuntu-latest
     env:
-      python: 3.6
+      python: 3.7
     strategy:
       fail-fast: false
     steps:
