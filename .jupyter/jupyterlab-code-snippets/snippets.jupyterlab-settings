@@ -29,6 +29,181 @@
             ],
             "id": 0,
             "tags": []
+        },
+        {
+            "name": "Histogram (seaborn, numeric-only)",
+            "description": "",
+            "language": "Python",
+            "code": [
+                "def to_histogram_seaborn_numeirc_only(X):",
+                "    import matplotlib.pyplot as plt",
+                "    import seaborn as sns",
+                "    sns.set()",
+                "    fig = plt.figure(figsize=(20, 16))",
+                "    return X.hist(ax=fig.gca())"
+            ],
+            "id": 1,
+            "tags": []
+        },
+        {
+            "name": "SPLOM (altair)",
+            "description": "",
+            "language": "Python",
+            "code": [
+                "def to_splom_altair(X, target):",
+                "    import altair as alt",
+                "    chart = alt.Chart(X).mark_circle().encode(",
+                "        alt.X(alt.repeat(\"column\"), type='quantitative'),",
+                "        alt.Y(alt.repeat(\"row\"), type='quantitative'),",
+                "        color=f'{target}:N'",
+                "    )",
+                "    chart = chart.properties(width=100, height=100)",
+                "    chart = chart.repeat(",
+                "        row=X.columns.tolist(),",
+                "        column=X.columns.tolist()",
+                "    )",
+                "    return chart"
+            ],
+            "id": 2,
+            "tags": []
+        },
+        {
+            "name": "SPLOM (seaborn)",
+            "description": "",
+            "language": "Python",
+            "code": [
+                "def to_splom_seaborn(X):",
+                "    import seaborn as sns",
+                "    sns.pairplot(X, hue='failed', height=6.0)"
+            ],
+            "id": 3,
+            "tags": []
+        },
+        {
+            "name": "Correlation Heatmap (seaborn)",
+            "description": "",
+            "language": "Python",
+            "code": [
+                "def to_corr_heatmap(X):    ",
+                "    import matplotlib.pyplot as plt",
+                "    import seaborn as sns",
+                "    fig = plt.figure(figsize=(10, 8))",
+                "    return sns.heatmap(X.corr(method='pearson'), vmax=1, vmin=-1, center=0, ax=fig.gca())"
+            ],
+            "id": 4,
+            "tags": []
+        },
+        {
+            "name": "Mutual information between features",
+            "description": "",
+            "language": "Python",
+            "code": [
+                "def compute_mi_between_features(X):",
+                "    from minepy import MINE",
+                "    results = []",
+                "    mine = MINE(alpha=0.6, c=15, est=\"mic_approx\")",
+                "",
+                "    import itertools",
+                "    for c1, c2 in itertools.combinations(X.columns, 2):",
+                "        mine.compute_score(X[c1], X[c2])",
+                "        results.append(((c1, c2), mine.mic()))",
+                "",
+                "    return sorted(results, key=lambda x: x[1], reverse=True)"
+            ],
+            "id": 5,
+            "tags": []
+        },
+        {
+            "name": "Mutual information against target",
+            "description": "",
+            "language": "Python",
+            "code": [
+                "def compute_mi_against(target, X):",
+                "    from minepy import MINE",
+                "    results = []",
+                "    mine = MINE(alpha=0.6, c=15, est=\"mic_approx\")",
+                "",
+                "    for c in X.columns:",
+                "        mine.compute_score(y, X[c])",
+                "        results.append(((target, c), mine.mic()))",
+                "",
+                "    return sorted(results, key=lambda x: x[1], reverse=True)"
+            ],
+            "id": 6,
+            "tags": []
+        },
+        {
+            "name": "Bruta",
+            "description": "",
+            "language": "Python",
+            "code": [
+                "def select_features_with_bruta(X, y, is_discrete=True):",
+                "    from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor",
+                "    from boruta import BorutaPy",
+                "    model_class = RandomForestClassifier if is_discrete else RandomForestRegressor",
+                "    rf = model_class(n_jobs=-1, max_depth=5)",
+                "    rf.fit(X, y)",
+                "    print('SCORE with ALL Features: %1.2f' % rf.score(X, y))",
+                "",
+                "    rf = model_class(n_jobs=-1, max_depth=5)",
+                "    fs = BorutaPy(rf, n_estimators='auto', random_state=42, perc=80, two_step=False, max_iter=500)",
+                "    fs.fit(X.values, y.values)",
+                "",
+                "    selected = fs.support_",
+                "    X_selected = X[X.columns[selected]]",
+                "    rf = model_class(n_jobs=-1, max_depth=5)",
+                "    rf.fit(X_selected, y)",
+                "    print('SCORE with selected Features: %1.2f' % rf.score(X_selected, y))",
+                "    ",
+                "    return X.columns[selected]"
+            ],
+            "id": 7,
+            "tags": []
+        },
+        {
+            "name": "PCA (sklearn)",
+            "description": "",
+            "language": "Python",
+            "code": [
+                "def to_pca(X, y, target):",
+                "    from sklearn.decomposition import PCA",
+                "    pca = PCA(n_components=2)",
+                "    _X = pca.fit_transform(X)",
+                "    _X = pd.DataFrame({'PCA-X': _X[:, 0], 'PCA-Y': _X[:, 1], target: y})",
+                "",
+                "    import matplotlib.pyplot as plt",
+                "    import seaborn as sns",
+                "    fig = plt.figure(figsize=(10, 8))",
+                "    return sns.scatterplot(data=_X, x='PCA-X', y='PCA-Y', hue=target, ax=fig.gca())"
+            ],
+            "id": 8,
+            "tags": []
+        },
+        {
+            "name": "t-SNE (sklearn)",
+            "description": "",
+            "language": "Python",
+            "code": [
+                "def to_tsne(X, y, target, nsample=100, perplexity=50, n_iter=10000):",
+                "    # One of non-linear embedding in sklearn",
+                "    from sklearn.manifold import TSNE",
+                "    tsne = TSNE(n_components=2, random_state=42, perplexity=perplexity, n_iter=n_iter)",
+                "    _pdf = X.copy(deep=True)",
+                "    _pdf[target] = y",
+                "    _pdf_sampled = _pdf.sample(n=nsample, random_state=42)",
+                "    _X = _pdf_sampled[_pdf_sampled.columns[_pdf_sampled.columns != target]]",
+                "    _y = _pdf_sampled[target]",
+                "    _tf = tsne.fit_transform(_X)",
+                "    _X = pd.DataFrame({'tSNE-X': _tf[:, 0], 'tSNE-Y': _tf[:, 1], target: _y})",
+                "    print('KL divergence: {}'.format(tsne.kl_divergence_))",
+                "",
+                "    import matplotlib.pyplot as plt",
+                "    import seaborn as sns",
+                "    fig = plt.figure(figsize=(10, 8))",
+                "    return sns.scatterplot(data=_X, x='tSNE-X', y='tSNE-Y', hue=target, ax=fig.gca())"
+            ],
+            "id": 9,
+            "tags": []
         }
     ]
 }
