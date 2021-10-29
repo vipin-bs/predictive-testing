@@ -235,6 +235,39 @@
             ],
             "id": 11,
             "tags": []
+        },
+        {
+            "name": "UMAP",
+            "description": "",
+            "language": "Python",
+            "code": [
+                "def to_umap(X, y, target, n_neighbors=5, min_dist=0.3, metric='euclidean'):",
+                "    from umap import UMAP",
+                "    umap = UMAP(n_components=2, n_neighbors=n_neighbors, min_dist=min_dist, metric=metric)",
+                "    _data = umap.fit_transform(X)",
+                "    _X = pd.DataFrame({'tSNE-X': _data[:, 0], 'tSNE-Y': _data[:, 1], target: y})",
+                "",
+                "    import altair as alt",
+                "    chart = alt.Chart(_X).mark_point().encode(x='tSNE-X', y='tSNE-Y', color=f'{target}:N').properties(width=600, height=400).interactive()",
+                "    return chart"
+            ],
+            "id": 12,
+            "tags": []
+        },
+        {
+            "name": "Dim Reduction (UMAP)",
+            "description": "",
+            "language": "Python",
+            "code": [
+                "def reduce_dim(X, y, target, n_components=2, n_neighbors=5, min_dist=0.3, metric='euclidean'):",
+                "    from umap import UMAP",
+                "    umap = UMAP(n_components=n_components, n_neighbors=n_neighbors, min_dist=min_dist, metric=metric)",
+                "    _data = umap.fit_transform(X)",
+                "    _columns = list(map(lambda x: f'UMAP-{x}', range(0, n_components)))",
+                "    return pd.DataFrame(_data, columns=_columns), umap"
+            ],
+            "id": 13,
+            "tags": []
         }
     ]
 }

@@ -700,6 +700,9 @@ def _create_train_test_pipeline(spark: SparkSession,
         ('total_failed_num', 'num_adds'),
         ('total_failed_num', 'num_dels'),
         ('total_failed_num', 'num_chgs'),
+        ('total_failed_num', 'updated_num_56d'),
+        ('total_failed_num', 'updated_num_56c'),
+        ('total_failed_num', 'path_difference'),
         ('total_failed_num', 'distance')
     ]
     compute_interaction_features = _create_func_to_compute_interaction_features(input_cols=interacted_features)
@@ -1036,6 +1039,9 @@ def predict_main(argv: Any) -> None:
             ('total_failed_num', 'num_adds'),
             ('total_failed_num', 'num_dels'),
             ('total_failed_num', 'num_chgs'),
+            ('total_failed_num', 'updated_num_56d'),
+            ('total_failed_num', 'updated_num_56c'),
+            ('total_failed_num', 'path_difference'),
             ('total_failed_num', 'distance')
         ]
         compute_interaction_features = _create_func_to_compute_interaction_features(input_cols=interacted_features)
