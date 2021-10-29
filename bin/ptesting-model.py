@@ -676,10 +676,22 @@ def _create_train_test_pipeline(spark: SparkSession,
         'path_difference',
         'distance',
         'total_failed_num__x__num_commits',
-        'total_failed_num__x__num_adds',
-        'total_failed_num__x__num_dels',
         'total_failed_num__x__num_chgs',
-        'total_failed_num__x__distance'
+        'total_failed_num__x__updated_num_56d',
+        'total_failed_num__x__updated_num_56c',
+        'total_failed_num__x__path_difference',
+        'total_failed_num__x__distance',
+        'failed_num_7d__x__num_commits',
+        'failed_num_7d__x__num_chgs',
+        'failed_num_7d__x__updated_num_56d',
+        'failed_num_7d__x__updated_num_56c',
+        'failed_num_7d__x__path_difference',
+        'failed_num_7d__x__distance',
+        'distance__x__num_commits',
+        'distance__x__num_chgs',
+        'distance__x__updated_num_56d',
+        'distance__x__updated_num_56c',
+        'distance__x__path_difference'
     ]
 
     enrich_authors = _create_func_to_enrich_authors(spark, contributor_stats, input_col='author')
@@ -697,13 +709,22 @@ def _create_train_test_pipeline(spark: SparkSession,
     compute_file_cardinality = _create_func_to_compute_file_cardinality(input_col='files')
     interacted_features = [
         ('total_failed_num', 'num_commits'),
-        ('total_failed_num', 'num_adds'),
-        ('total_failed_num', 'num_dels'),
         ('total_failed_num', 'num_chgs'),
         ('total_failed_num', 'updated_num_56d'),
         ('total_failed_num', 'updated_num_56c'),
         ('total_failed_num', 'path_difference'),
-        ('total_failed_num', 'distance')
+        ('total_failed_num', 'distance'),
+        ('failed_num_7d', 'num_commits'),
+        ('failed_num_7d', 'num_chgs'),
+        ('failed_num_7d', 'updated_num_56d'),
+        ('failed_num_7d', 'updated_num_56c'),
+        ('failed_num_7d', 'path_difference'),
+        ('failed_num_7d', 'distance'),
+        ('distance', 'num_commits'),
+        ('distance', 'num_chgs'),
+        ('distance', 'updated_num_56d'),
+        ('distance', 'updated_num_56c'),
+        ('distance', 'path_difference')
     ]
     compute_interaction_features = _create_func_to_compute_interaction_features(input_cols=interacted_features)
     expand_updated_stats = _create_func_to_expand_updated_stats()
@@ -1018,10 +1039,22 @@ def predict_main(argv: Any) -> None:
             'path_difference',
             'distance',
             'total_failed_num__x__num_commits',
-            'total_failed_num__x__num_adds',
-            'total_failed_num__x__num_dels',
             'total_failed_num__x__num_chgs',
-            'total_failed_num__x__distance'
+            'total_failed_num__x__updated_num_56d',
+            'total_failed_num__x__updated_num_56c',
+            'total_failed_num__x__path_difference',
+            'total_failed_num__x__distance',
+            'failed_num_7d__x__num_commits',
+            'failed_num_7d__x__num_chgs',
+            'failed_num_7d__x__updated_num_56d',
+            'failed_num_7d__x__updated_num_56c',
+            'failed_num_7d__x__path_difference',
+            'failed_num_7d__x__distance',
+            'distance__x__num_commits',
+            'distance__x__num_chgs',
+            'distance__x__updated_num_56d',
+            'distance__x__updated_num_56c',
+            'distance__x__path_difference'
         ]
 
         enrich_authors = _create_func_to_enrich_authors(spark, contributor_stats, input_col='author')
@@ -1036,13 +1069,22 @@ def predict_main(argv: Any) -> None:
                                                               input_files='filenames', input_test='test')
         interacted_features = [
             ('total_failed_num', 'num_commits'),
-            ('total_failed_num', 'num_adds'),
-            ('total_failed_num', 'num_dels'),
             ('total_failed_num', 'num_chgs'),
             ('total_failed_num', 'updated_num_56d'),
             ('total_failed_num', 'updated_num_56c'),
             ('total_failed_num', 'path_difference'),
-            ('total_failed_num', 'distance')
+            ('total_failed_num', 'distance'),
+            ('failed_num_7d', 'num_commits'),
+            ('failed_num_7d', 'num_chgs'),
+            ('failed_num_7d', 'updated_num_56d'),
+            ('failed_num_7d', 'updated_num_56c'),
+            ('failed_num_7d', 'path_difference'),
+            ('failed_num_7d', 'distance'),
+            ('distance', 'num_commits'),
+            ('distance', 'num_chgs'),
+            ('distance', 'updated_num_56d'),
+            ('distance', 'updated_num_56c'),
+            ('distance', 'path_difference')
         ]
         compute_interaction_features = _create_func_to_compute_interaction_features(input_cols=interacted_features)
         compute_file_cardinality = _create_func_to_compute_file_cardinality(input_col='filenames')
