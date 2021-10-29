@@ -31,6 +31,23 @@
             "tags": []
         },
         {
+            "name": "Histogram (altair)",
+            "description": "",
+            "language": "Python",
+            "code": [
+                "def to_histogram(pdf):",
+                "    import altair as alt",
+                "    charts = []",
+                "    for c in pdf.columns:",
+                "        c = alt.Chart(pdf).mark_bar().encode(x=alt.X(c), y=alt.Y('count()', axis=alt.Axis(title='freq')))",
+                "        charts.append(c.properties(width=300, height=300))",
+                "",
+                "    return alt.hconcat(*charts)"
+            ],
+            "id": 1,
+            "tags": []
+        },
+        {
             "name": "Histogram (seaborn, numeric-only)",
             "description": "",
             "language": "Python",
@@ -42,7 +59,7 @@
                 "    fig = plt.figure(figsize=(20, 16))",
                 "    return X.hist(ax=fig.gca())"
             ],
-            "id": 1,
+            "id": 2,
             "tags": []
         },
         {
@@ -50,21 +67,22 @@
             "description": "",
             "language": "Python",
             "code": [
-                "def to_splom_altair(X, target):",
+                "def to_splom(pdf, target, cols=None):",
                 "    import altair as alt",
-                "    chart = alt.Chart(X).mark_circle().encode(",
+                "    _cols = cols if cols is not None else [c for c in pdf.columns if c != target]",
+                "    chart = alt.Chart(pdf).mark_circle().encode(",
                 "        alt.X(alt.repeat(\"column\"), type='quantitative'),",
                 "        alt.Y(alt.repeat(\"row\"), type='quantitative'),",
                 "        color=f'{target}:N'",
                 "    )",
-                "    chart = chart.properties(width=100, height=100)",
+                "    chart = chart.properties(width=200, height=200)",
                 "    chart = chart.repeat(",
-                "        row=X.columns.tolist(),",
-                "        column=X.columns.tolist()",
+                "        row=_cols,",
+                "        column=_cols",
                 "    )",
                 "    return chart"
             ],
-            "id": 2,
+            "id": 3,
             "tags": []
         },
         {
@@ -72,11 +90,11 @@
             "description": "",
             "language": "Python",
             "code": [
-                "def to_splom_seaborn(X):",
+                "def to_splom(pdf, target):",
                 "    import seaborn as sns",
-                "    sns.pairplot(X, hue='failed', height=6.0)"
+                "    sns.pairplot(pdf, hue=target, height=6.0)"
             ],
-            "id": 3,
+            "id": 4,
             "tags": []
         },
         {
@@ -84,13 +102,13 @@
             "description": "",
             "language": "Python",
             "code": [
-                "def to_corr_heatmap(X):    ",
+                "def to_corr_heatmap(pdf):    ",
                 "    import matplotlib.pyplot as plt",
                 "    import seaborn as sns",
                 "    fig = plt.figure(figsize=(10, 8))",
-                "    return sns.heatmap(X.corr(method='pearson'), vmax=1, vmin=-1, center=0, ax=fig.gca())"
+                "    return sns.heatmap(pdf.corr(method='pearson'), vmax=1, vmin=-1, center=0, ax=fig.gca())"
             ],
-            "id": 4,
+            "id": 5,
             "tags": []
         },
         {
@@ -98,19 +116,19 @@
             "description": "",
             "language": "Python",
             "code": [
-                "def compute_mi_between_features(X):",
+                "def compute_mi_between_features(pdf):",
                 "    from minepy import MINE",
                 "    results = []",
                 "    mine = MINE(alpha=0.6, c=15, est=\"mic_approx\")",
                 "",
                 "    import itertools",
-                "    for c1, c2 in itertools.combinations(X.columns, 2):",
-                "        mine.compute_score(X[c1], X[c2])",
+                "    for c1, c2 in itertools.combinations(pdf.columns, 2):",
+                "        mine.compute_score(pdf[c1], pdf[c2])",
                 "        results.append(((c1, c2), mine.mic()))",
                 "",
                 "    return sorted(results, key=lambda x: x[1], reverse=True)"
             ],
-            "id": 5,
+            "id": 6,
             "tags": []
         },
         {
@@ -118,7 +136,7 @@
             "description": "",
             "language": "Python",
             "code": [
-                "def compute_mi_against(target, X):",
+                "def compute_mi(X, y):",
                 "    from minepy import MINE",
                 "    results = []",
                 "    mine = MINE(alpha=0.6, c=15, est=\"mic_approx\")",
@@ -129,7 +147,7 @@
                 "",
                 "    return sorted(results, key=lambda x: x[1], reverse=True)"
             ],
-            "id": 6,
+            "id": 7,
             "tags": []
         },
         {
@@ -157,7 +175,21 @@
                 "    ",
                 "    return X.columns[selected]"
             ],
-            "id": 7,
+            "id": 8,
+            "tags": []
+        },
+        {
+            "name": "MinMax scaling (sklearn)",
+            "description": "",
+            "language": "Python",
+            "code": [
+                "def min_max_scaling(pdf):",
+                "    from sklearn import preprocessing",
+                "    mm = preprocessing.MinMaxScaler()",
+                "    data = mm.fit_transform(pdf)",
+                "    return pd.DataFrame(data, columns=pdf.columns)"
+            ],
+            "id": 9,
             "tags": []
         },
         {
@@ -176,7 +208,7 @@
                 "    fig = plt.figure(figsize=(10, 8))",
                 "    return sns.scatterplot(data=_X, x='PCA-X', y='PCA-Y', hue=target, ax=fig.gca())"
             ],
-            "id": 8,
+            "id": 10,
             "tags": []
         },
         {
@@ -190,19 +222,18 @@
                 "    tsne = TSNE(n_components=2, random_state=42, perplexity=perplexity, n_iter=n_iter)",
                 "    _pdf = X.copy(deep=True)",
                 "    _pdf[target] = y",
-                "    _pdf_sampled = _pdf.sample(n=nsample, random_state=42)",
+                "    _pdf_sampled = _pdf.dropna().sample(n=nsample, random_state=42)",
                 "    _X = _pdf_sampled[_pdf_sampled.columns[_pdf_sampled.columns != target]]",
                 "    _y = _pdf_sampled[target]",
                 "    _tf = tsne.fit_transform(_X)",
                 "    _X = pd.DataFrame({'tSNE-X': _tf[:, 0], 'tSNE-Y': _tf[:, 1], target: _y})",
                 "    print('KL divergence: {}'.format(tsne.kl_divergence_))",
                 "",
-                "    import matplotlib.pyplot as plt",
-                "    import seaborn as sns",
-                "    fig = plt.figure(figsize=(10, 8))",
-                "    return sns.scatterplot(data=_X, x='tSNE-X', y='tSNE-Y', hue=target, ax=fig.gca())"
+                "    import altair as alt",
+                "    chart = alt.Chart(_X).mark_point().encode(x='tSNE-X', y='tSNE-Y', color=f'{target}:N').properties(width=600, height=400).interactive()",
+                "    return chart"
             ],
-            "id": 9,
+            "id": 11,
             "tags": []
         }
     ]

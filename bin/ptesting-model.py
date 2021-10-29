@@ -421,6 +421,17 @@ def _create_func_to_compute_file_cardinality(input_col: str) -> Tuple[Any, List[
     return compute_file_cardinality, [input_col]
 
 
+def _create_func_to_compute_interaction_features(input_cols: List[Tuple[str, str]]) -> Tuple[Any, List[str]]:
+    interact_fts_exprs = list(map(lambda p: f'`{p[0]}` * `{p[1]}` AS `{p[0]}__x__{p[1]}`', input_cols))
+
+    def compute_interaction_features(df: DataFrame) -> DataFrame:
+        return df.selectExpr('*', *interact_fts_exprs)
+
+    import itertools
+    _input_cols = list(set((itertools.chain.from_iterable(input_cols))))
+    return compute_interaction_features, _input_cols
+
+
 def _create_func_to_expand_updated_stats() -> Tuple[Any, List[str]]:
     def expand_updated_stats(df: DataFrame) -> DataFrame:
         sum_expr = lambda c: funcs.expr(f'aggregate({c}, 0, (x, y) -> int(x) + int(y))')
@@ -663,7 +674,12 @@ def _create_train_test_pipeline(spark: SparkSession,
         'failed_num_28c',
         'total_failed_num',
         'path_difference',
-        'distance'
+        'distance',
+        'total_failed_num__x__num_commits',
+        'total_failed_num__x__num_adds',
+        'total_failed_num__x__num_dels',
+        'total_failed_num__x__num_chgs',
+        'total_failed_num__x__distance'
     ]
 
     enrich_authors = _create_func_to_enrich_authors(spark, contributor_stats, input_col='author')
@@ -679,6 +695,14 @@ def _create_train_test_pipeline(spark: SparkSession,
     compute_distances = _create_func_to_compute_distances(spark, dep_graph, test_files,
                                                           input_files='files.file.name', input_test='test')
     compute_file_cardinality = _create_func_to_compute_file_cardinality(input_col='files')
+    interacted_features = [
+        ('total_failed_num', 'num_commits'),
+        ('total_failed_num', 'num_adds'),
+        ('total_failed_num', 'num_dels'),
+        ('total_failed_num', 'num_chgs'),
+        ('total_failed_num', 'distance')
+    ]
+    compute_interaction_features = _create_func_to_compute_interaction_features(input_cols=interacted_features)
     expand_updated_stats = _create_func_to_expand_updated_stats()
     add_failed_column = _create_func_to_add_failed_column()
     select_train_features = lambda df: df.selectExpr(['failed', *expected_train_features]), \
@@ -694,6 +718,7 @@ def _create_train_test_pipeline(spark: SparkSession,
             enrich_tests,
             compute_distances,
             compute_file_cardinality,
+            compute_interaction_features,
             select_train_features
         ])
 
@@ -711,6 +736,7 @@ def _create_train_test_pipeline(spark: SparkSession,
             enrich_tests,
             compute_distances,
             compute_file_cardinality,
+            compute_interaction_features,
             select_test_features
         ])
 
@@ -987,7 +1013,12 @@ def predict_main(argv: Any) -> None:
             'failed_num_28c',
             'total_failed_num',
             'path_difference',
-            'distance'
+            'distance',
+            'total_failed_num__x__num_commits',
+            'total_failed_num__x__num_adds',
+            'total_failed_num__x__num_dels',
+            'total_failed_num__x__num_chgs',
+            'total_failed_num__x__distance'
         ]
 
         enrich_authors = _create_func_to_enrich_authors(spark, contributor_stats, input_col='author')
@@ -1000,6 +1031,14 @@ def predict_main(argv: Any) -> None:
                                                     input_test='test')
         compute_distances = _create_func_to_compute_distances(spark, dep_graph, test_files,
                                                               input_files='filenames', input_test='test')
+        interacted_features = [
+            ('total_failed_num', 'num_commits'),
+            ('total_failed_num', 'num_adds'),
+            ('total_failed_num', 'num_dels'),
+            ('total_failed_num', 'num_chgs'),
+            ('total_failed_num', 'distance')
+        ]
+        compute_interaction_features = _create_func_to_compute_interaction_features(input_cols=interacted_features)
         compute_file_cardinality = _create_func_to_compute_file_cardinality(input_col='filenames')
         explode_tests = lambda df: df.selectExpr('*', 'explode_outer(all_tests) test'), ['all_tests']
         select_features = lambda df: df.selectExpr(expected_features), expected_features
@@ -1013,6 +1052,7 @@ def predict_main(argv: Any) -> None:
                 enrich_tests,
                 compute_distances,
                 compute_file_cardinality,
+                compute_interaction_features,
                 select_features
             ])
 
