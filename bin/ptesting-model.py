@@ -466,8 +466,8 @@ def _build_predictive_model(df: DataFrame, to_features: Any) -> Any:
     pdf = to_features(df).toPandas()
     X = pdf[pdf.columns[pdf.columns != 'failed']]  # type: ignore
     y = pdf['failed']
-    X, y = train.rebalance_training_data(X, y, coeff=1.0)
-    clf, score = train.build_model(X, y, opts={'hp.timeout': '3600', 'hp.no_progress_loss': '1'})
+    X, y = train.rebalance_training_data(X, y, coeff=2.0)
+    clf, score = train.build_model(X, y, opts={'hp.timeout': '3600', 'hp.no_progress_loss': '10'})
     _logger.info(f"model score: {score}")
     return clf
 
@@ -774,8 +774,13 @@ def _train_and_eval_ptest_model(output_path: str, spark: SparkSession, df: DataF
                                 updated_file_stats: Dict[str, List[Tuple[str, str, str, str]]],
                                 contributor_stats: Optional[List[Tuple[str, str]]],
                                 test_ratio: float = 0.20) -> None:
+    def num_failed_tests(df: DataFrame) -> int:
+        return df.selectExpr('explode(failed_tests)').count()
+
     train_df, test_df = _train_test_split(df, test_ratio=test_ratio)
-    _logger.info(f"Split data: #total={df.count()}, #train={train_df.count()}, #test={test_df.count()}")
+    _logger.info('Split data: #total={}(#failed={}), #train={}(#failed={}), #test={}(#failed={})'.format(
+        df.count(), num_failed_tests(df), train_df.count(), num_failed_tests(train_df),
+        test_df.count(), num_failed_tests(test_df)))
 
     failed_tests = _build_failed_tests(train_df)
     to_train_features, to_test_features = \
