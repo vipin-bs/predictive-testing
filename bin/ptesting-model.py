@@ -493,6 +493,13 @@ def _predict_failed_probs_for_tests(test_df: DataFrame, clf: Any, to_features: A
         .withColumn('pmf', to_map_expr) \
         .selectExpr('sha', 'test', to_failed_prob)
 
+    # TODO: Applied an emprical rule: updated tests tend to fail possibly
+    # extract_test = 'transform(files.file.name, f -> replace(regexp_extract(f, "\/(org\/apache\/spark\/[a-zA-Z0-9/\-]+Suite)\.scala$", 1), "/", "."))'
+    # updated_test_df = test_df.selectExpr('sha', f'filter({extract_test}, f -> length(f) > 0) updated_tests')
+    # corrected_failed_prob = 'case when array_contains(updated_tests, test) then 1.0 else failed_prob end failed_prob'
+    # df_with_failed_probs = df_with_failed_probs.join(updated_test_df, 'sha', 'INNER') \
+    #     .selectExpr('sha', 'test', corrected_failed_prob)
+
     compare = lambda x, y: \
         f"case when {x}.failed_prob < {y}.failed_prob then 1 " \
         f"when {x}.failed_prob > {y}.failed_prob then -1 " \
