@@ -1,212 +1,1031 @@
 [
   {
-    "sha": "0b79e4aef9b8832accebd18d4d4a8135a6721fec",
-    "failed_test": "pyspark.pandas.tests.indexes.test_base",
-    "rank": 133,
-    "score": 0.0755147387903432,
-    "max_score": 0.9096429948116986
+    "sha": "d03a64cf0b4e5e303c35acabab84315b9247b09b",
+    "failed_test": "org.apache.spark.sql.hive.execution.HiveUDAFSuite",
+    "rank": 323,
+    "score": 0.029793821247520325,
+    "max_score": 0.07409948101044177
   },
   {
-    "sha": "bc71de3c94645763bf16b765b9274bbd46041f36",
-    "failed_test": "org.apache.spark.sql.catalyst.SQLKeywordSuite",
-    "rank": 1594,
-    "score": 0.059917717751023156,
-    "max_score": 0.5363955347894932
+    "sha": "d03a64cf0b4e5e303c35acabab84315b9247b09b",
+    "failed_test": "org.apache.spark.sql.hive.execution.HiveWindowFunctionQuerySuite",
+    "rank": 0,
+    "score": NaN,
+    "max_score": 0.07409948101044177
   },
   {
-    "sha": "58ac86e39b59dd4001c7b5c65b3621e11d7c8441",
-    "failed_test": "pyspark.ml.tests.test_algorithms",
-    "rank": 34,
-    "score": 0.2364274663850278,
-    "max_score": 0.4264061219605649
+    "sha": "d03a64cf0b4e5e303c35acabab84315b9247b09b",
+    "failed_test": "org.apache.spark.sql.ExpressionsSchemaSuite",
+    "rank": 84,
+    "score": 0.03256032440827141,
+    "max_score": 0.07409948101044177
   },
   {
-    "sha": "58ac86e39b59dd4001c7b5c65b3621e11d7c8441",
-    "failed_test": "pyspark.pandas.tests.data_type_ops.test_base",
-    "rank": 1758,
-    "score": 0.05173977883590587,
-    "max_score": 0.4264061219605649
-  },
-  {
-    "sha": "58ac86e39b59dd4001c7b5c65b3621e11d7c8441",
-    "failed_test": "pyspark.pandas.tests.indexes.test_base",
-    "rank": 130,
-    "score": 0.06871804691725829,
-    "max_score": 0.4264061219605649
-  },
-  {
-    "sha": "414aabe1938954d3bf56a7f93d23b6ef469a1622",
-    "failed_test": "org.apache.spark.sql.avro.AvroV1Suite",
-    "rank": 736,
-    "score": 0.0441541217349071,
-    "max_score": 0.8187744909164213
-  },
-  {
-    "sha": "414aabe1938954d3bf56a7f93d23b6ef469a1622",
-    "failed_test": "org.apache.spark.sql.avro.AvroV2Suite",
-    "rank": 737,
-    "score": 0.0441541217349071,
-    "max_score": 0.8187744909164213
-  },
-  {
-    "sha": "414aabe1938954d3bf56a7f93d23b6ef469a1622",
-    "failed_test": "org.apache.spark.sql.HiveCharVarcharTestSuite",
-    "rank": 935,
-    "score": 0.03635357390073682,
-    "max_score": 0.8187744909164213
-  },
-  {
-    "sha": "414aabe1938954d3bf56a7f93d23b6ef469a1622",
-    "failed_test": "org.apache.spark.sql.execution.datasources.FileIndexSuite",
-    "rank": 915,
-    "score": 0.03635357390073682,
-    "max_score": 0.8187744909164213
-  },
-  {
-    "sha": "414aabe1938954d3bf56a7f93d23b6ef469a1622",
-    "failed_test": "org.apache.spark.sql.execution.datasources.parquet.ParquetRebaseDatetimeV2Suite",
-    "rank": 1196,
-    "score": 0.035813750885279765,
-    "max_score": 0.8187744909164213
-  },
-  {
-    "sha": "414aabe1938954d3bf56a7f93d23b6ef469a1622",
-    "failed_test": "org.apache.spark.sql.execution.datasources.parquet.ParquetRebaseDatetimeV1Suite",
-    "rank": 1207,
-    "score": 0.035813750885279765,
-    "max_score": 0.8187744909164213
-  },
-  {
-    "sha": "414aabe1938954d3bf56a7f93d23b6ef469a1622",
-    "failed_test": "org.apache.spark.sql.execution.datasources.parquet.ParquetIOSuite",
-    "rank": 1179,
-    "score": 0.035813750885279765,
-    "max_score": 0.8187744909164213
-  },
-  {
-    "sha": "414aabe1938954d3bf56a7f93d23b6ef469a1622",
-    "failed_test": "org.apache.spark.sql.FileSourceCharVarcharTestSuite",
-    "rank": 822,
-    "score": 0.03796337386350492,
-    "max_score": 0.8187744909164213
-  },
-  {
-    "sha": "414aabe1938954d3bf56a7f93d23b6ef469a1622",
-    "failed_test": "org.apache.spark.sql.sources.InsertSuite",
-    "rank": 576,
-    "score": 0.049485652608934234,
-    "max_score": 0.8187744909164213
-  },
-  {
-    "sha": "36cf3c2f5c0edad8663bf4261d2a117cf7aab9df",
-    "failed_test": "pyspark.tests.test_worker",
-    "rank": 385,
-    "score": 0.062427203033883175,
-    "max_score": 0.4926304842390758
-  },
-  {
-    "sha": "a89afca4b66d5412d2327180f96a90686903eb8c",
-    "failed_test": "pyspark.ml.tests.test_algorithms",
-    "rank": 49,
-    "score": 0.2874349207906303,
-    "max_score": 0.9144978814852875
-  },
-  {
-    "sha": "a89afca4b66d5412d2327180f96a90686903eb8c",
-    "failed_test": "pyspark.pandas.tests.data_type_ops.test_base",
-    "rank": 1810,
-    "score": 0.057310877762826784,
-    "max_score": 0.9144978814852875
-  },
-  {
-    "sha": "a89afca4b66d5412d2327180f96a90686903eb8c",
-    "failed_test": "pyspark.pandas.tests.indexes.test_base",
-    "rank": 134,
-    "score": 0.07287497168706647,
-    "max_score": 0.9144978814852875
-  },
-  {
-    "sha": "033c2c8378700675750261b31f5c1f8f7f3c4e8d",
-    "failed_test": "pyspark.ml.tests.test_algorithms",
-    "rank": 36,
-    "score": 0.23687631081343796,
-    "max_score": 0.40643207186441005
-  },
-  {
-    "sha": "033c2c8378700675750261b31f5c1f8f7f3c4e8d",
-    "failed_test": "pyspark.pandas.tests.data_type_ops.test_base",
-    "rank": 1773,
-    "score": 0.05567731307335976,
-    "max_score": 0.40643207186441005
-  },
-  {
-    "sha": "033c2c8378700675750261b31f5c1f8f7f3c4e8d",
-    "failed_test": "pyspark.pandas.tests.indexes.test_base",
+    "sha": "d03a64cf0b4e5e303c35acabab84315b9247b09b",
+    "failed_test": "org.apache.spark.sql.expressions.ExpressionInfoSuite",
     "rank": 129,
-    "score": 0.07338147847759521,
-    "max_score": 0.40643207186441005
+    "score": 0.031587887668616525,
+    "max_score": 0.07409948101044177
   },
   {
-    "sha": "3e482ffa6a779aeebe67494f9a766d17ac2e2899",
-    "failed_test": "org.apache.spark.sql.TPCDSModifiedPlanStabilitySuite",
-    "rank": 3,
-    "score": 0.8931927044105116,
-    "max_score": 0.9071486665972767
-  },
-  {
-    "sha": "3e482ffa6a779aeebe67494f9a766d17ac2e2899",
-    "failed_test": "org.apache.spark.sql.TPCDSModifiedPlanStabilityWithStatsSuite",
-    "rank": 5,
-    "score": 0.8927739075253888,
-    "max_score": 0.9071486665972767
-  },
-  {
-    "sha": "5c9b1682a528daffde759726369051adee1ab723",
-    "failed_test": "pyspark.pandas.tests.data_type_ops.test_categorical_ops",
-    "rank": 1834,
-    "score": 0.05714025082132577,
-    "max_score": 0.5508132567617389
-  },
-  {
-    "sha": "8a3b657745e5dedd40445e965d079233bd4beacc",
-    "failed_test": "pyspark.pandas.tests.test_namespace",
-    "rank": 1817,
-    "score": 0.04593652526135445,
-    "max_score": 0.8610464813899031
-  },
-  {
-    "sha": "8a3b657745e5dedd40445e965d079233bd4beacc",
-    "failed_test": "pyspark.pandas.tests.test_series",
-    "rank": 1815,
-    "score": 0.04593652526135445,
-    "max_score": 0.8610464813899031
-  },
-  {
-    "sha": "d930f8925720672cb6120ff73826b662f88bc2a0",
-    "failed_test": "pyspark.pandas.tests.data_type_ops.test_categorical_ops",
-    "rank": 1852,
-    "score": 0.06977515858528051,
-    "max_score": 0.9044469224810341
-  },
-  {
-    "sha": "8db8b50e0621b46e6572ec72c1cc9aeca2a66807",
-    "failed_test": "org.apache.spark.sql.catalyst.analysis.AnalysisErrorSuite",
-    "rank": 35,
-    "score": 0.5153887661089094,
-    "max_score": 0.877170874226519
-  },
-  {
-    "sha": "8db8b50e0621b46e6572ec72c1cc9aeca2a66807",
+    "sha": "de0d183b72cf022cac2da1e860d2bd3f64e06d82",
     "failed_test": "org.apache.spark.sql.SQLQueryTestSuite",
     "rank": 1,
-    "score": 0.877170874226519,
-    "max_score": 0.877170874226519
+    "score": 0.10545095074960681,
+    "max_score": 0.10545095074960681
   },
   {
-    "sha": "8db8b50e0621b46e6572ec72c1cc9aeca2a66807",
+    "sha": "de0d183b72cf022cac2da1e860d2bd3f64e06d82",
+    "failed_test": "org.apache.spark.sql.SubquerySuite",
+    "rank": 57,
+    "score": 0.034594117983058066,
+    "max_score": 0.10545095074960681
+  },
+  {
+    "sha": "de0d183b72cf022cac2da1e860d2bd3f64e06d82",
+    "failed_test": "org.apache.spark.sql.TPCDSQueryTestSuite",
+    "rank": 0,
+    "score": NaN,
+    "max_score": 0.10545095074960681
+  },
+  {
+    "sha": "3af7e148c3b97e408531228bbc89e83a9938a5e9",
+    "failed_test": "org.apache.spark.sql.hive.execution.command.ShowPartitionsSuite",
+    "rank": 78,
+    "score": 0.02979026105276118,
+    "max_score": 0.07716469762537505
+  },
+  {
+    "sha": "3af7e148c3b97e408531228bbc89e83a9938a5e9",
+    "failed_test": "org.apache.spark.sql.hive.execution.command.AlterTableRenamePartitionSuite",
+    "rank": 5,
+    "score": 0.053954378213195764,
+    "max_score": 0.07716469762537505
+  },
+  {
+    "sha": "3af7e148c3b97e408531228bbc89e83a9938a5e9",
+    "failed_test": "org.apache.spark.sql.hive.PartitionedTablePerfStatsSuite",
+    "rank": 2,
+    "score": 0.062370942412299395,
+    "max_score": 0.07716469762537505
+  },
+  {
+    "sha": "3af7e148c3b97e408531228bbc89e83a9938a5e9",
+    "failed_test": "org.apache.spark.sql.hive.execution.command.DropTableSuite",
+    "rank": 74,
+    "score": 0.03175704737956522,
+    "max_score": 0.07716469762537505
+  },
+  {
+    "sha": "3af7e148c3b97e408531228bbc89e83a9938a5e9",
+    "failed_test": "org.apache.spark.sql.hive.execution.command.AlterTableDropPartitionSuite",
+    "rank": 6,
+    "score": 0.053954378213195764,
+    "max_score": 0.07716469762537505
+  },
+  {
+    "sha": "3af7e148c3b97e408531228bbc89e83a9938a5e9",
+    "failed_test": "org.apache.spark.sql.hive.execution.command.AlterTableAddPartitionSuite",
+    "rank": 79,
+    "score": 0.02979026105276118,
+    "max_score": 0.07716469762537505
+  },
+  {
+    "sha": "a668f504d82340229f6f1cc34e6bf79096cd18a1",
+    "failed_test": "org.apache.spark.sql.hive.client.VersionsSuite",
+    "rank": 48,
+    "score": 0.032259076048797714,
+    "max_score": 0.05593081895896984
+  },
+  {
+    "sha": "a668f504d82340229f6f1cc34e6bf79096cd18a1",
+    "failed_test": "org.apache.spark.sql.hive.PartitionProviderCompatibilitySuite",
+    "rank": 0,
+    "score": NaN,
+    "max_score": 0.05593081895896984
+  },
+  {
+    "sha": "a668f504d82340229f6f1cc34e6bf79096cd18a1",
+    "failed_test": "org.apache.spark.sql.hive.HiveExternalCatalogSuite",
+    "rank": 70,
+    "score": 0.029166277678929976,
+    "max_score": 0.05593081895896984
+  },
+  {
+    "sha": "a668f504d82340229f6f1cc34e6bf79096cd18a1",
+    "failed_test": "org.apache.spark.sql.hive.HiveExternalSessionCatalogSuite",
+    "rank": 0,
+    "score": NaN,
+    "max_score": 0.05593081895896984
+  },
+  {
+    "sha": "a668f504d82340229f6f1cc34e6bf79096cd18a1",
+    "failed_test": "org.apache.spark.sql.hive.execution.command.AlterTableRenamePartitionSuite",
+    "rank": 145,
+    "score": 0.02839999283681631,
+    "max_score": 0.05593081895896984
+  },
+  {
+    "sha": "386fc9c25f57c8fddf91537fb9464fd07c933d30",
+    "failed_test": "org.apache.spark.sql.hive.thriftserver.ThriftServerQueryTestSuite",
+    "rank": 7,
+    "score": 0.05533525595527466,
+    "max_score": 0.08889431598502226
+  },
+  {
+    "sha": "386fc9c25f57c8fddf91537fb9464fd07c933d30",
+    "failed_test": "org.apache.spark.sql.HiveCharVarcharTestSuite",
+    "rank": 30,
+    "score": 0.04231468380916633,
+    "max_score": 0.08889431598502226
+  },
+  {
+    "sha": "386fc9c25f57c8fddf91537fb9464fd07c933d30",
+    "failed_test": "org.apache.spark.sql.SQLQueryTestSuite",
+    "rank": 2,
+    "score": 0.0810021695308252,
+    "max_score": 0.08889431598502226
+  },
+  {
+    "sha": "386fc9c25f57c8fddf91537fb9464fd07c933d30",
+    "failed_test": "org.apache.spark.sql.DSV2CharVarcharTestSuite",
+    "rank": 341,
+    "score": 0.026548528142148874,
+    "max_score": 0.08889431598502226
+  },
+  {
+    "sha": "386fc9c25f57c8fddf91537fb9464fd07c933d30",
+    "failed_test": "org.apache.spark.sql.DataFrameSuite",
+    "rank": 8,
+    "score": 0.05295753081919706,
+    "max_score": 0.08889431598502226
+  },
+  {
+    "sha": "386fc9c25f57c8fddf91537fb9464fd07c933d30",
+    "failed_test": "org.apache.spark.sql.FileSourceCharVarcharTestSuite",
+    "rank": 29,
+    "score": 0.04231468380916633,
+    "max_score": 0.08889431598502226
+  },
+  {
+    "sha": "386fc9c25f57c8fddf91537fb9464fd07c933d30",
+    "failed_test": "org.apache.spark.sql.DataFrameFunctionsSuite",
+    "rank": 167,
+    "score": 0.028573343628643725,
+    "max_score": 0.08889431598502226
+  },
+  {
+    "sha": "a1f8e92ee6171fe2c7eadb24443e55386cb8ee56",
+    "failed_test": "org.apache.spark.sql.hive.execution.HashAggregationQuerySuite",
+    "rank": 0,
+    "score": NaN,
+    "max_score": 0.02897652005291241
+  },
+  {
+    "sha": "76894256f1b490c8bb46ab8a97c3a16878a0d896",
+    "failed_test": "org.apache.spark.sql.execution.datasources.parquet.ParquetVectorizedSuite",
+    "rank": 15,
+    "score": 0.04976347897753825,
+    "max_score": 0.07976819541745776
+  },
+  {
+    "sha": "305dacf51ce7bf39f93a2e0ba97960afdb3034d1",
+    "failed_test": "org.apache.spark.sql.jdbc.v2.OracleIntegrationSuite",
+    "rank": 84,
+    "score": 0.028957615123630195,
+    "max_score": 0.07959139626923166
+  },
+  {
+    "sha": "305dacf51ce7bf39f93a2e0ba97960afdb3034d1",
+    "failed_test": "org.apache.spark.sql.jdbc.v2.MsSqlServerIntegrationSuite",
+    "rank": 83,
+    "score": 0.028957615123630195,
+    "max_score": 0.07959139626923166
+  },
+  {
+    "sha": "305dacf51ce7bf39f93a2e0ba97960afdb3034d1",
+    "failed_test": "org.apache.spark.sql.jdbc.v2.DB2IntegrationSuite",
+    "rank": 86,
+    "score": 0.028957615123630195,
+    "max_score": 0.07959139626923166
+  },
+  {
+    "sha": "305dacf51ce7bf39f93a2e0ba97960afdb3034d1",
+    "failed_test": "org.apache.spark.sql.jdbc.v2.PostgresIntegrationSuite",
+    "rank": 87,
+    "score": 0.028957615123630195,
+    "max_score": 0.07959139626923166
+  },
+  {
+    "sha": "305dacf51ce7bf39f93a2e0ba97960afdb3034d1",
+    "failed_test": "org.apache.spark.sql.jdbc.JDBCV2Suite",
+    "rank": 36,
+    "score": 0.045172770163334805,
+    "max_score": 0.07959139626923166
+  },
+  {
+    "sha": "305dacf51ce7bf39f93a2e0ba97960afdb3034d1",
+    "failed_test": "org.apache.spark.sql.jdbc.JDBCSuite",
+    "rank": 35,
+    "score": 0.045172770163334805,
+    "max_score": 0.07959139626923166
+  },
+  {
+    "sha": "305dacf51ce7bf39f93a2e0ba97960afdb3034d1",
+    "failed_test": "org.apache.spark.sql.execution.datasources.v2.jdbc.JDBCTableCatalogSuite",
+    "rank": 33,
+    "score": 0.045172770163334805,
+    "max_score": 0.07959139626923166
+  },
+  {
+    "sha": "305dacf51ce7bf39f93a2e0ba97960afdb3034d1",
+    "failed_test": "org.apache.spark.sql.jdbc.JDBCWriteSuite",
+    "rank": 34,
+    "score": 0.045172770163334805,
+    "max_score": 0.07959139626923166
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.avro.AvroV1Suite",
+    "rank": 44,
+    "score": 0.040649213663474376,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.avro.AvroV2Suite",
+    "rank": 47,
+    "score": 0.040649213663474376,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.hive.thriftserver.HiveThriftBinaryServerSuite",
+    "rank": 853,
+    "score": 0.025629052479442863,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.hive.thriftserver.ThriftServerQueryTestSuite",
+    "rank": 43,
+    "score": 0.040649213663474376,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.hive.execution.SQLQuerySuite",
+    "rank": 45,
+    "score": 0.040649213663474376,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.hive.execution.HiveDDLSuite",
+    "rank": 60,
+    "score": 0.034227599809656506,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.hive.execution.HiveCatalogedDDLSuite",
+    "rank": 61,
+    "score": 0.034227599809656506,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.hive.execution.HiveQuerySuite",
+    "rank": 377,
+    "score": 0.02658050493967672,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.hive.execution.HiveCompatibilitySuite",
+    "rank": 108,
+    "score": 0.03188107414206515,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.hive.HiveSparkSubmitSuite",
+    "rank": 197,
+    "score": 0.02779108265250418,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.hive.HiveContextCompatibilitySuite",
+    "rank": 399,
+    "score": 0.02658050493967672,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.hive.orc.HiveOrcQuerySuite",
+    "rank": 57,
+    "score": 0.0356885975799219,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.hive.execution.command.ShowNamespacesSuite",
+    "rank": 339,
+    "score": 0.02658050493967672,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.sources.SimpleTextHadoopFsRelationSuite",
+    "rank": 316,
+    "score": 0.02658050493967672,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.hive.execution.command.ShowTablesSuite",
+    "rank": 24,
+    "score": 0.04129126688036512,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.hive.CachedTableSuite",
+    "rank": 170,
+    "score": 0.02779108265250418,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.hive.orc.HiveOrcHadoopFsRelationSuite",
+    "rank": 0,
+    "score": NaN,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.hive.MultiDatabaseSuite",
+    "rank": 11,
+    "score": 0.04687044751981914,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.sources.JsonHadoopFsRelationSuite",
+    "rank": 31,
+    "score": 0.04129126688036512,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.hive.orc.HiveOrcSourceSuite",
+    "rank": 4,
+    "score": 0.05017838417164597,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.HiveCharVarcharTestSuite",
+    "rank": 105,
+    "score": 0.03188107414206515,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.hive.orc.OrcHadoopFsRelationSuite",
+    "rank": 21,
+    "score": 0.042279901611095336,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.hive.execution.command.TruncateTableSuite",
+    "rank": 383,
+    "score": 0.02658050493967672,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.hive.execution.command.AlterTableRenameSuite",
+    "rank": 591,
+    "score": 0.02658050493967672,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.hive.HiveParquetSourceSuite",
+    "rank": 10,
+    "score": 0.04687044751981914,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.hive.execution.command.DropTableSuite",
+    "rank": 68,
+    "score": 0.034227570837362435,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.hive.execution.PruningSuite",
+    "rank": 378,
+    "score": 0.02658050493967672,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.sources.ParquetHadoopFsRelationSuite",
+    "rank": 25,
+    "score": 0.04129126688036512,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.hive.HiveParquetMetastoreSuite",
+    "rank": 23,
+    "score": 0.04129126688036512,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.SQLQueryTestSuite",
+    "rank": 2,
+    "score": 0.05374919363001371,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
     "failed_test": "org.apache.spark.sql.SQLQuerySuite",
-    "rank": 58,
-    "score": 0.09607421679329171,
-    "max_score": 0.877170874226519
+    "rank": 12,
+    "score": 0.04609193781301753,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.execution.command.v1.AlterTableRenameSuite",
+    "rank": 368,
+    "score": 0.02658050493967672,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.execution.arrow.ArrowConvertersSuite",
+    "rank": 185,
+    "score": 0.02779108265250418,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.DynamicPartitionPruningV1Suite",
+    "rank": 104,
+    "score": 0.03188107414206515,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.ReplaceNullWithFalseInPredicateEndToEndSuite",
+    "rank": 355,
+    "score": 0.02658050493967672,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.DeprecatedAPISuite",
+    "rank": 392,
+    "score": 0.02658050493967672,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.execution.datasources.v2.jdbc.JDBCTableCatalogSuite",
+    "rank": 132,
+    "score": 0.028011861996107865,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.SingleLevelAggregateHashMapSuite",
+    "rank": 579,
+    "score": 0.02658050493967672,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.TypedImperativeAggregateSuite",
+    "rank": 319,
+    "score": 0.02658050493967672,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.execution.datasources.binaryfile.BinaryFileFormatSuite",
+    "rank": 162,
+    "score": 0.02779108265250418,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.execution.PersistedViewTestSuite",
+    "rank": 225,
+    "score": 0.026804830495360896,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.connector.V1WriteFallbackSessionCatalogSuite",
+    "rank": 497,
+    "score": 0.02658050493967672,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.GeneratorFunctionSuite",
+    "rank": 311,
+    "score": 0.02658050493967672,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.execution.datasources.csv.CSVLegacyTimeParserSuite",
+    "rank": 87,
+    "score": 0.034227570837362435,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.DynamicPartitionPruningV2Suite",
+    "rank": 41,
+    "score": 0.040649213663474376,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.execution.adaptive.AdaptiveQueryExecSuite",
+    "rank": 6,
+    "score": 0.0498663322510821,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.execution.ui.SQLAppStatusListenerSuite",
+    "rank": 305,
+    "score": 0.02658050493967672,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.connector.DataSourceV2SQLSuite",
+    "rank": 16,
+    "score": 0.04376837630919668,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.JoinSuite",
+    "rank": 42,
+    "score": 0.040649213663474376,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.CachedTableSuite",
+    "rank": 141,
+    "score": 0.02779108265250418,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.execution.GlobalTempViewTestSuite",
+    "rank": 237,
+    "score": 0.026804830495360896,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.UnwrapCastInComparisonEndToEndSuite",
+    "rank": 426,
+    "score": 0.02658050493967672,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.test.DataFrameReaderWriterSuite",
+    "rank": 160,
+    "score": 0.02779108265250418,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.connector.DataSourceV2DataFrameSessionCatalogSuite",
+    "rank": 516,
+    "score": 0.02658050493967672,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.sources.FilteredScanSuite",
+    "rank": 531,
+    "score": 0.02658050493967672,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.SubquerySuite",
+    "rank": 99,
+    "score": 0.03188107414206515,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.execution.command.v1.ShowNamespacesSuite",
+    "rank": 372,
+    "score": 0.02658050493967672,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.execution.command.v1.ShowTablesSuite",
+    "rank": 38,
+    "score": 0.04129126688036512,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.execution.RemoveRedundantProjectsSuite",
+    "rank": 198,
+    "score": 0.0273642727550946,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.execution.WholeStageCodegenSuite",
+    "rank": 89,
+    "score": 0.03247626269200856,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.streaming.test.DataStreamTableAPISuite",
+    "rank": 195,
+    "score": 0.02779108265250418,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.DataFrameAggregateSuite",
+    "rank": 294,
+    "score": 0.02658050493967672,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.DSV2CharVarcharTestSuite",
+    "rank": 539,
+    "score": 0.02658050493967672,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.SparkSessionExtensionSuite",
+    "rank": 528,
+    "score": 0.02658050493967672,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.DataFrameSelfJoinSuite",
+    "rank": 296,
+    "score": 0.02658050493967672,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.ApproximatePercentileQuerySuite",
+    "rank": 595,
+    "score": 0.02658050493967672,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.TwoLevelAggregateHashMapSuite",
+    "rank": 556,
+    "score": 0.02658050493967672,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.execution.datasources.csv.CSVv1Suite",
+    "rank": 81,
+    "score": 0.034227570837362435,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.connector.DataSourceV2SQLSessionCatalogSuite",
+    "rank": 289,
+    "score": 0.02658050493967672,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.execution.LocalTempViewTestSuite",
+    "rank": 239,
+    "score": 0.026804830495360896,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.execution.LogicalPlanTagInSparkPlanSuite",
+    "rank": 0,
+    "score": NaN,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.execution.command.v2.ShowNamespacesSuite",
+    "rank": 562,
+    "score": 0.02658050493967672,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.execution.command.v1.TruncateTableSuite",
+    "rank": 521,
+    "score": 0.02658050493967672,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.DataFrameWriterV2Suite",
+    "rank": 191,
+    "score": 0.02779108265250418,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.execution.command.InMemoryCatalogedDDLSuite",
+    "rank": 62,
+    "score": 0.034227599809656506,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.FileSourceCharVarcharTestSuite",
+    "rank": 98,
+    "score": 0.03188107414206515,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.execution.command.v2.AlterTableRenameSuite",
+    "rank": 410,
+    "score": 0.02658050493967672,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.connector.DataSourceV2DataFrameSuite",
+    "rank": 277,
+    "score": 0.02658050493967672,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.execution.command.v1.DropTableSuite",
+    "rank": 65,
+    "score": 0.034227570837362435,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.execution.joins.ExistenceJoinSuite",
+    "rank": 384,
+    "score": 0.02658050493967672,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.TwoLevelAggregateHashMapWithVectorizedMapSuite",
+    "rank": 367,
+    "score": 0.02658050493967672,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.execution.datasources.PathFilterSuite",
+    "rank": 436,
+    "score": 0.02658050493967672,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.execution.command.v2.ShowTablesSuite",
+    "rank": 382,
+    "score": 0.02658050493967672,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.execution.command.v2.DropTableSuite",
+    "rank": 82,
+    "score": 0.034227570837362435,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.execution.command.v2.TruncateTableSuite",
+    "rank": 532,
+    "score": 0.02658050493967672,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.ColumnExpressionSuite",
+    "rank": 96,
+    "score": 0.03188107414206515,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.execution.datasources.json.JsonV1Suite",
+    "rank": 29,
+    "score": 0.04129126688036512,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.connector.DataSourceV2Suite",
+    "rank": 431,
+    "score": 0.02658050493967672,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.execution.TakeOrderedAndProjectSuite",
+    "rank": 223,
+    "score": 0.026804830495360896,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.execution.datasources.json.JsonV2Suite",
+    "rank": 32,
+    "score": 0.04129126688036512,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.execution.datasources.json.JsonLegacyTimeParserSuite",
+    "rank": 34,
+    "score": 0.04129126688036512,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.execution.datasources.csv.CSVv2Suite",
+    "rank": 66,
+    "score": 0.034227570837362435,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.DataFrameRangeSuite",
+    "rank": 303,
+    "score": 0.02658050493967672,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.sources.InsertSuite",
+    "rank": 14,
+    "score": 0.04376837630919668,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.DataFrameSetOperationsSuite",
+    "rank": 577,
+    "score": 0.02658050493967672,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.execution.joins.OuterJoinSuite",
+    "rank": 337,
+    "score": 0.02658050493967672,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "8fa9e86308ec6e66929a30c191cacfcafe2073a6",
+    "failed_test": "org.apache.spark.sql.TPCDSQueryTestSuite",
+    "rank": 7,
+    "score": 0.04963742756881205,
+    "max_score": 0.07086944805258345
+  },
+  {
+    "sha": "cb76b8f593b0d676ea8123b360a39588fda88358",
+    "failed_test": "org.apache.spark.shuffle.sort.ShuffleExternalSorterSuite",
+    "rank": 1379,
+    "score": 0.025180858030075515,
+    "max_score": 0.11111487000842799
+  },
+  {
+    "sha": "cb76b8f593b0d676ea8123b360a39588fda88358",
+    "failed_test": "org.apache.spark.SparkThrowableSuite",
+    "rank": 1,
+    "score": 0.11111487000842799,
+    "max_score": 0.11111487000842799
+  },
+  {
+    "sha": "cb76b8f593b0d676ea8123b360a39588fda88358",
+    "failed_test": "org.apache.spark.sql.catalyst.expressions.LiteralExpressionSuite",
+    "rank": 80,
+    "score": 0.039292548507146446,
+    "max_score": 0.11111487000842799
+  },
+  {
+    "sha": "cb76b8f593b0d676ea8123b360a39588fda88358",
+    "failed_test": "org.apache.spark.deploy.yarn.YarnClusterSuite",
+    "rank": 828,
+    "score": 0.02519505164001992,
+    "max_score": 0.11111487000842799
+  },
+  {
+    "sha": "cb76b8f593b0d676ea8123b360a39588fda88358",
+    "failed_test": "org.apache.spark.sql.SingleLevelAggregateHashMapSuite",
+    "rank": 250,
+    "score": 0.028241504374912522,
+    "max_score": 0.11111487000842799
+  },
+  {
+    "sha": "cb76b8f593b0d676ea8123b360a39588fda88358",
+    "failed_test": "org.apache.spark.sql.DataFrameAggregateSuite",
+    "rank": 184,
+    "score": 0.028798436583984566,
+    "max_score": 0.11111487000842799
+  },
+  {
+    "sha": "cb76b8f593b0d676ea8123b360a39588fda88358",
+    "failed_test": "org.apache.spark.sql.TwoLevelAggregateHashMapSuite",
+    "rank": 251,
+    "score": 0.028241504374912522,
+    "max_score": 0.11111487000842799
+  },
+  {
+    "sha": "cb76b8f593b0d676ea8123b360a39588fda88358",
+    "failed_test": "org.apache.spark.sql.TwoLevelAggregateHashMapWithVectorizedMapSuite",
+    "rank": 280,
+    "score": 0.028241504374912522,
+    "max_score": 0.11111487000842799
+  },
+  {
+    "sha": "89fc1c0ac2d529972193e9feed1f35e8a93da00a",
+    "failed_test": "org.apache.spark.sql.hive.thriftserver.ThriftServerQueryTestSuite",
+    "rank": 41,
+    "score": 0.042874451949896385,
+    "max_score": 0.0763730317806727
+  },
+  {
+    "sha": "89fc1c0ac2d529972193e9feed1f35e8a93da00a",
+    "failed_test": "org.apache.spark.sql.SQLQueryTestSuite",
+    "rank": 3,
+    "score": 0.07237557329516614,
+    "max_score": 0.0763730317806727
+  },
+  {
+    "sha": "0aec07a885d32b3222f7ae410bf3a809f55c35ac",
+    "failed_test": "org.apache.spark.sql.execution.streaming.sources.RatePerEpochProviderSuite",
+    "rank": 0,
+    "score": NaN,
+    "max_score": 0.04656975808915603
+  },
+  {
+    "sha": "3c518652d74e50bcb85024dd5e5e75dc63121ce7",
+    "failed_test": "org.apache.spark.sql.execution.metric.SQLMetricsSuite",
+    "rank": 189,
+    "score": 0.027914069119220508,
+    "max_score": 0.0778559212146292
+  },
+  {
+    "sha": "9d0ea390f0b1b944ddf7b674b0ba553226daaedc",
+    "failed_test": "org.apache.spark.sql.ExpressionsSchemaSuite",
+    "rank": 69,
+    "score": 0.03268945697866212,
+    "max_score": 0.10963442862622652
+  },
+  {
+    "sha": "9d0ea390f0b1b944ddf7b674b0ba553226daaedc",
+    "failed_test": "org.apache.spark.sql.SQLQuerySuite",
+    "rank": 5,
+    "score": 0.06975222968468665,
+    "max_score": 0.10963442862622652
+  },
+  {
+    "sha": "9d0ea390f0b1b944ddf7b674b0ba553226daaedc",
+    "failed_test": "org.apache.spark.sql.expressions.ExpressionInfoSuite",
+    "rank": 91,
+    "score": 0.03087182799120866,
+    "max_score": 0.10963442862622652
   }
 ]

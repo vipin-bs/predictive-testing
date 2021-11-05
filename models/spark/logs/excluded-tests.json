@@ -1,4 +1,7 @@
 [
+  "org.apache.spark.scheduler.BasicSchedulerIntegrationSuite",
+  "org.apache.spark.SparkFunSuite",
+  "org.apache.spark.streaming.StreamingListenerSuite",
   "org.apache.spark.sql.kafka010.KafkaRelationSuite",
   "org.apache.spark.sql.QueryTestSuite",
   "org.apache.spark.sql.hive.client.HiveClientUserNameSuites.runNestedSuite",
@@ -7,8 +10,11 @@
   "org.apache.spark.sql.catalyst.analysis.DataSourceV2ANSIAnalysisSuite",
   "org.apache.spark.sql.JavaDataFrameReaderWriterSuite",
   "org.apache.spark.sql.JavaDatasetSuite",
+  "org.apache.spark.streaming.StreamingContextSuite",
   "org.apache.spark.sql.JavaDataFrameWriterV2Suite",
   "org.apache.spark.sql.catalyst.analysis.DataSourceV2AnalysisBaseSuite",
+  "org.apache.spark.streaming.CheckpointSuite",
+  "org.apache.spark.ml.source.image.ImageFileFormatSuite",
   "org.apache.spark.sql.JavaDataFrameSuite",
   "org.apache.spark.sql.streaming.JavaDataStreamReaderWriterSuite",
   "org.apache.spark.sql.hive.execution.PruneFileSourcePartitionsSuite",
@@ -142,5 +148,9 @@
   "pyspark.pandas.tests.indexes.test_base",
   "pyspark.pandas.tests.indexes.test_datetime",
   "pyspark.pandas.tests.test_rolling",
-  "pyspark.pandas.tests.test_expanding"
+  "pyspark.pandas.tests.test_expanding",
+  "pyspark.pandas.spark.utils",
+  "pyspark.pandas.indexes.base",
+  "pyspark.pandas.mlflow",
+  "pyspark.pandas.frame"
 ]

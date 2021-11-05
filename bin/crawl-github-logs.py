@@ -292,6 +292,7 @@ def _list_repo_stats(argv: Any) -> None:
     parser.add_argument('--github-owner', type=str, required=True)
     parser.add_argument('--github-repo', type=str, required=True)
     parser.add_argument('--since', type=str, required=True)
+    parser.add_argument('--sleep-if-limit-exceeded', action='store_true')
     args = parser.parse_args(argv)
 
     if args.overwrite:
@@ -300,19 +301,49 @@ def _list_repo_stats(argv: Any) -> None:
     # Make an output dir in advance
     os.mkdir(args.output)
 
+    # For logger setup
+    logger = _setup_logger(f'{args.output}/debug-info.log')
+
+    # logger rate limit
+    logger.info(f"rate_limit: {_rate_limit_msg(args.github_token)}")
+
     # Parses a specified datetime string
     since_date = dateutil.parser.parse(args.since)
 
     updated_files: List[Tuple[str, str, str, str, str]] = []
-    commits: List[Tuple[str, str]] = []
+    commits: List[Tuple[str, str, List[str]]] = []
     repo_commits = github_apis.list_repo_commits(args.github_owner, args.github_repo, args.github_token,
                                                  since=since_date)
-    for sha, _, date, _ in tqdm.tqdm(repo_commits, desc=f"Commits ({args.github_owner}/{args.github_repo})"):
-        _, _, files = github_apis.list_change_files_from(sha, args.github_owner, args.github_repo, args.github_token)
-        for filename, adds, dels, chgs in files:
-            updated_files.append((filename, date, adds, dels, chgs))
+    # TODO: Supports a resume option for listing repo stats
+    for sha, author, date, _ in tqdm.tqdm(repo_commits, desc=f"Commits ({args.github_owner}/{args.github_repo})"):
+        logger.info(f"sha:{sha}, author:{author}, date:{date}")
 
-        commits.append((date, sha))
+        finished = False
+        while not finished:
+            try:
+                _, _, files = github_apis.list_change_files_from(
+                    sha, args.github_owner, args.github_repo, args.github_token)
+
+                filenames: List[str] = []
+                for filename, adds, dels, chgs in files:
+                    updated_files.append((filename, date, adds, dels, chgs))
+                    filenames.append(filename)
+
+                commits.append((date, sha, filenames))
+
+            except RuntimeError as e:
+                if args.sleep_if_limit_exceeded and github_apis.is_rate_limit_exceeded(str(e)):
+                    import time
+                    _, _, _, renewal = github_utils.get_rate_limit(args.github_token)
+                    logger.info(f"API rate limit exceeded, so this process sleeps for {renewal}s")
+                    time.sleep(renewal + 4)
+                elif github_apis.is_not_found(str(e)):
+                    logger.warning(f"Request (sha:{sha}, author:{author}) skipped")
+                    finished = True
+                else:
+                    raise
+            else:
+                finished = True
 
     updated_file_stats: Dict[str, List[Tuple[str, str, str, str]]] = {}
     for filename, date, adds, dels, chgs in updated_files:

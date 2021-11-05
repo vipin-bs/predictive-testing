@@ -23,6 +23,7 @@ import pandas as pd  # type: ignore[import]
 import pickle
 import re
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from pyspark.sql import DataFrame, SparkSession, functions as funcs
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -164,11 +165,13 @@ def _create_func_to_enrich_files(spark: SparkSession,
 
 def _create_func_to_enumerate_related_tests(spark: SparkSession,
                                             dep_graph: Dict[str, List[str]],
+                                            corr_map: Dict[str, List[str]],
                                             test_files: Dict[str, str],
                                             depth: int,
                                             max_num_tests: Optional[int] = None) -> Tuple[Any, List[str]]:
     broadcasted_dep_graph = spark.sparkContext.broadcast(dep_graph)
-    broadcasted_test_files = spark.sparkContext.broadcast(list(test_files.items()))
+    broadcasted_corr_map = spark.sparkContext.broadcast(corr_map)
+    broadcasted_test_files = spark.sparkContext.broadcast(test_files)
 
     def enumerate_related_tests(df: DataFrame) -> DataFrame:
         @funcs.pandas_udf("string")  # type: ignore
@@ -177,16 +180,13 @@ def _create_func_to_enumerate_related_tests(spark: SparkSession,
             path_diff = _create_func_for_path_diff()
 
             dep_graph = broadcasted_dep_graph.value
+            corr_map = broadcasted_corr_map.value
             test_files = broadcasted_test_files.value
 
             def _enumerate_tests_from_dep_graph(target):  # type: ignore
-                result = parse_path(target)
-                if not result:
-                    return []
-
                 subgraph = {}
                 visited_nodes = set()
-                keys = list([result.group(1).replace('/', '.')])
+                keys = list([target])
                 for i in range(0, depth):
                     if len(keys) == 0:
                         break
@@ -205,15 +205,18 @@ def _create_func_to_enumerate_related_tests(spark: SparkSession,
 
             ret = []
             for file_path in file_paths:
+                correlated_files = corr_map[file_path] if file_path in corr_map else []
+                correlated_tests = list(filter(lambda f: f in test_files, correlated_files))
                 if not file_path:
-                    ret.append(json.dumps({'tests': []}))
+                    ret.append(json.dumps({'tests': correlated_tests}))
                 else:
-                    related_tests = _enumerate_tests_from_dep_graph(file_path)
-                    if not related_tests:
-                        # If no related test found, adds the tests whose paths are close to `file_path`
-                        related_tests = [t for t, p in test_files if path_diff(file_path, p) <= 1]
-
-                    ret.append(json.dumps({'tests': related_tests}))
+                    result = parse_path(file_path)
+                    if not result:
+                        ret.append(json.dumps({'tests': correlated_tests}))
+                    else:
+                        dependant_tests = _enumerate_tests_from_dep_graph(result.group(1).replace('/', '.'))
+                        related_tests = dependant_tests + correlated_tests
+                        ret.append(json.dumps({'tests': related_tests}))
 
             return pd.Series(ret)
 
@@ -228,7 +231,7 @@ def _create_func_to_enumerate_related_tests(spark: SparkSession,
 
         return df.join(related_test_df, 'sha', 'LEFT_OUTER')
 
-    return enumerate_related_tests, ['sha']
+    return enumerate_related_tests, ['sha', 'files']
 
 
 def _create_func_to_enumerate_all_tests(spark: SparkSession, test_files: Dict[str, str]) -> Tuple[Any, List[str]]:
@@ -466,8 +469,8 @@ def _build_predictive_model(df: DataFrame, to_features: Any) -> Any:
     pdf = to_features(df).toPandas()
     X = pdf[pdf.columns[pdf.columns != 'failed']]  # type: ignore
     y = pdf['failed']
-    X, y = train.rebalance_training_data(X, y, coeff=2.0)
-    clf, score = train.build_model(X, y, opts={'hp.timeout': '3600', 'hp.no_progress_loss': '10'})
+    X, y = train.rebalance_training_data(X, y, coeff=1.0)
+    clf, score = train.build_model(X, y, opts={'hp.timeout': '3600', 'hp.no_progress_loss': '1'})
     _logger.info(f"model score: {score}")
     return clf
 
@@ -494,7 +497,9 @@ def _predict_failed_probs_for_tests(test_df: DataFrame, clf: Any, to_features: A
         .selectExpr('sha', 'test', to_failed_prob)
 
     # TODO: Applied an emprical rule: updated tests tend to fail possibly
-    # extract_test = 'transform(files.file.name, f -> replace(regexp_extract(f, "\/(org\/apache\/spark\/[a-zA-Z0-9/\-]+Suite)\.scala$", 1), "/", "."))'
+    # regex = '"\/(org\/apache\/spark\/[a-zA-Z0-9/\-]+Suite)\.scala$"'
+    # replace_test = f'f -> replace(regexp_extract(f, {regex}, 1), "/", ".")'
+    # extract_test = f'transform(files.file.name, {replace_test})'
     # updated_test_df = test_df.selectExpr('sha', f'filter({extract_test}, f -> length(f) > 0) updated_tests')
     # corrected_failed_prob = 'case when array_contains(updated_tests, test) then 1.0 else failed_prob end failed_prob'
     # df_with_failed_probs = df_with_failed_probs.join(updated_test_df, 'sha', 'INNER') \
@@ -506,6 +511,7 @@ def _predict_failed_probs_for_tests(test_df: DataFrame, clf: Any, to_features: A
         "else 0 end"
     df_with_failed_probs = df_with_failed_probs.groupBy('sha') \
         .agg(funcs.expr('collect_set(named_struct("test", test, "failed_prob", failed_prob))').alias('tests')) \
+        .selectExpr('sha', f'filter(tests, t -> t.test IS NOT NULL) tests') \
         .selectExpr('sha', f'array_sort(tests, (l, r) -> {compare("l", "r")}) tests')
 
     return df_with_failed_probs
@@ -529,6 +535,7 @@ def _predict_failed_probs(df: DataFrame, clf: Any) -> DataFrame:
         "else 0 end"
     df_with_failed_probs = df_with_failed_probs \
         .selectExpr('collect_set(named_struct("test", test, "failed_prob", failed_prob)) tests') \
+        .selectExpr(f'filter(tests, t -> t.test IS NOT NULL) tests') \
         .selectExpr(f'array_sort(tests, (l, r) -> {compare("l", "r")}) tests')
 
     return df_with_failed_probs
@@ -634,6 +641,7 @@ def _create_train_test_pipeline(spark: SparkSession,
                                 test_files: Dict[str, str],
                                 commits: List[datetime],
                                 dep_graph: Dict[str, List[str]],
+                                corr_map: Dict[str, List[str]],
                                 updated_file_stats: Dict[str, List[Tuple[str, str, str, str]]],
                                 contributor_stats: Optional[List[Tuple[str, str]]],
                                 failed_tests: Dict[str, List[str]]) -> Any:
@@ -705,9 +713,8 @@ def _create_train_test_pipeline(spark: SparkSession,
     enrich_files = _create_func_to_enrich_files(spark, commits, updated_file_stats,
                                                 input_commit_date='commit_date',
                                                 input_filenames='files.file.name')
-    enumerate_related_tests = _create_func_to_enumerate_related_tests(spark, dep_graph, test_files, depth=2,
-                                                                      max_num_tests=16)
-    enumerate_all_tests = _create_func_to_enumerate_all_tests(spark, test_files)
+    enumerate_related_tests = _create_func_to_enumerate_related_tests(spark, dep_graph, corr_map, test_files,
+                                                                      depth=2, max_num_tests=16)
     enrich_tests = _create_func_to_enrich_tests(spark, commits, failed_tests,
                                                 input_commit_date='commit_date',
                                                 input_test='test')
@@ -754,7 +761,7 @@ def _create_train_test_pipeline(spark: SparkSession,
         ])
 
     expected_test_features = ['sha', 'test', *expected_train_features]
-    explode_tests = lambda df: df.selectExpr('*', 'explode_outer(all_tests) test'), ['all_tests']
+    explode_tests = lambda df: df.selectExpr('*', 'explode_outer(related_tests) test'), ['related_tests']
     select_test_features = lambda df: df.selectExpr(expected_test_features), expected_test_features
 
     to_test_features = _create_pipelines(
@@ -762,7 +769,7 @@ def _create_train_test_pipeline(spark: SparkSession,
             enrich_authors,
             enrich_files,
             expand_updated_stats,
-            enumerate_all_tests,
+            enumerate_related_tests,
             explode_tests,
             enrich_tests,
             compute_distances,
@@ -774,9 +781,60 @@ def _create_train_test_pipeline(spark: SparkSession,
     return to_train_features, to_test_features
 
 
+def _build_corr_map(commits: List[Tuple[str, str, List[str]]], train_df: DataFrame) -> Dict[str, List[str]]:
+    import itertools
+    parse_path = re.compile(f"[a-zA-Z0-9/\-]+/(org\/apache\/spark\/.+\/)([a-zA-Z0-9\-]+)\.scala")
+    parse_scala_file = re.compile("class\s+([a-zA-Z0-9]+Suite)\s+extends\s+")
+    corr_map: Dict[str, Any] = {}
+    for _, _, files in commits:
+        group = []
+        for f in files:
+            qs = parse_path.search(f)
+            if qs:
+                package = qs.group(1).replace('/', '.')
+                if 'SPARK_REPO' in os.environ:
+                    try:
+                        file_as_string = Path(f'{os.environ["SPARK_REPO"]}/{f}').read_text()
+                        classes = parse_scala_file.findall(file_as_string)
+                        if classes:
+                            group.append((f, list(map(lambda c: f'{package}{c}', classes))))
+                        else:
+                            clazz = qs.group(2)
+                            group.append((f, [f'{package}{clazz}']))
+                    except:
+                        pass
+                else:
+                    clazz = qs.group(2)
+                    group.append((f, [f'{package}{clazz}']))
+            else:
+                group.append((f, []))
+
+        # for x, y in filter(lambda p: p[0] != p[1], itertools.product(group, group)):
+        for (path1, classes1), (path2, classes2) in itertools.product(group, group):
+            if path1 not in corr_map:
+                corr_map[path1] = set()
+
+            corr_map[path1].update(classes1 + classes2)
+
+    failed_maps = train_df.where('size(failed_tests) > 0') \
+        .selectExpr('failed_tests', 'files.file.name').toPandas().to_dict(orient='records')
+    for failed_map in failed_maps:
+        for c in failed_map['failed_tests']:
+            for f in failed_map['name']:
+                if f not in corr_map:
+                    corr_map[f] = set()
+
+                corr_map[f].add(c)
+
+    for k, v in corr_map.items():
+        corr_map[k] = list(v)
+
+    return corr_map
+
+
 def _train_and_eval_ptest_model(output_path: str, spark: SparkSession, df: DataFrame,
                                 test_files: Dict[str, str],
-                                commits: List[datetime],
+                                commits: List[Tuple[str, str, List[str]]],
                                 dep_graph: Dict[str, List[str]],
                                 updated_file_stats: Dict[str, List[Tuple[str, str, str, str]]],
                                 contributor_stats: Optional[List[Tuple[str, str]]],
@@ -789,12 +847,16 @@ def _train_and_eval_ptest_model(output_path: str, spark: SparkSession, df: DataF
         df.count(), num_failed_tests(df), train_df.count(), num_failed_tests(train_df),
         test_df.count(), num_failed_tests(test_df)))
 
+    corr_map = _build_corr_map(commits, train_df)
+    repo_commits = list(map(lambda c: github_utils.from_github_datetime(c[0]), commits))
     failed_tests = _build_failed_tests(train_df)
     to_train_features, to_test_features = \
-        _create_train_test_pipeline(spark, test_files, commits, dep_graph, updated_file_stats,
+        _create_train_test_pipeline(spark, test_files, repo_commits, dep_graph, corr_map, updated_file_stats,
                                     contributor_stats, failed_tests)
     clf = _build_predictive_model(train_df, to_train_features)
 
+    with open(f"{output_path}/correlated-map.json", 'w') as f:
+        f.write(json.dumps(corr_map, indent=2))
     with open(f"{output_path}/failed-tests.json", 'w') as f:
         f.write(json.dumps(failed_tests, indent=2))
     with open(f"{output_path}/model.pkl", 'wb') as f:  # type: ignore
@@ -812,7 +874,7 @@ def _train_and_eval_ptest_model(output_path: str, spark: SparkSession, df: DataF
     with open(f"{output_path}/model-eval-stats.json", 'w') as f:  # type: ignore
         f.write(json.dumps(stats.toPandas().to_dict(orient='records'), indent=2))  # type: ignore
     with open(f"{output_path}/model-eval-metric-summary.md", 'w') as f:  # type: ignore
-        f.write(_format_eval_metrics([metrics[i] for i in [0, 14, 29, 44, 59]]))  # type: ignore
+        f.write(_format_eval_metrics([metrics[i] for i in [0, 29, 59, 89, 119]]))  # type: ignore
     with open(f"{output_path}/model-eval-metrics.json", 'w') as f:  # type: ignore
         f.write(json.dumps(metrics, indent=2))  # type: ignore
 
@@ -860,10 +922,8 @@ def train_main(argv: Any) -> None:
     if args.excluded_tests and not os.path.exists(args.excluded_tests):
         raise ValueError(f"Excluded test list file not found in {os.path.abspath(args.excluded_tests)}")
 
-    from pathlib import Path
     test_files = json.loads(Path(args.test_files).read_text())
     commits = json.loads(Path(args.commits).read_text())
-    commits = list(map(lambda c: github_utils.from_github_datetime(c[0]), commits))
     updated_file_stats = json.loads(Path(args.updated_file_stats).read_text())
     contributor_stats = json.loads(Path(args.contributor_stats).read_text()) \
         if args.contributor_stats else None
@@ -961,6 +1021,7 @@ def predict_main(argv: Any) -> None:
     parser.add_argument('--model', type=str, required=True)
     parser.add_argument('--test-files', type=str, required=True)
     parser.add_argument('--commits', type=str, required=True)
+    parser.add_argument('--correlated-map', type=str, required=True)
     parser.add_argument('--failed-tests', type=str, required=True)
     parser.add_argument('--updated-file-stats', type=str, required=True)
     parser.add_argument('--contributor-stats', type=str, required=False)
@@ -980,6 +1041,8 @@ def predict_main(argv: Any) -> None:
         raise ValueError(f"Test list file not found in {os.path.abspath(args.test_files)}")
     if not os.path.exists(args.commits):
         raise ValueError(f"Commit history file not found in {os.path.abspath(args.commits)}")
+    if not os.path.exists(args.corr_map):
+        raise ValueError(f"Correlated file map not found in {os.path.abspath(args.corr_map)}")
     if not os.path.exists(args.failed_tests):
         raise ValueError(f"Failed test list file not found in {os.path.abspath(args.failed_tests)}")
     if not os.path.exists(args.updated_file_stats):
@@ -989,11 +1052,11 @@ def predict_main(argv: Any) -> None:
     if args.build_dep and not os.path.exists(args.build_dep):
         raise ValueError(f"Dependency graph file not found in {os.path.abspath(args.build_dep)}")
 
-    from pathlib import Path
     clf = pickle.loads(Path(args.model).read_bytes())
     test_files = json.loads(Path(args.test_files).read_text())
     commits = json.loads(Path(args.commits).read_text())
-    commits = list(map(lambda c: github_utils.from_github_datetime(c[0]), commits))
+    repo_commits = list(map(lambda c: github_utils.from_github_datetime(c[0]), commits))
+    corr_map = json.loads(Path(args.corr_map).read_text())
     updated_file_stats = json.loads(Path(args.updated_file_stats).read_text())
     failed_tests = json.loads(Path(args.failed_tests).read_text())
     contributor_stats = json.loads(Path(args.contributor_stats).read_text()) \
@@ -1070,11 +1133,12 @@ def predict_main(argv: Any) -> None:
         ]
 
         enrich_authors = _create_func_to_enrich_authors(spark, contributor_stats, input_col='author')
-        enrich_files = _create_func_to_enrich_files(spark, commits, updated_file_stats,
+        enrich_files = _create_func_to_enrich_files(spark, repo_commits, updated_file_stats,
                                                     input_commit_date='commit_date',
                                                     input_filenames='filenames')
-        enumerate_all_tests = _create_func_to_enumerate_all_tests(spark, test_files)
-        enrich_tests = _create_func_to_enrich_tests(spark, commits, failed_tests,
+        enumerate_related_tests = _create_func_to_enumerate_related_tests(spark, dep_graph, corr_map, test_files,
+                                                                          depth=2, max_num_tests=16)
+        enrich_tests = _create_func_to_enrich_tests(spark, repo_commits, failed_tests,
                                                     input_commit_date='commit_date',
                                                     input_test='test')
         compute_distances = _create_func_to_compute_distances(spark, dep_graph, test_files,
@@ -1107,7 +1171,7 @@ def predict_main(argv: Any) -> None:
             'to_features', [
                 enrich_authors,
                 enrich_files,
-                enumerate_all_tests,
+                enumerate_related_tests,
                 explode_tests,
                 enrich_tests,
                 compute_distances,

@@ -27,7 +27,7 @@ fi
 
 FWDIR="$(cd "`dirname $0`"/..; pwd)"
 
-if [ ! -z "$CONDA_ENABLED" ]; then
+if [ -z "$CONDA_DISABLE" ]; then
   # Activate a conda virtual env
   . ${FWDIR}/bin/conda.sh && activate_conda_virtual_env "${FWDIR}"
 fi
