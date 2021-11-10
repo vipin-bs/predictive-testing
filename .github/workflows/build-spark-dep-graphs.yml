@@ -47,7 +47,7 @@ jobs:
           export JAVA_VERSION=${{ env.java }}
           cd spark-master && ./build/mvn $MAVEN_CLI_OPTS -DskipTests -Pyarn -Pmesos -Pkubernetes -Phive -Phive-thriftserver -Phadoop-cloud -Pdocker-integration-tests -Djava.version=$JAVA_VERSION test-compile
       - name: Analyze Spark class dependencies
-        run: ./bin/analyze-spark-package.sh ./spark-master "${{ env.OUTPUT_NAME }}"
+        run: ./bin/analyze-spark-package.sh `pwd`/spark-master "${{ env.OUTPUT_NAME }}"
       - name: Update `models/spark/indexes/latest`
         if: success()
         run: |
