@@ -3,10 +3,12 @@
 .idea/
 .idea_modules/
 unit-tests.log
-output
 spark-master
 derby.log
 metastore_db
 geckodriver.log
 .ipynb_checkpoints
 Untitled*.ipynb
+output
+output.zip
+latest_output
