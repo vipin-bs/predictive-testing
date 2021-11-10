@@ -6,7 +6,7 @@ on:
       - master
     paths:
       - bin/train-ptesting-model.py
-      - models/spark/logs/*
+      - models/spark/logs/**
       - models/spark/indexes/latest
   issue_comment:
     types: [created, edited]
@@ -25,12 +25,19 @@ jobs:
         # In order to fetch changed files
         with:
           fetch-depth: 0
+      - name: Checkout Spark repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          repository: apache/spark
+          ref: master
+          path: spark-master
       - name: Install Python packages (Python ${{ env.python }})
         run: python -m pip install -r ./bin/requirements.txt
       - name: Install JavaScript packages
         run: npm install fs
       - name: Build predictive model and compute eval metrics
-        run: ./bin/train-spark-model.sh
+        run: SPARK_REPO=`pwd`/spark-master ./bin/train-spark-model.sh
       - name: Post the result metrics
         uses: actions/github-script@v5
         with:
