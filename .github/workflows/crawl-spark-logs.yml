@@ -85,7 +85,6 @@ jobs:
       - name: Use `sinceDate` for `--since` option
         if: ${{ github.event_name == 'workflow_dispatch' }}
         run: |
-          echo "${{ github.event_name }}"
           SINCE_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ" -d '${{ github.event.inputs.sinceDate }}'`
           echo "SINCE_DATE=${SINCE_DATE}" >> $GITHUB_ENV
       - name: Set a default value for `--since` option
@@ -95,12 +94,19 @@ jobs:
         run: |
           SINCE_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ" -d '7 days ago'`
           echo "SINCE_DATE=${SINCE_DATE}" >> $GITHUB_ENV
-      - name: Compute `--since` option value form the latest run datetime
+      - name: Compute `--since` option value form the latest run meta
         if: ${{ github.event_name == 'schedule' &&
           steps.check-if-latest-output-exists.outputs.files_exists == 'true' &&
           steps.check-if-resume-file-exists.outputs.files_exists == 'false' }}
         run: |
           SINCE_DATE=`cat latest_output/.run-meta.json | jq --raw-output .until`
+          echo "SINCE_DATE=${SINCE_DATE}" >> $GITHUB_ENV
+      - name: Get `--since` value form the latest run meta
+        if: ${{ github.event_name == 'schedule' &&
+          steps.check-if-latest-output-exists.outputs.files_exists == 'true' &&
+          steps.check-if-resume-file-exists.outputs.files_exists == 'true' }}
+        run: |
+          SINCE_DATE=`cat latest_output/.run-meta.json | jq --raw-output .since`
           echo "SINCE_DATE=${SINCE_DATE}" >> $GITHUB_ENV
       - name: Run script to collect GitHub logs
         if: ${{ steps.check-if-resume-file-exists.outputs.files_exists == 'false' }}
