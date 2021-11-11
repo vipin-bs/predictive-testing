@@ -22,46 +22,26 @@
 
 FWDIR="$(cd "`dirname $0`"/..; pwd)"
 
-if [ ! -z "$CONDA_ENABLED" ]; then
+if [ -z "${SPARK_REPO}" ]; then
+  echo "env SPARK_REPO not defined" 1>&2
+  exit 1
+fi
+
+if [ -z "$CONDA_DISABLE" ]; then
   # Activate a conda virtual env
   . ${FWDIR}/bin/conda.sh && activate_conda_virtual_env "${FWDIR}"
 fi
 
-print_err_msg_and_exit() {
-  echo "Required arguments not specified and usage: ${0} <root_paths> <username> <#commits> <#selected_tests>" 1>&2
-  exit 1
-}
-
-TARGET_PATH="$1"
-if [ -z "${TARGET_PATH}" ]; then
-  print_err_msg_and_exit
-fi
-
-USERNAME="$2"
-if [ -z "${USERNAME}" ]; then
-  print_err_msg_and_exit
-fi
-
-NUM_COMMITS="$3"
-if [ -z "${NUM_COMMITS}" ]; then
-  print_err_msg_and_exit
-fi
-
-NUM_SELECTED_TESTS="$4"
-if [ -z "${NUM_SELECTED_TESTS}" ]; then
-  print_err_msg_and_exit
-fi
-
 PYTHONPATH="${FWDIR}/python" \
 exec python3 -u ${FWDIR}/bin/ptesting-model.py \
-  --username ${USERNAME} \
-  --target ${TARGET_PATH} \
-  --num-commits ${NUM_COMMITS} \
-  --num-selected-tests ${NUM_SELECTED_TESTS} \
+  --username "<unknown>" \
+  --target ${SPARK_REPO} \
   --model ${FWDIR}/models/spark/model.pkl \
   --test-files ${FWDIR}/models/spark/indexes/latest/test-files.json \
   --commits ${FWDIR}/models/spark/logs/commits.json \
   --failed-tests ${FWDIR}/models/spark/failed-tests.json \
   --build-dep ${FWDIR}/models/spark/indexes/latest/dep-graph.json \
+  --correlated-map ${FWDIR}/models/spark/correlated-map.json \
   --updated-file-stats ${FWDIR}/models/spark/logs/updated-file-stats.json \
-  --contributor-stats ${FWDIR}/models/spark/logs/contributor-stats.json
+  --contributor-stats ${FWDIR}/models/spark/logs/contributor-stats.json \
+  "$@"

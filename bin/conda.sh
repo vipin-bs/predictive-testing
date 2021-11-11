@@ -24,7 +24,7 @@ activate_conda_virtual_env() {
   CONDA_COMMAND=${_ROOTT_DIR}/bin/conda.py
   CONDA_ENV_ID=`cd ${_ROOTT_DIR} && pwd | xargs basename`
   ${CONDA_COMMAND} --command=create_env_only --env_id=${CONDA_ENV_ID}
-  echo -ne "\n=== Running Python code on conda virtual env '$(${CONDA_COMMAND} --command=get_env_name --env_id=${CONDA_ENV_ID})' ===\n"
+  echo -ne "\n=== Running Python code on conda virtual env '$(${CONDA_COMMAND} --command=get_env_name --env_id=${CONDA_ENV_ID})' ===\n" 1>&2
 
   # Gets virtual env home
   CONDA_ENV_HOME=$(${CONDA_COMMAND} --command=get_env_home --env_id=${CONDA_ENV_ID})

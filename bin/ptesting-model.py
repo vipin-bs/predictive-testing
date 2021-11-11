@@ -167,6 +167,7 @@ def _create_func_to_enumerate_related_tests(spark: SparkSession,
                                             dep_graph: Dict[str, List[str]],
                                             corr_map: Dict[str, List[str]],
                                             test_files: Dict[str, str],
+                                            input_files: str,
                                             depth: int,
                                             max_num_tests: Optional[int] = None) -> Tuple[Any, List[str]]:
     broadcasted_dep_graph = spark.sparkContext.broadcast(dep_graph)
@@ -220,7 +221,7 @@ def _create_func_to_enumerate_related_tests(spark: SparkSession,
 
             return pd.Series(ret)
 
-        related_test_df = df.selectExpr('sha', 'explode_outer(files.file.name) filename') \
+        related_test_df = df.selectExpr('sha', f'explode_outer({input_files}) filename') \
             .withColumn('tests', _enumerate_tests(funcs.expr('filename'))) \
             .selectExpr('sha', 'from_json(tests, "tests ARRAY<STRING>").tests tests') \
             .selectExpr('sha', 'explode_outer(tests) test') \
@@ -714,6 +715,7 @@ def _create_train_test_pipeline(spark: SparkSession,
                                                 input_commit_date='commit_date',
                                                 input_filenames='files.file.name')
     enumerate_related_tests = _create_func_to_enumerate_related_tests(spark, dep_graph, corr_map, test_files,
+                                                                      input_files='files.name.name',
                                                                       depth=2, max_num_tests=16)
     enrich_tests = _create_func_to_enrich_tests(spark, commits, failed_tests,
                                                 input_commit_date='commit_date',
@@ -1010,6 +1012,13 @@ def _get_latest_commit_date(target: str) -> str:
     return commit_date.utcnow().strftime('%Y/%m/%d %H:%M:%S')
 
 
+def _format_for_scalatest(tests: List[str]) -> str:
+    selected_tests = []
+    for t in tests:
+        selected_tests.append(f'TestFailed Some({t}) {t} None')
+    return '\n'.join(selected_tests)
+
+
 def predict_main(argv: Any) -> None:
     # Parses command-line arguments for a prediction mode
     from argparse import ArgumentParser
@@ -1027,6 +1036,7 @@ def predict_main(argv: Any) -> None:
     parser.add_argument('--contributor-stats', type=str, required=False)
     # TODO: Makes `--build-dep` optional
     parser.add_argument('--build-dep', type=str, required=True)
+    parser.add_argument('--format', dest='format', action='store_true')
     args = parser.parse_args(argv)
 
     if not os.path.isdir(f'{args.target}/.git'):
@@ -1041,8 +1051,8 @@ def predict_main(argv: Any) -> None:
         raise ValueError(f"Test list file not found in {os.path.abspath(args.test_files)}")
     if not os.path.exists(args.commits):
         raise ValueError(f"Commit history file not found in {os.path.abspath(args.commits)}")
-    if not os.path.exists(args.corr_map):
-        raise ValueError(f"Correlated file map not found in {os.path.abspath(args.corr_map)}")
+    if not os.path.exists(args.correlated_map):
+        raise ValueError(f"Correlated file map not found in {os.path.abspath(args.correlated_map)}")
     if not os.path.exists(args.failed_tests):
         raise ValueError(f"Failed test list file not found in {os.path.abspath(args.failed_tests)}")
     if not os.path.exists(args.updated_file_stats):
@@ -1056,7 +1066,7 @@ def predict_main(argv: Any) -> None:
     test_files = json.loads(Path(args.test_files).read_text())
     commits = json.loads(Path(args.commits).read_text())
     repo_commits = list(map(lambda c: github_utils.from_github_datetime(c[0]), commits))
-    corr_map = json.loads(Path(args.corr_map).read_text())
+    corr_map = json.loads(Path(args.correlated_map).read_text())
     updated_file_stats = json.loads(Path(args.updated_file_stats).read_text())
     failed_tests = json.loads(Path(args.failed_tests).read_text())
     contributor_stats = json.loads(Path(args.contributor_stats).read_text()) \
@@ -1082,6 +1092,7 @@ def predict_main(argv: Any) -> None:
         num_adds, num_dels, num_chgs = _get_updated_file_stats(args.target, args.num_commits)
 
         df = spark.range(1).selectExpr([
+            '0 sha',
             f'"{args.username}" author',
             f'"{commit_date}" commit_date',
             f'array({updated_files}) filenames',
@@ -1137,6 +1148,7 @@ def predict_main(argv: Any) -> None:
                                                     input_commit_date='commit_date',
                                                     input_filenames='filenames')
         enumerate_related_tests = _create_func_to_enumerate_related_tests(spark, dep_graph, corr_map, test_files,
+                                                                          input_files='filenames',
                                                                           depth=2, max_num_tests=16)
         enrich_tests = _create_func_to_enrich_tests(spark, repo_commits, failed_tests,
                                                     input_commit_date='commit_date',
@@ -1164,7 +1176,7 @@ def predict_main(argv: Any) -> None:
         ]
         compute_interaction_features = _create_func_to_compute_interaction_features(input_cols=interacted_features)
         compute_file_cardinality = _create_func_to_compute_file_cardinality(input_col='filenames')
-        explode_tests = lambda df: df.selectExpr('*', 'explode_outer(all_tests) test'), ['all_tests']
+        explode_tests = lambda df: df.selectExpr('*', 'explode_outer(related_tests) test'), ['related_tests']
         select_features = lambda df: df.selectExpr(expected_features), expected_features
 
         to_features = _create_pipelines(
@@ -1186,7 +1198,10 @@ def predict_main(argv: Any) -> None:
             .selectExpr('selected_tests.test selected_tests')
 
         selected_tests = selected_test_df.collect()[0].selected_tests
-        print(json.dumps(selected_tests, indent=2))
+        if args.format:
+            print(_format_for_scalatest(selected_tests))
+        else:
+            print(json.dumps(selected_tests, indent=2))
     finally:
         spark.stop()
 
