@@ -27,7 +27,7 @@ if [ -z "$CONDA_DISABLED" ]; then
   . ${FWDIR}/bin/conda.sh && activate_conda_virtual_env "${FWDIR}"
 fi
 
-PYTHONPATH="${FWDIR}/python" \
+PYTHONPATH="${FWDIR}/python:${FWDIR}/bin" \
 exec python3 -u ${FWDIR}/bin/ptesting-model.py \
   --train \
   --output ${FWDIR}/models/spark \
