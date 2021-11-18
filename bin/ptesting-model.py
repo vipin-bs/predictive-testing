@@ -905,7 +905,6 @@ def train_main(argv: Any) -> None:
     parser.add_argument('--commits', type=str, required=True)
     parser.add_argument('--updated-file-stats', type=str, required=True)
     parser.add_argument('--contributor-stats', type=str, required=False)
-    # TODO: Makes `--build-dep` optional
     parser.add_argument('--build-dep', type=str, required=True)
     parser.add_argument('--excluded-tests', type=str, required=False)
     args = parser.parse_args(argv)
@@ -990,38 +989,6 @@ def train_main(argv: Any) -> None:
         spark.stop()
 
 
-def _exec_subprocess(cmd: str, raise_error: bool = True) -> Tuple[Any, Any, Any]:
-    import subprocess
-    child = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = child.communicate()
-    rt = child.returncode
-    if rt != 0 and raise_error:
-        raise RuntimeError(f"command return code is not 0. got {rt}. stderr = {stderr}")  # type: ignore
-
-    return stdout, stderr, rt
-
-
-def _get_updated_files(target: str, num_commits: int) -> List[str]:
-    stdout, _, _ = _exec_subprocess(f'git -C {target} diff --name-only HEAD~{num_commits}')
-    return list(filter(lambda f: f, stdout.decode().split('\n')))
-
-
-def _get_updated_file_stats(target: str, num_commits: int) -> Tuple[int, int, int]:
-    stdout, _, _ = _exec_subprocess(f'git -C {target} diff --shortstat HEAD~{num_commits}')
-    stat_summary = stdout.decode()
-    m = re.search('\d+ files changed, (\d+) insertions\(\+\), (\d+) deletions\(\-\)', stdout.decode())
-    num_adds = int(m.group(1))  # type: ignore
-    num_dels = int(m.group(2))  # type: ignore
-    return num_adds, num_dels, num_adds + num_dels
-
-
-def _get_latest_commit_date(target: str) -> str:
-    stdout, _, _ = _exec_subprocess(f'git -C {target} log -1 --format=%cd --date=iso')
-    import dateutil.parser  # type: ignore
-    commit_date = dateutil.parser.parse(stdout.decode())
-    return commit_date.utcnow().strftime('%Y/%m/%d %H:%M:%S')
-
-
 def _format_for_scalatest(tests: List[str]) -> str:
     selected_tests = []
     for t in tests:
@@ -1044,7 +1011,6 @@ def predict_main(argv: Any) -> None:
     parser.add_argument('--failed-tests', type=str, required=True)
     parser.add_argument('--updated-file-stats', type=str, required=True)
     parser.add_argument('--contributor-stats', type=str, required=False)
-    # TODO: Makes `--build-dep` optional
     parser.add_argument('--build-dep', type=str, required=True)
     parser.add_argument('--excluded-tests', type=str, required=False)
     parser.add_argument('--format', dest='format', action='store_true')
@@ -1109,9 +1075,11 @@ def predict_main(argv: Any) -> None:
     spark.sparkContext.setLogLevel("ERROR")
 
     try:
-        commit_date = _get_latest_commit_date(args.target)
-        updated_files = ",".join(list(map(lambda f: f'"{f}"', _get_updated_files(args.target, args.num_commits))))
-        num_adds, num_dels, num_chgs = _get_updated_file_stats(args.target, args.num_commits)
+        import git_utils
+        commit_date = git_utils.get_latest_commit_date(args.target)
+        updated_files = git_utils.get_updated_files(args.target, args.num_commits)
+        updated_files = ",".join(list(map(lambda f: f'"{f}"', updated_files)))  # type: ignore
+        num_adds, num_dels, num_chgs = git_utils.get_updated_file_stats(args.target, args.num_commits)
 
         df = spark.range(1).selectExpr([
             '0 sha',
