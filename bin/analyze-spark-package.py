@@ -25,14 +25,14 @@ import json
 import glob
 import os
 import re
-from typing import Any
-from typing import Any, Dict, List, Optional
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
 from ptesting import depgraph
 from ptesting import javaclass
 
 
-# Compiled regex patterns for Spark repository
+# Compiled regex patterns to extract information from a Spark repository
 # TODO: Generalize this
 RE_IS_JAVA_CLASS = re.compile('\/[a-zA-Z0-9/\-_]+[\.class|\$]')
 RE_IS_JAVA_TEST = re.compile('\/[a-zA-Z0-9/\-_]+Suite\.class$')
@@ -40,6 +40,8 @@ RE_IS_PYTHON_TEST = re.compile('\/test_[a-zA-Z0-9/\-_]+\.py$')
 RE_JAVA_CLASS_PATH = re.compile("[a-zA-Z0-9/\-_]+\/classes\/(org\/apache\/spark\/[a-zA-Z0-9/\-_]+)[\.class|\$]")
 RE_JAVA_TEST_PATH = re.compile("[a-zA-Z0-9/\-_]+\/test-classes\/(org\/apache\/spark\/[a-zA-Z0-9/\-_]+Suite)\.class$")
 RE_PYTHON_TEST_PATH = re.compile("[a-zA-Z0-9/\-_]+\/python\/(pyspark\/[a-zA-Z0-9/\-_]+)\.py$")
+RE_PARSE_PATH = re.compile(f"[a-zA-Z0-9/\-]+/(org\/apache\/spark\/.+\/)([a-zA-Z0-9\-]+)\.scala")
+RE_PARSE_SCALA_FILE = re.compile("class\s+([a-zA-Z0-9]+Suite)\s+extends\s+")
 
 
 def _is_java_class(path: str) -> bool:
@@ -97,6 +99,41 @@ def _format_path(path: str, root_path: str) -> str:
     return path[len(prefix_path) + 1:]
 
 
+def _build_correlated_file_map(root_path: str, commits: List[Tuple[str, str, List[str]]]) -> Dict[str, List[str]]:
+    import itertools
+    corr_map: Dict[str, Any] = {}
+    for _, _, files in commits:
+        group = []
+        for f in files:
+            qs = RE_PARSE_PATH.search(f)
+            if qs:
+                package = qs.group(1).replace('/', '.')
+                try:
+                    file_as_string = Path(f'{root_path}/{f}').read_text()
+                    classes = RE_PARSE_SCALA_FILE.findall(file_as_string)
+                    if classes:
+                        group.append((f, list(map(lambda c: f'{package}{c}', classes))))
+                    else:
+                        clazz = qs.group(2)
+                        group.append((f, [f'{package}{clazz}']))
+                except:
+                    pass
+            else:
+                group.append((f, []))
+
+        # for x, y in filter(lambda p: p[0] != p[1], itertools.product(group, group)):
+        for (path1, classes1), (path2, classes2) in itertools.product(group, group):
+            if path1 not in corr_map:
+                corr_map[path1] = set()
+
+            corr_map[path1].update(classes1 + classes2)
+
+    for k, v in corr_map.items():
+        corr_map[k] = list(v)
+
+    return corr_map
+
+
 def _write_data_as(prefix: str, path: str, data: Any) -> None:
     with open(f"{path}/{prefix}.json", mode='w') as f:
         f.write(json.dumps(data, indent=2))
@@ -107,9 +144,15 @@ def main() -> None:
     from argparse import ArgumentParser
     parser = ArgumentParser()
     parser.add_argument('--root-path', dest='root_path', type=str, required=True)
+    parser.add_argument('--commits', type=str, required=True)
     parser.add_argument('--output', dest='output', type=str, required=True)
     parser.add_argument('--overwrite', dest='overwrite', action='store_true')
     args = parser.parse_args()
+
+    if not os.path.isdir(args.root_path):
+        raise ValueError(f"Spark root dir not found in {os.path.abspath(args.root_path)}")
+    if not os.path.isfile(args.commits):
+        raise ValueError(f"Commit history file not found in {os.path.abspath(args.commits)}")
 
     if args.overwrite:
         import shutil
@@ -118,14 +161,21 @@ def main() -> None:
     # Make an output dir in advance
     os.mkdir(args.output)
 
+    # Extract a list of all the available tests from the repository
     java_classes, java_tests, python_tests = _enumerate_spark_files(args.root_path)
     tests = dict(map(lambda t: (t[0], _format_path(t[1], args.root_path)), ({**java_tests, **python_tests}).items()))
     _write_data_as('test-files', args.output, tests)
 
+    # Build a control folow graph from compiled class files
     java_files = list(({**java_classes, **java_tests}).items())
     extract_edges_from_path = javaclass.create_func_to_extract_refs_from_class_file('org.apache.spark')
     dep_graph = depgraph.build_dependency_graphs(java_files, extract_edges_from_path)
     _write_data_as('dep-graph', args.output, dep_graph)
+
+    # Extract file correlation from a sequence of commit logs
+    commits = json.loads(Path(args.commits).read_text())
+    corr_map = _build_correlated_file_map(args.root_path, commits)
+    _write_data_as('correlated-map', args.output, corr_map)
 
 
 if __name__ == "__main__":

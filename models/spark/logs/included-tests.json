@@ -1,0 +1,8 @@
+[
+  "$comment: tests listed here are not pruned before computing failure probs.",
+  "org.apache.spark.sql.hive.execution.command.ShowTablesSuite",
+  "org.apache.spark.sql.execution.datasources.OrcV2AggregatePushDownSuite",
+  "org.apache.spark.sql.execution.datasources.ParquetV2AggregatePushDownSuit",
+  "org.apache.spark.sql.execution.datasources.OrcV1AggregatePushDownSuite",
+  "org.apache.spark.sql.execution.datasources.ParquetV1AggregatePushDownSuite"
+]

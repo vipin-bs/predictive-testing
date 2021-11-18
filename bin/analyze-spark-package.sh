@@ -44,4 +44,5 @@ echo "Output path is ${OUTPUT_PATH}"
 PYTHONPATH="${FWDIR}/python" \
 exec python3 -u ${FWDIR}/bin/analyze-spark-package.py \
   --root-path ${ROOT_PATH} \
+  --commits ${FWDIR}/models/spark/logs/commits.json \
   --output ${OUTPUT_PATH}

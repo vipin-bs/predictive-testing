@@ -164,13 +164,22 @@ def _create_func_to_enumerate_related_tests(spark: SparkSession,
                                             dep_graph: Dict[str, List[str]],
                                             corr_map: Dict[str, List[str]],
                                             test_files: Dict[str, str],
+                                            included_tests: List[str],
                                             input_files: str,
-                                            depth: int,
-                                            max_num_tests: Optional[int] = None) -> Tuple[Any, List[str]]:
+                                            depth: int) -> Tuple[Any, List[str]]:
     broadcasted_dep_graph = spark.sparkContext.broadcast(dep_graph)
     broadcasted_corr_map = spark.sparkContext.broadcast(corr_map)
     broadcasted_test_files = spark.sparkContext.broadcast(test_files)
+    broadcasted_included_tests = spark.sparkContext.broadcast(included_tests)
 
+    # This method lists up related tests by using two relations as follows:
+    #  - File correlation in commits: if files were merged in a single commit, classes in the files are assumed
+    #    to have correlated between each other.
+    #  - Control flow graph: if a method in a class A calls a method in a class B, the class A depends on the class B.
+    #    Since various factors (e.g., class hierarchy and runtime reflection) can affect which methods are called
+    #    in a class, it is hard to analyze control flow precisely. Therefore, we analyze it in a coarse-grain way;
+    #    if a class file A contains a JVM opcode 'invoke' for a class B, the class A is assumed
+    #    to depend on the class B.
     def enumerate_related_tests(df: DataFrame) -> DataFrame:
         @funcs.pandas_udf("string")  # type: ignore
         def _enumerate_tests(file_paths: pd.Series) -> pd.Series:
@@ -180,6 +189,7 @@ def _create_func_to_enumerate_related_tests(spark: SparkSession,
             dep_graph = broadcasted_dep_graph.value
             corr_map = broadcasted_corr_map.value
             test_files = broadcasted_test_files.value
+            included_tests = broadcasted_included_tests.value
 
             def _enumerate_tests_from_dep_graph(target):  # type: ignore
                 subgraph = {}
@@ -204,17 +214,16 @@ def _create_func_to_enumerate_related_tests(spark: SparkSession,
             ret = []
             for file_path in file_paths:
                 correlated_files = corr_map[file_path] if file_path in corr_map else []
-                correlated_tests = list(filter(lambda f: f in test_files, correlated_files))
-                if not file_path:
-                    ret.append(json.dumps({'tests': correlated_tests}))
-                else:
+                related_tests = set()
+                related_tests.update(list(filter(lambda f: f in test_files, correlated_files)))
+                related_tests.update(included_tests)
+                if file_path:
                     result = parse_path(file_path)
-                    if not result:
-                        ret.append(json.dumps({'tests': correlated_tests}))
-                    else:
+                    if result:
                         dependant_tests = _enumerate_tests_from_dep_graph(result.group(1).replace('/', '.'))
-                        related_tests = dependant_tests + correlated_tests
-                        ret.append(json.dumps({'tests': related_tests}))
+                        related_tests.update(dependant_tests)
+
+                ret.append(json.dumps({'tests': list(related_tests)}))
 
             return pd.Series(ret)
 
@@ -348,7 +357,7 @@ def _create_func_to_compute_distances(spark: SparkSession,
                 distances = []
                 for n in json.loads(names):
                     distances.append(path_diff(n, test_files[t]))
-                ret.append(min(distances))
+                ret.append(min(distances) if distances else 128)
             else:
                 ret.append(128)
 
@@ -488,6 +497,7 @@ def create_train_test_pipeline(spark: SparkSession,
                                commits: List[datetime],
                                dep_graph: Dict[str, List[str]],
                                corr_map: Dict[str, List[str]],
+                               included_tests: List[str],
                                updated_file_stats: Dict[str, List[Tuple[str, str, str, str]]],
                                contributor_stats: Optional[List[Tuple[str, str]]],
                                failed_tests: Dict[str, List[str]]) -> Tuple[Any, Any]:
@@ -562,9 +572,11 @@ def create_train_test_pipeline(spark: SparkSession,
     enrich_files = _create_func_to_enrich_files(spark, commits, updated_file_stats,
                                                 input_commit_date='commit_date',
                                                 input_filenames='files.file.name')
-    enumerate_related_tests = _create_func_to_enumerate_related_tests(spark, dep_graph, corr_map, test_files,
+    enumerate_related_tests = _create_func_to_enumerate_related_tests(spark, dep_graph, corr_map,
+                                                                      test_files,
+                                                                      included_tests,
                                                                       input_files='files.file.name',
-                                                                      depth=2, max_num_tests=16)
+                                                                      depth=2)
     enrich_tests = _create_func_to_enrich_tests(spark, commits, failed_tests,
                                                 input_commit_date='commit_date',
                                                 input_test='test')
@@ -636,6 +648,7 @@ def create_predict_pipeline(spark: SparkSession,
                             commits: List[datetime],
                             dep_graph: Dict[str, List[str]],
                             corr_map: Dict[str, List[str]],
+                            included_tests: List[str],
                             updated_file_stats: Dict[str, List[Tuple[str, str, str, str]]],
                             contributor_stats: Optional[List[Tuple[str, str]]],
                             failed_tests: Dict[str, List[str]]) -> Any:
@@ -685,9 +698,11 @@ def create_predict_pipeline(spark: SparkSession,
     enrich_files = _create_func_to_enrich_files(spark, commits, updated_file_stats,
                                                 input_commit_date='commit_date',
                                                 input_filenames='filenames')
-    enumerate_related_tests = _create_func_to_enumerate_related_tests(spark, dep_graph, corr_map, test_files,
+    enumerate_related_tests = _create_func_to_enumerate_related_tests(spark, dep_graph, corr_map,
+                                                                      test_files,
+                                                                      included_tests,
                                                                       input_files='filenames',
-                                                                      depth=2, max_num_tests=16)
+                                                                      depth=2)
     enrich_tests = _create_func_to_enrich_tests(spark, commits, failed_tests,
                                                 input_commit_date='commit_date',
                                                 input_test='test')
