@@ -127,10 +127,9 @@ def _build_lgb_model(X: pd.DataFrame, y: pd.Series, n_jobs: int = -1, opts: Dict
 
     def _objective(params: Dict[str, Any]) -> float:
         model = _create_model(params)
-        fit_params = {
+        fit_params: Dict[str, str] = {
             # TODO: Raises an error if a single regressor is used
             # "categorical_feature": "auto",
-            "verbose": 0
         }
         try:
             # TODO: Replace with `lgb.cv` to remove the `sklearn` dependency

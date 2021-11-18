@@ -497,14 +497,14 @@ def _predict_failed_probs_for_tests(test_df: DataFrame, clf: Any, to_features: A
         .withColumn('pmf', to_map_expr) \
         .selectExpr('sha', 'test', to_failed_prob)
 
-    # TODO: Applied an emprical rule: updated tests tend to fail possibly
-    # regex = '"\/(org\/apache\/spark\/[a-zA-Z0-9/\-]+Suite)\.scala$"'
-    # replace_test = f'f -> replace(regexp_extract(f, {regex}, 1), "/", ".")'
-    # extract_test = f'transform(files.file.name, {replace_test})'
-    # updated_test_df = test_df.selectExpr('sha', f'filter({extract_test}, f -> length(f) > 0) updated_tests')
-    # corrected_failed_prob = 'case when array_contains(updated_tests, test) then 1.0 else failed_prob end failed_prob'
-    # df_with_failed_probs = df_with_failed_probs.join(updated_test_df, 'sha', 'INNER') \
-    #     .selectExpr('sha', 'test', corrected_failed_prob)
+    # Applied an emprical rule: sets 1.0 to the failed prob. of the modified tests
+    regex = '"\/(org\/apache\/spark\/[a-zA-Z0-9/\-]+Suite)\.scala$"'
+    replace_test = f'f -> replace(regexp_extract(f, {regex}, 1), "/", ".")'
+    extract_test = f'transform(files.file.name, {replace_test})'
+    modified_test_df = test_df.selectExpr('sha', f'filter({extract_test}, f -> length(f) > 0) modified_tests')
+    corrected_failed_prob = 'case when array_contains(modified_tests, test) then 1.0 else failed_prob end failed_prob'
+    df_with_failed_probs = df_with_failed_probs.join(modified_test_df, 'sha', 'INNER') \
+        .selectExpr('sha', 'test', corrected_failed_prob)
 
     compare = lambda x, y: \
         f"case when {x}.failed_prob < {y}.failed_prob then 1 " \
@@ -625,9 +625,9 @@ def _create_pipelines(name: str, funcs: List[Tuple[Any, List[str]]]) -> Any:
             assert type(df) is DataFrame
             transformed_df = f(df)
             pipeline_input_columns = pipeline_input_columns.difference(set(input_cols))
-            _logger.debug(f"{name}: {f.__name__}({','.join(input_cols)}) -> "
-                          f"[{','.join(_columns_added(df, transformed_df))}] added, "
-                          f"[{','.join(_columns_removed(df, transformed_df))}] removed")
+            _logger.info(f"{name}: {f.__name__}({','.join(input_cols)}) -> "
+                         f"[{','.join(_columns_added(df, transformed_df))}] added, "
+                         f"[{','.join(_columns_removed(df, transformed_df))}] removed")
             df = transformed_df
 
         if pipeline_input_columns:
@@ -653,22 +653,25 @@ def _create_train_test_pipeline(spark: SparkSession,
     #  - File update statistics: the total number of additions, deletions, and changes made to modified files
     #    (`num_adds`, `num_dels`, and `num_chgs`, respectively).
     #  - File cardinality: the number of files touched in a test run (`file_card`).
-    #  - Target cardinality: the number of tests invoked in a test run (`target_card`).
     #  - Historical failure rates: the count of target test failures occurred in the last 7, 14, and 28 days
     #    (`failed_num_7d`, `failed_num_14d`, and `failed_num_28d`, respectively) and the total count
-    #    of target test failures in historical test outcomes (`total_failed_num`).
-    #  - Minimal distance between one of modified files and a prediction target: the number of different directories
+    #    of target test failures in historical test results (`total_failed_num`).
+    #  - Minimal path difference between modified files and a target test file: the number of different directories
     #    between file paths (`path_difference`). Let's say that we have two files: their file paths are
-    #    'xxx/yyy/zzz/file' and 'xxx/aaa/zzz/test_file'. In the example, a minimal distance is 1.
+    #    'xxx/yyy/zzz/file' and 'xxx/aaa/zzz/test_file'. In this example, the number of a path difference is 1.
+    #  - Shortest distance between modified files and a target test file: shortest path distance
+    #    in a call graph (`distance`) and the graph will be described soon after.
+    #  - Interacted features: the multiplied values of some feature pairs, e.g.,
+    #    `total_failed_num * num_commits` and `failed_num_7d * num_commits`.
     #
-    # NOTE: The Facebook paper [1] reports that the best performance predictive model uses a change history,
+    # NOTE: The Facebook paper [2] reports that the best performance predictive model uses a change history,
     # failure rates, target cardinality, and minimal distances (For more details, see
-    # "Section 6.B. Feature Selection" in the paper [1]). Even in our model, change history for files
+    # "Section 6.B. Feature Selection" in the paper [2]). Even in our model, change history for files
     # and historical failure rates tend to be more important than the other features.
     #
     # TODO: Needs to improve predictive model performance by checking the other feature candidates
-    # that can be found in the Facebook paper (See "Section 4.A. Feature Engineering") [1]
-    # and the Google paper (See "Section 4. Hypotheses, Models and Results") [2].
+    # that can be found in the Facebook paper (See "Section 4.A. Feature Engineering") [2]
+    # and the Google paper (See "Section 4. Hypotheses, Models and Results") [1].
     expected_train_features = [
         'num_commits',
         'updated_num_3d',
@@ -715,7 +718,7 @@ def _create_train_test_pipeline(spark: SparkSession,
                                                 input_commit_date='commit_date',
                                                 input_filenames='files.file.name')
     enumerate_related_tests = _create_func_to_enumerate_related_tests(spark, dep_graph, corr_map, test_files,
-                                                                      input_files='files.name.name',
+                                                                      input_files='files.file.name',
                                                                       depth=2, max_num_tests=16)
     enrich_tests = _create_func_to_enrich_tests(spark, commits, failed_tests,
                                                 input_commit_date='commit_date',
@@ -932,7 +935,14 @@ def train_main(argv: Any) -> None:
     dep_graph = json.loads(Path(args.build_dep).read_text()) \
         if args.build_dep else None
     excluded_tests = json.loads(Path(args.excluded_tests).read_text()) \
-        if args.excluded_tests else None
+        if args.excluded_tests else []
+
+    # Removes comment entries from `excluded_tests`
+    excluded_tests = list(filter(lambda t: not t.startswith('$comment'), excluded_tests))
+
+    # Removes the excluded tests from `test_files`
+    test_files = {k: test_files[k] for k in test_files if k not in excluded_tests} \
+        if excluded_tests else test_files
 
     # Initializes a Spark session
     spark = SparkSession.builder \
@@ -959,7 +969,7 @@ def train_main(argv: Any) -> None:
         log_data_df = spark.read.format('json').load(args.train_log_data) \
             .selectExpr(expected_input_cols)
 
-        # Excludes failed tests (e.g., flaky ones) if necessary
+        # Excludes some tests (e.g., flaky ones) if necessary
         if excluded_tests:
             log_data_df = _exclude_tests_from(log_data_df, excluded_tests)
 
@@ -1036,6 +1046,7 @@ def predict_main(argv: Any) -> None:
     parser.add_argument('--contributor-stats', type=str, required=False)
     # TODO: Makes `--build-dep` optional
     parser.add_argument('--build-dep', type=str, required=True)
+    parser.add_argument('--excluded-tests', type=str, required=False)
     parser.add_argument('--format', dest='format', action='store_true')
     args = parser.parse_args(argv)
 
@@ -1061,6 +1072,8 @@ def predict_main(argv: Any) -> None:
         raise ValueError(f"Contributor stats not found in {os.path.abspath(args.contributor_stats)}")
     if args.build_dep and not os.path.exists(args.build_dep):
         raise ValueError(f"Dependency graph file not found in {os.path.abspath(args.build_dep)}")
+    if args.excluded_tests and not os.path.exists(args.excluded_tests):
+        raise ValueError(f"Excluded test list file not found in {os.path.abspath(args.excluded_tests)}")
 
     clf = pickle.loads(Path(args.model).read_bytes())
     test_files = json.loads(Path(args.test_files).read_text())
@@ -1073,6 +1086,15 @@ def predict_main(argv: Any) -> None:
         if args.contributor_stats else None
     dep_graph = json.loads(Path(args.build_dep).read_text()) \
         if args.build_dep else None
+    excluded_tests = json.loads(Path(args.excluded_tests).read_text()) \
+        if args.excluded_tests else []
+
+    # Removes comment entries from `excluded_tests`
+    excluded_tests = list(filter(lambda t: not t.startswith('$comment'), excluded_tests))
+
+    # Removes the excluded tests from `test_files`
+    test_files = {k: test_files[k] for k in test_files if k not in excluded_tests} \
+        if excluded_tests else test_files
 
     # Initializes a Spark session
     spark = SparkSession.builder \

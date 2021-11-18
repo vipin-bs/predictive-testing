@@ -27,7 +27,7 @@ if [ -z "${SPARK_REPO}" ]; then
   exit 1
 fi
 
-if [ -z "$CONDA_DISABLE" ]; then
+if [ -z "$CONDA_DISABLED" ]; then
   # Activate a conda virtual env
   . ${FWDIR}/bin/conda.sh && activate_conda_virtual_env "${FWDIR}"
 fi
