@@ -37,6 +37,6 @@ exec python3 -u ${FWDIR}/bin/ptesting-model.py \
   --excluded-tests ${FWDIR}/models/spark/logs/excluded-tests.json \
   --included-tests ${FWDIR}/models/spark/logs/included-tests.json \
   --build-dep ${FWDIR}/models/spark/indexes/latest/dep-graph.json \
-  --correlated-map ${FWDIR}/models/spark/indexes/latest/correlated-map.json \
+  --correlated-files ${FWDIR}/models/spark/indexes/latest/correlated-files.json \
   --updated-file-stats ${FWDIR}/models/spark/logs/updated-file-stats.json \
   --contributor-stats ${FWDIR}/models/spark/logs/contributor-stats.json

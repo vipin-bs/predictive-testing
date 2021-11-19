@@ -492,7 +492,7 @@ def build_failed_tests(train_df: DataFrame) -> Dict[str, List[str]]:
     return dict(failed_tests)
 
 
-def extract_corr_map_from_failed_tests(train_df: DataFrame) -> Dict[str, Any]:
+def extract_correlated_files_from_failed_tests(train_df: DataFrame) -> Dict[str, Any]:
     failed_maps = train_df.where('size(failed_tests) > 0') \
         .selectExpr('failed_tests', 'files.file.name').toPandas().to_dict(orient='records')
     corr_map: Dict[str, Any] = {}
@@ -508,6 +508,17 @@ def extract_corr_map_from_failed_tests(train_df: DataFrame) -> Dict[str, Any]:
         corr_map[k] = list(v)
 
     return corr_map
+
+
+def set_highest_failed_probs_for_updated_tests(test_df: DataFrame, predicted_df: DataFrame) -> DataFrame:
+    # TODO: Removes package-depenent stuffs
+    regex = '"\/(org\/apache\/spark\/[a-zA-Z0-9/\-]+Suite)\.scala$"'
+    replace_test = f'f -> replace(regexp_extract(f, {regex}, 1), "/", ".")'
+    extract_test = f'transform(files.file.name, {replace_test})'
+    updated_test_df = test_df.selectExpr('sha', f'filter({extract_test}, f -> length(f) > 0) updated_tests')
+    corrected_failed_prob = 'case when array_contains(updated_tests, test) then 1.0 else failed_prob end failed_prob'
+    return predicted_df.join(updated_test_df, 'sha', 'INNER') \
+        .selectExpr('sha', 'test', corrected_failed_prob)
 
 
 def create_train_test_pipeline(spark: SparkSession,

@@ -32,7 +32,7 @@ if [ -z "$CONDA_DISABLED" ]; then
   . ${FWDIR}/bin/conda.sh && activate_conda_virtual_env "${FWDIR}"
 fi
 
-PYTHONPATH="${FWDIR}/python" \
+PYTHONPATH="${FWDIR}/python:${FWDIR}/bin" \
 exec python3 -u ${FWDIR}/bin/ptesting-model.py \
   --username "<unknown>" \
   --target ${SPARK_REPO} \
@@ -43,7 +43,8 @@ exec python3 -u ${FWDIR}/bin/ptesting-model.py \
   --included-tests ${FWDIR}/models/spark/logs/included-tests.json \
   --failed-tests ${FWDIR}/models/spark/failed-tests.json \
   --build-dep ${FWDIR}/models/spark/indexes/latest/dep-graph.json \
-  --correlated-map ${FWDIR}/models/spark/indexes/latest/correlated-map.json \
+  --correlated-files ${FWDIR}/models/spark/indexes/latest/correlated-files.json \
+  --correlated-files-delta ${FWDIR}/models/spark/correlated-files-delta.json \
   --updated-file-stats ${FWDIR}/models/spark/logs/updated-file-stats.json \
   --contributor-stats ${FWDIR}/models/spark/logs/contributor-stats.json \
   "$@"

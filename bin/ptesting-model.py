@@ -78,14 +78,7 @@ def _predict_failed_probs_for_tests(test_df: DataFrame, clf: Any, to_features: A
         .selectExpr('sha', 'test', to_failed_prob)
 
     # Applied an emprical rule: set 1.0 to the failed probs of udpated tests
-    # TODO: Move this logic into the `features` module
-    regex = '"\/(org\/apache\/spark\/[a-zA-Z0-9/\-]+Suite)\.scala$"'
-    replace_test = f'f -> replace(regexp_extract(f, {regex}, 1), "/", ".")'
-    extract_test = f'transform(files.file.name, {replace_test})'
-    updated_test_df = test_df.selectExpr('sha', f'filter({extract_test}, f -> length(f) > 0) updated_tests')
-    corrected_failed_prob = 'case when array_contains(updated_tests, test) then 1.0 else failed_prob end failed_prob'
-    df_with_failed_probs = df_with_failed_probs.join(updated_test_df, 'sha', 'INNER') \
-        .selectExpr('sha', 'test', corrected_failed_prob)
+    df_with_failed_probs = features.set_highest_failed_probs_for_updated_tests(test_df, df_with_failed_probs)
 
     compare = lambda x, y: \
         f"case when {x}.failed_prob < {y}.failed_prob then 1 " \
@@ -196,7 +189,7 @@ def _save_metrics_as_chart(output_path: str, metrics: List[Dict[str, Any]], max_
 def _train_and_eval_ptest_model(output_path: str, spark: SparkSession, df: DataFrame,
                                 test_files: Dict[str, str],
                                 commits: List[Tuple[str, str, List[str]]],
-                                corr_map: Dict[str, List[str]],
+                                correlated_files: Dict[str, List[str]],
                                 dep_graph: Dict[str, List[str]],
                                 included_tests: List[str],
                                 updated_file_stats: Dict[str, List[Tuple[str, str, str, str]]],
@@ -210,18 +203,20 @@ def _train_and_eval_ptest_model(output_path: str, spark: SparkSession, df: DataF
         df.count(), num_failed_tests(df), train_df.count(), num_failed_tests(train_df),
         test_df.count(), num_failed_tests(test_df)))
 
-    corr_map_from_failed_tests = features.extract_corr_map_from_failed_tests(train_df)
-    for key, value in corr_map_from_failed_tests.items():
-        corr_map[key] = list(set(corr_map[key] + value)) if key in corr_map else value
+    correlated_files_from_failed_tests = features.extract_correlated_files_from_failed_tests(train_df)
+    for key, value in correlated_files_from_failed_tests.items():
+        correlated_files[key] = list(set(correlated_files[key] + value)) if key in correlated_files else value
 
     repo_commits = list(map(lambda c: github_utils.from_github_datetime(c[0]), commits))
     failed_tests = features.build_failed_tests(train_df)
     to_train_features, to_test_features = features.create_train_test_pipeline(
-        spark, test_files, repo_commits, dep_graph, corr_map, included_tests, updated_file_stats,
+        spark, test_files, repo_commits, dep_graph, correlated_files, included_tests, updated_file_stats,
         contributor_stats, failed_tests)
 
     clf = _build_predictive_model(train_df, to_train_features)
 
+    with open(f"{output_path}/correlated-files-delta.json", 'w') as f:
+        f.write(json.dumps(correlated_files_from_failed_tests, indent=2))
     with open(f"{output_path}/failed-tests.json", 'w') as f:
         f.write(json.dumps(failed_tests, indent=2))
     with open(f"{output_path}/model.pkl", 'wb') as f:  # type: ignore
@@ -263,7 +258,7 @@ def train_main(argv: Any) -> None:
     parser.add_argument('--train-log-data', type=str, required=True)
     parser.add_argument('--test-files', type=str, required=True)
     parser.add_argument('--commits', type=str, required=True)
-    parser.add_argument('--correlated-map', type=str, required=True)
+    parser.add_argument('--correlated-files', type=str, required=True)
     parser.add_argument('--updated-file-stats', type=str, required=True)
     parser.add_argument('--contributor-stats', type=str, required=False)
     parser.add_argument('--build-dep', type=str, required=True)
@@ -279,8 +274,8 @@ def train_main(argv: Any) -> None:
         raise ValueError(f"Test list file not found in {os.path.abspath(args.test_files)}")
     if not os.path.isfile(args.commits):
         raise ValueError(f"Commit history file not found in {os.path.abspath(args.commits)}")
-    if not os.path.isfile(args.correlated_map):
-        raise ValueError(f"Correlated file map not found in {os.path.abspath(args.correlated_map)}")
+    if not os.path.isfile(args.correlated_files):
+        raise ValueError(f"File for file correlation not found in {os.path.abspath(args.correlated_files)}")
     if not os.path.isfile(args.updated_file_stats):
         raise ValueError(f"Updated file stats not found in {os.path.abspath(args.updated_file_stats)}")
     if args.contributor_stats and not os.path.isfile(args.contributor_stats):
@@ -294,7 +289,7 @@ def train_main(argv: Any) -> None:
 
     test_files = json.loads(Path(args.test_files).read_text())
     commits = json.loads(Path(args.commits).read_text())
-    corr_map = json.loads(Path(args.correlated_map).read_text())
+    correlated_files = json.loads(Path(args.correlated_files).read_text())
     updated_file_stats = json.loads(Path(args.updated_file_stats).read_text())
     contributor_stats = json.loads(Path(args.contributor_stats).read_text()) \
         if args.contributor_stats else None
@@ -363,7 +358,7 @@ def train_main(argv: Any) -> None:
             _logger.warning(f'Unknown failed tests found: {",".join(unknown_failed_tests)}')
 
         _train_and_eval_ptest_model(args.output, spark, log_data_df, test_files, commits,
-                                    corr_map, dep_graph,
+                                    correlated_files, dep_graph,
                                     included_tests,
                                     updated_file_stats, contributor_stats,
                                     test_ratio=0.10)
@@ -389,7 +384,8 @@ def predict_main(argv: Any) -> None:
     parser.add_argument('--model', type=str, required=True)
     parser.add_argument('--test-files', type=str, required=True)
     parser.add_argument('--commits', type=str, required=True)
-    parser.add_argument('--correlated-map', type=str, required=True)
+    parser.add_argument('--correlated-files', type=str, required=True)
+    parser.add_argument('--correlated-files-delta', type=str, required=True)
     parser.add_argument('--failed-tests', type=str, required=True)
     parser.add_argument('--updated-file-stats', type=str, required=True)
     parser.add_argument('--contributor-stats', type=str, required=False)
@@ -411,8 +407,10 @@ def predict_main(argv: Any) -> None:
         raise ValueError(f"Test list file not found in {os.path.abspath(args.test_files)}")
     if not os.path.isfile(args.commits):
         raise ValueError(f"Commit history file not found in {os.path.abspath(args.commits)}")
-    if not os.path.isfile(args.correlated_map):
-        raise ValueError(f"Correlated file map not found in {os.path.abspath(args.correlated_map)}")
+    if not os.path.isfile(args.correlated_files):
+        raise ValueError(f"File for file correlation not found in {os.path.abspath(args.correlated_files)}")
+    if not os.path.isfile(args.correlated_files_delta):
+        raise ValueError("File for extra file correlation not found in {os.path.abspath(args.correlated_files_delta)}")
     if not os.path.isfile(args.failed_tests):
         raise ValueError(f"Failed test list file not found in {os.path.abspath(args.failed_tests)}")
     if not os.path.isfile(args.updated_file_stats):
@@ -430,7 +428,8 @@ def predict_main(argv: Any) -> None:
     test_files = json.loads(Path(args.test_files).read_text())
     commits = json.loads(Path(args.commits).read_text())
     repo_commits = list(map(lambda c: github_utils.from_github_datetime(c[0]), commits))
-    corr_map = json.loads(Path(args.correlated_map).read_text())
+    correlated_files = json.loads(Path(args.correlated_files).read_text())
+    correlated_files_delta = json.loads(Path(args.correlated_files_delta).read_text())
     updated_file_stats = json.loads(Path(args.updated_file_stats).read_text())
     failed_tests = json.loads(Path(args.failed_tests).read_text())
     contributor_stats = json.loads(Path(args.contributor_stats).read_text()) \
@@ -441,6 +440,10 @@ def predict_main(argv: Any) -> None:
         if args.excluded_tests else []
     included_tests = json.loads(Path(args.included_tests).read_text()) \
         if args.included_tests else []
+
+    # Merges `correlated_files` and `correlated_files_delta`
+    for key, value in correlated_files_delta.items():
+        correlated_files[key] = list(set(correlated_files[key] + value)) if key in correlated_files else value
 
     # Removes comment entries from `excluded_tests`/`included_tests`
     excluded_tests = list(filter(lambda t: not t.startswith('$comment'), excluded_tests))
@@ -484,7 +487,7 @@ def predict_main(argv: Any) -> None:
         ])
 
         to_features = features.create_predict_pipeline(
-            spark, test_files, repo_commits, dep_graph, corr_map, included_tests,
+            spark, test_files, repo_commits, dep_graph, correlated_files, included_tests,
             updated_file_stats, contributor_stats, failed_tests)
 
         predicted = _predict_failed_probs(to_features(df), clf)

@@ -101,7 +101,7 @@ def _format_path(path: str, root_path: str) -> str:
 
 def _build_correlated_file_map(root_path: str, commits: List[Tuple[str, str, List[str]]]) -> Dict[str, List[str]]:
     import itertools
-    corr_map: Dict[str, Any] = {}
+    correlated_files: Dict[str, Any] = {}
     for _, _, files in commits:
         group = []
         for f in files:
@@ -123,15 +123,15 @@ def _build_correlated_file_map(root_path: str, commits: List[Tuple[str, str, Lis
 
         # for x, y in filter(lambda p: p[0] != p[1], itertools.product(group, group)):
         for (path1, classes1), (path2, classes2) in itertools.product(group, group):
-            if path1 not in corr_map:
-                corr_map[path1] = set()
+            if path1 not in correlated_files:
+                correlated_files[path1] = set()
 
-            corr_map[path1].update(classes1 + classes2)
+            correlated_files[path1].update(classes1 + classes2)
 
-    for k, v in corr_map.items():
-        corr_map[k] = list(v)
+    for k, v in correlated_files.items():
+        correlated_files[k] = list(v)
 
-    return corr_map
+    return correlated_files
 
 
 def _write_data_as(prefix: str, path: str, data: Any) -> None:
@@ -174,8 +174,8 @@ def main() -> None:
 
     # Extract file correlation from a sequence of commit logs
     commits = json.loads(Path(args.commits).read_text())
-    corr_map = _build_correlated_file_map(args.root_path, commits)
-    _write_data_as('correlated-map', args.output, corr_map)
+    correlated_files = _build_correlated_file_map(args.root_path, commits)
+    _write_data_as('correlated-files', args.output, correlated_files)
 
 
 if __name__ == "__main__":
