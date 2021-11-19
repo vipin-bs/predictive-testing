@@ -37,37 +37,6 @@ def build_dependency_graphs(files: List[Tuple[str, str]], extract_edges_from_pat
     return {k: list(v) for k, v in adj_list.items()}
 
 
-def generate_graph(nodes: List[str], targets: List[str], edges: Dict[str, List[str]]) -> str:
-    # TODO: Normalize node strings
-    def ns(s: str) -> str:
-        return s.replace('/', '.')
-
-    node_entries = []
-    for node in nodes:
-        if node in targets:
-            node_entries.append(f"\"{ns(node)}\" [shape=\"oval\"];")
-        else:
-            node_entries.append(f"\"{ns(node)}\";")
-
-    edge_entries = []
-    for key, values in edges.items():
-        for value in values:
-            edge_entries.append(f"\"{ns(key)}\" -> \"{ns(value)}\";")
-
-    node_defs = '\n'.join(node_entries)
-    edge_defs = '\n'.join(edge_entries)
-    return f"""
-        digraph {{
-            graph [pad="0.5", nodesep="0.5", ranksep="2", fontname="Helvetica"];
-            node [shape=box]
-            rankdir=LR;
-
-            {node_defs}
-            {edge_defs}
-        }}
-    """
-
-
 def select_subgraph(targets: List[str], edges: Dict[str, List[str]],
                     depth: int) -> Tuple[Dict[str, List[str]], List[str]]:
     subgraph = {}

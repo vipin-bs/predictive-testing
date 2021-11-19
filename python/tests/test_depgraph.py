@@ -54,29 +54,6 @@ class DepGraphTests(unittest.TestCase):
                          [('A', ['B']), ('B', ['A', 'C'])])
         self.assertEqual(sorted(subnodes), ['A', 'B', 'C'])
 
-    def test_generate_graph(self):
-        edges = {'A': ['B'], 'B': ['A', 'C']}
-        g = depgraph.generate_graph(['A', 'B', 'C'], ['A'], edges)
-
-        def normalize(s):
-            return s.replace(' ', '').replace('\n', '')
-
-        expected = f"""
-            digraph {{
-                graph [pad="0.5", nodesep="0.5", ranksep="2", fontname="Helvetica"];
-                node [shape=box]
-                rankdir=LR;
-
-                "A" [shape="oval"];
-                "B";
-                "C";
-                "A" -> "B";
-                "B" -> "A";
-                "B" -> "C";
-            }}
-        """
-        self.assertEqual(normalize(g), normalize(expected))
-
 
 if __name__ == "__main__":
     try:
