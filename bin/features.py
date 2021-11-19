@@ -492,6 +492,24 @@ def build_failed_tests(train_df: DataFrame) -> Dict[str, List[str]]:
     return dict(failed_tests)
 
 
+def extract_corr_map_from_failed_tests(train_df: DataFrame) -> Dict[str, Any]:
+    failed_maps = train_df.where('size(failed_tests) > 0') \
+        .selectExpr('failed_tests', 'files.file.name').toPandas().to_dict(orient='records')
+    corr_map: Dict[str, Any] = {}
+    for failed_map in failed_maps:
+        for c in failed_map['failed_tests']:
+            for f in failed_map['name']:
+                if f not in corr_map:
+                    corr_map[f] = set()
+
+                corr_map[f].add(c)
+
+    for k, v in corr_map.items():
+        corr_map[k] = list(v)
+
+    return corr_map
+
+
 def create_train_test_pipeline(spark: SparkSession,
                                test_files: Dict[str, str],
                                commits: List[datetime],
