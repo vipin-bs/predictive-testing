@@ -291,8 +291,13 @@ def train_main(argv: Any) -> None:
     included_tests = json.loads(Path(args.included_tests).read_text()) \
         if args.included_tests else []
 
-    # Removes comment entries from `excluded_tests`
+    # Removes comment entries from `excluded_tests`/`included_tests`
     excluded_tests = list(filter(lambda t: not t.startswith('$comment'), excluded_tests))
+    included_tests = list(filter(lambda t: not t.startswith('$comment'), included_tests))
+    intersected_tests = set(excluded_tests) & set(included_tests)
+    if intersected_tests:
+        _logger.warning('Some tests exist in both `excluded_tests` and `included_tests`: '
+                        f'{",".join(intersected_tests)}')
 
     # Removes the excluded tests from `test_files`
     test_files = {k: test_files[k] for k in test_files if k not in excluded_tests} \
@@ -322,6 +327,12 @@ def train_main(argv: Any) -> None:
         ]
         log_data_df = spark.read.format('json').load(args.train_log_data) \
             .selectExpr(expected_input_cols)
+
+        too_many_failed_tests_df = log_data_df.where('size(failed_tests) > 32')
+        if too_many_failed_tests_df.count() > 0:
+            rows = too_many_failed_tests_df.selectExpr('sha', 'size(failed_tests) num_failed_tests').collect()
+            too_many_tests = map(lambda r: f'{r.sha}({r.num_failed_tests})', rows)
+            _logger.warning(f'Too many failed tests found: {",".join(too_many_tests)}')
 
         # Excludes some tests (e.g., flaky ones) if necessary
         if excluded_tests:
@@ -417,8 +428,13 @@ def predict_main(argv: Any) -> None:
     included_tests = json.loads(Path(args.included_tests).read_text()) \
         if args.included_tests else []
 
-    # Removes comment entries from `excluded_tests`
+    # Removes comment entries from `excluded_tests`/`included_tests`
     excluded_tests = list(filter(lambda t: not t.startswith('$comment'), excluded_tests))
+    included_tests = list(filter(lambda t: not t.startswith('$comment'), included_tests))
+    intersected_tests = set(excluded_tests) & set(included_tests)
+    if intersected_tests:
+        _logger.warning('Some tests exist in both `excluded_tests` and `included_tests`: '
+                        f'{",".join(intersected_tests)}')
 
     # Removes the excluded tests from `test_files`
     test_files = {k: test_files[k] for k in test_files if k not in excluded_tests} \

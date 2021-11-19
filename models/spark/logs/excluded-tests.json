@@ -16,6 +16,7 @@
   "org.apache.spark.sql.kafka010.KafkaRelationSuite",
   "org.apache.spark.streaming.StreamingListenerSuite",
   "org.apache.spark.streaming.CheckpointSuite",
+  "org.apache.spark.storage.BlockManagerDecommissionIntegrationSuite",
   "org.apache.spark.ml.source.image.ImageFileFormatSuite",
 
   "$comment: other excluded tests (e.g., uncatched tests in `test-files.json`",
