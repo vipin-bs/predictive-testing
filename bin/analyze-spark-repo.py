@@ -24,37 +24,25 @@ Analyze Spark repository to extract build dependency and test list
 import json
 import glob
 import os
-import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+import spark_utils
 from ptesting import depgraph
 from ptesting import javaclass
 
 
-# Compiled regex patterns to extract information from a Spark repository
-# TODO: Generalize this
-RE_IS_JAVA_CLASS = re.compile('\/[a-zA-Z0-9/\-_]+[\.class|\$]')
-RE_IS_JAVA_TEST = re.compile('\/[a-zA-Z0-9/\-_]+Suite\.class$')
-RE_IS_PYTHON_TEST = re.compile('\/test_[a-zA-Z0-9/\-_]+\.py$')
-RE_JAVA_CLASS_PATH = re.compile("[a-zA-Z0-9/\-_]+\/classes\/(org\/apache\/spark\/[a-zA-Z0-9/\-_]+)[\.class|\$]")
-RE_JAVA_TEST_PATH = re.compile("[a-zA-Z0-9/\-_]+\/test-classes\/(org\/apache\/spark\/[a-zA-Z0-9/\-_]+Suite)\.class$")
-RE_PYTHON_TEST_PATH = re.compile("[a-zA-Z0-9/\-_]+\/python\/(pyspark\/[a-zA-Z0-9/\-_]+)\.py$")
-RE_PARSE_PATH = re.compile(f"[a-zA-Z0-9/\-]+/(org\/apache\/spark\/.+\/)([a-zA-Z0-9\-]+)\.scala")
-RE_PARSE_SCALA_FILE = re.compile("class\s+([a-zA-Z0-9]+Suite)\s+extends\s+")
-
-
 def _is_java_class(path: str) -> bool:
-    return RE_IS_JAVA_CLASS.search(path) is not None and \
-        RE_IS_JAVA_TEST.search(path) is None
+    return spark_utils.RE_IS_JAVA_CLASS.search(path) is not None and \
+        spark_utils.RE_IS_JAVA_TEST.search(path) is None
 
 
 def _is_java_test(path: str) -> bool:
-    return RE_IS_JAVA_TEST.search(path) is not None
+    return spark_utils.RE_IS_JAVA_TEST.search(path) is not None
 
 
 def _is_python_test(path: str) -> bool:
-    return RE_IS_PYTHON_TEST.search(path) is not None
+    return spark_utils.RE_IS_PYTHON_TEST.search(path) is not None
 
 
 def _extract_package(path: str, regex: Any) -> Optional[str]:
@@ -67,21 +55,21 @@ def _extract_package(path: str, regex: Any) -> Optional[str]:
 
 def _enumerate_java_classes(paths: List[str], root_path: str) -> Dict[str, str]:
     paths = filter(lambda p: _is_java_class(p), paths)  # type: ignore
-    tests = map(lambda p: (_extract_package(p, RE_JAVA_CLASS_PATH), p), paths)
+    tests = map(lambda p: (_extract_package(p, spark_utils.RE_JAVA_CLASS_PATH), p), paths)
     tests = filter(lambda t: t[0] is not None, tests)  # type: ignore
     return dict(tests)  # type: ignore
 
 
 def _enumerate_java_tests(paths: List[str], root_path: str) -> Dict[str, str]:
     paths = filter(lambda p: _is_java_test(p), paths)  # type: ignore
-    tests = map(lambda p: (_extract_package(p, RE_JAVA_TEST_PATH), p), paths)
+    tests = map(lambda p: (_extract_package(p, spark_utils.RE_JAVA_TEST_PATH), p), paths)
     tests = filter(lambda t: t[0] is not None, tests)  # type: ignore
     return dict(tests)  # type: ignore
 
 
 def _enumerate_python_tests(paths: List[str], root_path: str) -> Dict[str, str]:
     paths = filter(lambda p: _is_python_test(p), paths)  # type: ignore
-    tests = map(lambda p: (_extract_package(p, RE_PYTHON_TEST_PATH), p), paths)
+    tests = map(lambda p: (_extract_package(p, spark_utils.RE_PYTHON_TEST_PATH), p), paths)
     tests = filter(lambda t: t[0] is not None, tests)  # type: ignore
     return dict(tests)  # type: ignore
 
@@ -105,12 +93,12 @@ def _build_correlated_file_map(root_path: str, commits: List[Tuple[str, str, Lis
     for _, _, files in commits:
         group = []
         for f in files:
-            qs = RE_PARSE_PATH.search(f)
+            qs = spark_utils.RE_PARSE_PATH.search(f)
             if qs:
                 package = qs.group(1).replace('/', '.')
                 try:
                     file_as_string = Path(f'{root_path}/{f}').read_text()
-                    classes = RE_PARSE_SCALA_FILE.findall(file_as_string)
+                    classes = spark_utils.RE_PARSE_SCALA_FILE.findall(file_as_string)
                     if classes:
                         group.append((f, list(map(lambda c: f'{package}{c}', classes))))
                     else:

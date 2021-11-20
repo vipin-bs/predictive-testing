@@ -41,8 +41,8 @@ fi
 OUTPUT_PATH=${FWDIR}/models/spark/indexes/${OUTPUT_INDEX_NAME}
 echo "Output path is ${OUTPUT_PATH}"
 
-PYTHONPATH="${FWDIR}/python" \
-exec python3 -u ${FWDIR}/bin/analyze-spark-package.py \
+PYTHONPATH="${FWDIR}/python:${FWDIR}/bin" \
+exec python3 -u ${FWDIR}/bin/analyze-spark-repo.py \
   --root-path ${ROOT_PATH} \
   --commits ${FWDIR}/models/spark/logs/commits.json \
   --output ${OUTPUT_PATH}

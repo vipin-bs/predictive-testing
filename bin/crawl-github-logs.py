@@ -26,7 +26,7 @@ import warnings
 from typing import Any, Dict, List, Optional, Tuple
 from datetime import datetime, timezone
 
-import spark_logs
+import spark_utils
 from ptesting import github_apis
 from ptesting import github_utils
 
@@ -57,7 +57,7 @@ def _setup_logger(logfile: str) -> Any:
 
 def _create_workflow_handlers(proj: str) -> Tuple[List[str], List[str], List[str], List[str]]:
     if proj == 'spark':
-        return spark_logs.create_spark_workflow_handlers()
+        return spark_utils.create_spark_workflow_handlers()
     else:
         raise ValueError(f'Unknown project type: {proj}')
 

@@ -17,7 +17,19 @@
 # limitations under the License.
 #
 
+import re
 from typing import List, Tuple
+
+
+# Compiled regex patterns to extract information from a Spark repository
+RE_IS_JAVA_CLASS = re.compile('\/[a-zA-Z0-9/\-_]+[\.class|\$]')
+RE_IS_JAVA_TEST = re.compile('\/[a-zA-Z0-9/\-_]+Suite\.class$')
+RE_IS_PYTHON_TEST = re.compile('\/test_[a-zA-Z0-9/\-_]+\.py$')
+RE_JAVA_CLASS_PATH = re.compile("[a-zA-Z0-9/\-_]+\/classes\/(org\/apache\/spark\/[a-zA-Z0-9/\-_]+)[\.class|\$]")
+RE_JAVA_TEST_PATH = re.compile("[a-zA-Z0-9/\-_]+\/test-classes\/(org\/apache\/spark\/[a-zA-Z0-9/\-_]+Suite)\.class$")
+RE_PYTHON_TEST_PATH = re.compile("[a-zA-Z0-9/\-_]+\/python\/(pyspark\/[a-zA-Z0-9/\-_]+)\.py$")
+RE_PARSE_PATH = re.compile(f"[a-zA-Z0-9/\-]+/(org\/apache\/spark\/.+\/)([a-zA-Z0-9\-]+)\.scala")
+RE_PARSE_SCALA_FILE = re.compile("class\s+([a-zA-Z0-9]+Suite)\s+extends\s+")
 
 
 _target_workflow_runs = [
