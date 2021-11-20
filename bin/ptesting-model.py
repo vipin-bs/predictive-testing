@@ -78,7 +78,11 @@ def _predict_failed_probs_for_tests(test_df: DataFrame, clf: Any, to_features: A
         .selectExpr('sha', 'test', to_failed_prob)
 
     # Applied an emprical rule: set 1.0 to the failed probs of udpated tests
-    df_with_failed_probs = features.set_highest_failed_probs_for_updated_tests(test_df, df_with_failed_probs)
+    # TODO: Removes package-depenent stuffs
+    import spark_utils
+    df_with_failed_probs = features.set_highest_failed_probs_for_updated_tests(
+        test_df, df_with_failed_probs,
+        spark_utils.RE_PARSE_PATH_PATTERN)
 
     compare = lambda x, y: \
         f"case when {x}.failed_prob < {y}.failed_prob then 1 " \

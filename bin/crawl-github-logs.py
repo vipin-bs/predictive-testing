@@ -57,7 +57,7 @@ def _setup_logger(logfile: str) -> Any:
 
 def _create_workflow_handlers(proj: str) -> Tuple[List[str], List[str], List[str], List[str]]:
     if proj == 'spark':
-        return spark_utils.create_spark_workflow_handlers()
+        return spark_utils.create_workflow_handlers()
     else:
         raise ValueError(f'Unknown project type: {proj}')
 
@@ -131,6 +131,7 @@ def _traverse_pull_requests(output_path: str,
         pullreqs_by_user[(pr_user, pr_repo)].append(pullreq)
 
     # Generates project-dependent run/job filters and log extractor
+    # TODO: Removes package-depenent stuffs
     target_runs, target_jobs, test_failure_patterns, compilation_failure_patterns = \
         _create_workflow_handlers('spark')
 

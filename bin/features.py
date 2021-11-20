@@ -19,7 +19,6 @@
 
 import json
 import pandas as pd  # type: ignore[import]
-import re
 from datetime import datetime, timedelta, timezone
 from pyspark.sql import DataFrame, SparkSession, functions as funcs
 from typing import Any, Dict, List, Optional, Tuple
@@ -40,27 +39,6 @@ _logger = _setup_logger()
 
 def _to_datetime(d: str, fmt: str) -> datetime:
     return datetime.strptime(d, fmt).replace(tzinfo=timezone.utc)  # type: ignore
-
-
-def _create_func_for_path_diff() -> Any:
-    # TODO: Removes package-depenent stuffs
-    excluded_paths = set(['src', 'main', 'scala', 'target', 'scala-2.12', 'test-classes', 'test'])
-    path_excluded = lambda p: p.difference(excluded_paths)
-
-    def _func(x: str, y: str) -> int:
-        return len(path_excluded(set(x.split('/')[:-1])) ^ path_excluded(set(y.split('/')[:-1])))
-
-    return _func
-
-
-def _create_func_to_transform_path_to_qualified_name() -> Any:
-    # TODO: Removes package-depenent stuffs
-    parse_path = re.compile(f"[a-zA-Z0-9/\-]+/(org\/apache\/spark\/[a-zA-Z0-9/\-]+)\.scala")
-
-    def _func(path: str) -> Optional[Any]:
-        return parse_path.search(path)
-
-    return _func
 
 
 def _create_func_to_enrich_authors(spark: SparkSession,
@@ -183,8 +161,9 @@ def _create_func_to_enumerate_related_tests(spark: SparkSession,
     def enumerate_related_tests(df: DataFrame) -> DataFrame:
         @funcs.pandas_udf("string")  # type: ignore
         def _enumerate_tests(file_paths: pd.Series) -> pd.Series:
-            parse_path = _create_func_to_transform_path_to_qualified_name()
-            path_diff = _create_func_for_path_diff()
+            # TODO: Removes package-depenent stuffs
+            import spark_utils
+            parse_path = spark_utils.create_func_to_transform_path_to_qualified_name()
 
             dep_graph = broadcasted_dep_graph.value
             corr_map = broadcasted_corr_map.value
@@ -220,7 +199,7 @@ def _create_func_to_enumerate_related_tests(spark: SparkSession,
                 if file_path:
                     result = parse_path(file_path)
                     if result:
-                        dependant_tests = _enumerate_tests_from_dep_graph(result.group(1).replace('/', '.'))
+                        dependant_tests = _enumerate_tests_from_dep_graph(result)
                         related_tests.update(dependant_tests)
 
                 ret.append(json.dumps({'tests': list(related_tests)}))
@@ -346,8 +325,10 @@ def _create_func_to_compute_distances(spark: SparkSession,
     broadcasted_test_files = spark.sparkContext.broadcast(test_files)
 
     @funcs.pandas_udf("int")  # type: ignore
-    def _path_diff(filenames: pd.Series, test: pd.Series) -> pd.Series:
-        path_diff = _create_func_for_path_diff()
+    def _compute_path_diff(filenames: pd.Series, test: pd.Series) -> pd.Series:
+        # TODO: Removes package-depenent stuffs
+        import spark_utils
+        compute_path_diff = spark_utils.create_func_to_computer_path_difference()
 
         test_files = broadcasted_test_files.value
 
@@ -356,7 +337,7 @@ def _create_func_to_compute_distances(spark: SparkSession,
             if t in test_files:
                 distances = []
                 for n in json.loads(names):
-                    distances.append(path_diff(n, test_files[t]))
+                    distances.append(compute_path_diff(n, test_files[t]))
                 ret.append(min(distances) if distances else 128)
             else:
                 ret.append(128)
@@ -364,8 +345,10 @@ def _create_func_to_compute_distances(spark: SparkSession,
         return pd.Series(ret)
 
     @funcs.pandas_udf("int")  # type: ignore
-    def _distance(filenames: pd.Series, test: pd.Series) -> pd.Series:
-        parse_path = _create_func_to_transform_path_to_qualified_name()
+    def _compute_distance(filenames: pd.Series, test: pd.Series) -> pd.Series:
+        # TODO: Removes package-depenent stuffs
+        import spark_utils
+        parse_path = spark_utils.create_func_to_transform_path_to_qualified_name()
 
         dep_graph = broadcasted_dep_graph.value
 
@@ -373,9 +356,8 @@ def _create_func_to_compute_distances(spark: SparkSession,
         for names, t in zip(filenames, test):
             distances = [128]
             for n in json.loads(names):
-                result = parse_path(n)
-                if result:
-                    ident = result.group(1).replace('/', '.')
+                ident = parse_path(n)
+                if ident:
                     if ident == t:
                         distances.append(0)
                         break
@@ -403,9 +385,9 @@ def _create_func_to_compute_distances(spark: SparkSession,
         return pd.Series(ret)
 
     def compute_distances(df: DataFrame) -> DataFrame:
-        path_diff_udf = _path_diff(funcs.expr(f'to_json({input_files})'), funcs.expr(input_test))
+        path_diff_udf = _compute_path_diff(funcs.expr(f'to_json({input_files})'), funcs.expr(input_test))
         return df.withColumn('path_difference', path_diff_udf) \
-            .withColumn('distance', _distance(funcs.expr(f'to_json({input_files})'), funcs.expr(input_test)))
+            .withColumn('distance', _compute_distance(funcs.expr(f'to_json({input_files})'), funcs.expr(input_test)))
 
     return compute_distances, [input_files, input_test]
 
@@ -510,10 +492,9 @@ def extract_correlated_files_from_failed_tests(train_df: DataFrame) -> Dict[str,
     return corr_map
 
 
-def set_highest_failed_probs_for_updated_tests(test_df: DataFrame, predicted_df: DataFrame) -> DataFrame:
-    # TODO: Removes package-depenent stuffs
-    regex = '"\/(org\/apache\/spark\/[a-zA-Z0-9/\-]+Suite)\.scala$"'
-    replace_test = f'f -> replace(regexp_extract(f, {regex}, 1), "/", ".")'
+def set_highest_failed_probs_for_updated_tests(test_df: DataFrame, predicted_df: DataFrame,
+                                               parse_path_regex: str) -> DataFrame:
+    replace_test = f'f -> replace(regexp_extract(f, "{parse_path_regex}", 1), "/", ".")'
     extract_test = f'transform(files.file.name, {replace_test})'
     updated_test_df = test_df.selectExpr('sha', f'filter({extract_test}, f -> length(f) > 0) updated_tests')
     corrected_failed_prob = 'case when array_contains(updated_tests, test) then 1.0 else failed_prob end failed_prob'
