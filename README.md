@@ -21,7 +21,7 @@ such a logic can be built based on features extracted from those logs, e.g.,
  - file correlation in commits: which set of files was merged in the same commit?
  - control flow graph: which classes are interdependent?
 
-## Apache Spark case study
+## Apache Spark Case Study
 
 Apache Spark is a parallel and distributed analytics framework for large-scale data processing.
 More than 10 years have already passed since the OSS community started to develop the Spark codebase in GitHub
@@ -149,7 +149,7 @@ $ cd $SPARK_REPO && ./build/mvn clean test -DtestsFiles=selected_tests.txt
  - [2] Mateusz Machalica and et al., "Predictive Test Selection", 2019 IEEE/ACM 41st International Conference on Software Engineering: Software Engineering in Practice (ICSE-SEIP), pp.91-100, 2019.
  - [3] Armin Najafi et al., "Improving Test Effectiveness Using Test Executions History: An Industrial Experience Report", 2019 IEEE/ACM 41st International Conference on Software Engineering: Software Engineering in Practice (ICSE-SEIP), pp.213-222, 2019.
 
-## Bug reports
+## Bug Reports
 
 If you hit some bugs or have requests, please leave some comments on [Issues](https://github.com/maropu/predictive-testing/issues)
 or Twitter ([@maropu](http://twitter.com/#!/maropu)).
