@@ -102,18 +102,18 @@ def _create_func_to_enrich_files(spark: SparkSession,
                 for file in json.loads(files):
                     if file in updated_file_stats:
                         for update_date, _, _, _ in updated_file_stats[file]:
-                            update_date = github_utils.from_github_datetime(update_date)
-                            if is_updated_in_days(3, update_date):
+                            udate = github_utils.from_github_datetime(update_date)
+                            if is_updated_in_days(3, udate):
                                 updated_num_3d += 1
-                            if is_updated_in_days(14, update_date):
+                            if is_updated_in_days(14, udate):
                                 updated_num_14d += 1
-                            if is_updated_in_days(56, update_date):
+                            if is_updated_in_days(56, udate):
                                 updated_num_56d += 1
-                            if is_updated_in_commits(3, update_date):
+                            if is_updated_in_commits(3, udate):
                                 updated_num_3c += 1
-                            if is_updated_in_commits(14, update_date):
+                            if is_updated_in_commits(14, udate):
                                 updated_num_14c += 1
-                            if is_updated_in_commits(56, update_date):
+                            if is_updated_in_commits(56, udate):
                                 updated_num_56c += 1
 
                 ret.append(json.dumps({

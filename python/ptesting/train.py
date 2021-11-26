@@ -197,7 +197,7 @@ def rebalance_training_data(X: pd.DataFrame, y: pd.Series, coeff: float = 1.0) -
     # TODO: To improve model performance, we need to reconsider this sampling method?
     from collections import Counter
     from imblearn.under_sampling import RandomUnderSampler
-    y_target_hist = dict(Counter(y).items())
+    y_target_hist = dict(Counter(y).items())  # type: ignore
     min_key, min_value = min(y_target_hist.items(), key=lambda kv: kv[1])
     for k in y_target_hist.keys():
         if k != min_key:

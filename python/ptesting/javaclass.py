@@ -38,7 +38,7 @@ def list_classes(root_path: str, target_package: str) -> List[Tuple[str, str]]:
 
     paths = [p for p in glob.glob(f'{root_path}/**/*.class', recursive=True)]
     classes = list(filter(lambda t: t[0] is not None, map(lambda p: (_extract_package(p), p), paths)))
-    return classes
+    return classes  # type: ignore
 
 
 def _exec_subprocess(cmd: str, raise_error: bool = True) -> Tuple[Any, Any, Any]:

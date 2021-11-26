@@ -116,14 +116,14 @@ def _always_false(d: str) -> bool:
 
 def _create_until_validator(until: Optional[datetime]) -> Any:
     def validator(d: Optional[str]) -> bool:
-        return until < github_utils.from_github_datetime(d) if d is not None else False
+        return until < github_utils.from_github_datetime(d) if d is not None else False  # type: ignore
 
     return validator if until is not None else _always_false
 
 
 def _create_since_validator(since: Optional[datetime]) -> Any:
     def validator(d: Optional[str]) -> bool:
-        return since >= github_utils.from_github_datetime(d) if d is not None else False
+        return since >= github_utils.from_github_datetime(d) if d is not None else False  # type: ignore
 
     return validator if since is not None else _always_false
 
@@ -259,9 +259,9 @@ def list_repo_commits(owner: str, repo: str, token: str,
             c = RepoCommit.parse_obj(commit)
             commit_user = ''
             if c.author is not None:
-                commit_user = c.author.login
+                commit_user = c.author.login  # type: ignore
             elif c.committer is not None:
-                commit_user = c.committer.login
+                commit_user = c.committer.login  # type: ignore
 
             commits.append((c.sha, commit_user, c.commit.author.date, c.commit.message))
 
