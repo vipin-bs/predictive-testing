@@ -148,6 +148,7 @@ $ cd $SPARK_REPO && ./build/mvn clean test -DtestsFiles=selected_tests.txt
 ## TODO
 
  - Improve the Spark model performance, support the Python/Java tests, exclude flaky tests, ...
+ - Brush up the pruning strategy (the current strategy wrongly prunes a small part of related test)
  - Generalize the scripts so that we can apply this method into other projects
 
 ## References
