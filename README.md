@@ -60,6 +60,13 @@ With reference to an previous report [2], our current model uses the following i
  - Interacted features: the multiplied values of some feature pairs, e.g.,
    `total_failed_num * num_commits` and `failed_num_7d * num_commits`.
 
+NOTE: A data lineage for extracting the information from the test result logs is as following
+(the diagram below is generated with [spark-sql-flow-plugin](https://github.com/maropu/spark-sql-flow-plugin);
+the bottom flow in the lineage represents how to transform data for model training and
+the top flow represents it for model validation):
+
+<img src="models/spark/data_lineage/sqlflow.svg" width="800px">
+
 Moreover, to prune test unrelated to code changes, we use two relations as follows:
 
  - File correlation in commits: if files were merged in a single commit, classes in the files are assumed

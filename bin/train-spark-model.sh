@@ -27,16 +27,19 @@ if [ -z "$CONDA_DISABLED" ]; then
   . ${FWDIR}/bin/conda.sh && activate_conda_virtual_env "${FWDIR}"
 fi
 
+MODELPATH=${FWDIR}/models/spark
+
 PYTHONPATH="${FWDIR}/python:${FWDIR}/bin" \
 exec python3 -u ${FWDIR}/bin/ptesting-model.py \
   --train \
-  --output ${FWDIR}/models/spark \
-  --train-log-data ${FWDIR}/models/spark/logs/github-logs.json \
-  --test-files ${FWDIR}/models/spark/indexes/latest/test-files.json \
-  --commits ${FWDIR}/models/spark/logs/commits.json \
-  --excluded-tests ${FWDIR}/models/spark/logs/excluded-tests.json \
-  --included-tests ${FWDIR}/models/spark/logs/included-tests.json \
-  --build-dep ${FWDIR}/models/spark/indexes/latest/dep-graph.json \
-  --correlated-files ${FWDIR}/models/spark/indexes/latest/correlated-files.json \
-  --updated-file-stats ${FWDIR}/models/spark/logs/updated-file-stats.json \
-  --contributor-stats ${FWDIR}/models/spark/logs/contributor-stats.json
+  --output ${MODELPATH} \
+  --train-log-data ${MODELPATH}/logs/github-logs.json \
+  --test-files ${MODELPATH}/indexes/latest/test-files.json \
+  --commits ${MODELPATH}/logs/commits.json \
+  --excluded-tests ${MODELPATH}/logs/excluded-tests.json \
+  --included-tests ${MODELPATH}/logs/included-tests.json \
+  --build-dep ${MODELPATH}/indexes/latest/dep-graph.json \
+  --correlated-files ${MODELPATH}/indexes/latest/correlated-files.json \
+  --updated-file-stats ${MODELPATH}/logs/updated-file-stats.json \
+  --contributor-stats ${MODELPATH}/logs/contributor-stats.json \
+  "$@"

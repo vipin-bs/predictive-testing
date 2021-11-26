@@ -23,6 +23,7 @@ from datetime import datetime, timedelta, timezone
 from pyspark.sql import DataFrame, SparkSession, functions as funcs
 from typing import Any, Dict, List, Optional, Tuple
 
+from auto_tracking import auto_tracking
 from ptesting import github_utils
 
 
@@ -49,6 +50,7 @@ def _create_func_to_enrich_authors(spark: SparkSession,
 
     contributor_stat_df = spark.createDataFrame(contributor_stats, schema=f'author: string, num_commits: int')
 
+    @auto_tracking
     def enrich_authors(df: DataFrame) -> DataFrame:
         return df.join(contributor_stat_df, df[input_col] == contributor_stat_df.author, 'LEFT_OUTER') \
             .na.fill({'num_commits': 0})
@@ -64,6 +66,7 @@ def _create_func_to_enrich_files(spark: SparkSession,
     broadcasted_updated_file_stats = spark.sparkContext.broadcast(updated_file_stats)
     broadcasted_commits = spark.sparkContext.broadcast(commits)
 
+    @auto_tracking
     def enrich_files(df: DataFrame) -> DataFrame:
         @funcs.pandas_udf("string")  # type: ignore
         def _enrich_files(dates: pd.Series, filenames: pd.Series) -> pd.Series:
@@ -158,6 +161,7 @@ def _create_func_to_enumerate_related_tests(spark: SparkSession,
     #    in a class, it is hard to analyze control flow precisely. Therefore, we analyze it in a coarse-grain way;
     #    if a class file A contains a JVM opcode 'invoke' for a class B, the class A is assumed
     #    to depend on the class B.
+    @auto_tracking
     def enumerate_related_tests(df: DataFrame) -> DataFrame:
         @funcs.pandas_udf("string")  # type: ignore
         def _enumerate_tests(file_paths: pd.Series) -> pd.Series:
@@ -223,6 +227,7 @@ def _create_func_to_enumerate_related_tests(spark: SparkSession,
 def _create_func_to_enumerate_all_tests(spark: SparkSession, test_files: Dict[str, str]) -> Tuple[Any, List[str]]:
     all_test_df = spark.createDataFrame(list(test_files.items()), ['test', 'path'])
 
+    @auto_tracking
     def enumerate_all_tests(df: DataFrame) -> DataFrame:
         return df.join(all_test_df.selectExpr(f'collect_set(test) all_tests')) \
             .withColumn('target_card', funcs.expr(f'size(all_tests)'))
@@ -238,6 +243,7 @@ def _create_func_to_enrich_tests(spark: SparkSession,
     broadcasted_failed_tests = spark.sparkContext.broadcast(failed_tests)
     broadcasted_commits = spark.sparkContext.broadcast(commits)
 
+    @auto_tracking
     def enrich_tests(df: DataFrame) -> DataFrame:
         @funcs.pandas_udf("string")  # type: ignore
         def _enrich_tests(dates: pd.Series, tests: pd.Series) -> pd.Series:
@@ -384,6 +390,7 @@ def _create_func_to_compute_distances(spark: SparkSession,
 
         return pd.Series(ret)
 
+    @auto_tracking
     def compute_distances(df: DataFrame) -> DataFrame:
         path_diff_udf = _compute_path_diff(funcs.expr(f'to_json({input_files})'), funcs.expr(input_test))
         return df.withColumn('path_difference', path_diff_udf) \
@@ -393,6 +400,7 @@ def _create_func_to_compute_distances(spark: SparkSession,
 
 
 def _create_func_to_compute_file_cardinality(input_col: str) -> Tuple[Any, List[str]]:
+    @auto_tracking
     def compute_file_cardinality(df: DataFrame) -> DataFrame:
         return df.withColumn('file_card', funcs.expr(f'size({input_col})'))
 
@@ -402,6 +410,7 @@ def _create_func_to_compute_file_cardinality(input_col: str) -> Tuple[Any, List[
 def _create_func_to_compute_interaction_features(input_cols: List[Tuple[str, str]]) -> Tuple[Any, List[str]]:
     interact_fts_exprs = list(map(lambda p: f'`{p[0]}` * `{p[1]}` AS `{p[0]}__x__{p[1]}`', input_cols))
 
+    @auto_tracking
     def compute_interaction_features(df: DataFrame) -> DataFrame:
         return df.selectExpr('*', *interact_fts_exprs)
 
@@ -411,6 +420,7 @@ def _create_func_to_compute_interaction_features(input_cols: List[Tuple[str, str
 
 
 def _create_func_to_expand_updated_stats() -> Tuple[Any, List[str]]:
+    @auto_tracking
     def expand_updated_stats(df: DataFrame) -> DataFrame:
         sum_expr = lambda c: funcs.expr(f'aggregate({c}, 0, (x, y) -> int(x) + int(y))')
         return df.withColumn('num_adds', sum_expr('files.file.additions')) \
@@ -421,6 +431,7 @@ def _create_func_to_expand_updated_stats() -> Tuple[Any, List[str]]:
 
 
 def _create_func_to_add_failed_column() -> Tuple[Any, List[str]]:
+    @auto_tracking
     def add_failed_column(df: DataFrame) -> DataFrame:
         passed_test_df = df \
             .selectExpr('*', 'array_except(related_tests, failed_tests) tests', '0 failed') \

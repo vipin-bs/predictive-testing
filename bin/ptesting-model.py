@@ -26,6 +26,7 @@ from pyspark.sql import DataFrame, SparkSession, functions as funcs
 from typing import Any, Dict, List, Optional, Tuple
 
 import features
+from auto_tracking import auto_tracking, save_data_lineage
 from ptesting import github_utils, train
 
 
@@ -46,6 +47,7 @@ _logger = _setup_logger()
 #  - normalizing feature values are less required
 #  - fast model training on commodity hardware
 #  - robustness in imbalanced datasets
+@auto_tracking
 def _build_predictive_model(df: DataFrame, to_features: Any) -> Any:
     pdf = to_features(df).toPandas()
     X = pdf[pdf.columns[pdf.columns != 'failed']]  # type: ignore
@@ -56,6 +58,7 @@ def _build_predictive_model(df: DataFrame, to_features: Any) -> Any:
     return clf
 
 
+@auto_tracking
 def _train_test_split(df: DataFrame, test_ratio: float) -> Tuple[DataFrame, DataFrame]:
     test_nrows = int(df.count() * test_ratio)
     test_df = df.orderBy(funcs.expr('to_timestamp(commit_date, "yyy/MM/dd HH:mm:ss")').desc()).limit(test_nrows)
@@ -63,6 +66,7 @@ def _train_test_split(df: DataFrame, test_ratio: float) -> Tuple[DataFrame, Data
     return train_df, test_df
 
 
+@auto_tracking
 def _predict_failed_probs_for_tests(test_df: DataFrame, clf: Any, to_features: Any) -> DataFrame:
     test_feature_df = to_features(test_df)
     pdf = test_feature_df.selectExpr('sha', 'test').toPandas()
@@ -96,6 +100,7 @@ def _predict_failed_probs_for_tests(test_df: DataFrame, clf: Any, to_features: A
     return df_with_failed_probs
 
 
+@auto_tracking
 def _predict_failed_probs(df: DataFrame, clf: Any) -> DataFrame:
     pdf = df.toPandas()
     predicted = clf.predict_proba(pdf.drop('test', axis=1))
@@ -120,6 +125,7 @@ def _predict_failed_probs(df: DataFrame, clf: Any) -> DataFrame:
     return df_with_failed_probs
 
 
+@auto_tracking
 def _compute_eval_stats(df: DataFrame) -> DataFrame:
     rank = 'array_position(transform(tests, x -> x.test), failed_test) rank'
     to_test_map = 'map_from_arrays(transform(tests, x -> x.test), transform(tests, x -> x.failed_prob)) tests'
@@ -190,6 +196,7 @@ def _save_metrics_as_chart(output_path: str, metrics: List[Dict[str, Any]], max_
     plot.save(output_path)
 
 
+@auto_tracking
 def _train_and_eval_ptest_model(output_path: str, spark: SparkSession, df: DataFrame,
                                 test_files: Dict[str, str],
                                 commits: List[Tuple[str, str, List[str]]],
@@ -199,6 +206,7 @@ def _train_and_eval_ptest_model(output_path: str, spark: SparkSession, df: DataF
                                 updated_file_stats: Dict[str, List[Tuple[str, str, str, str]]],
                                 contributor_stats: Optional[List[Tuple[str, str]]],
                                 test_ratio: float = 0.20) -> None:
+    @auto_tracking
     def num_failed_tests(df: DataFrame) -> int:
         return df.selectExpr('explode(failed_tests)').count()
 
@@ -245,6 +253,7 @@ def _train_and_eval_ptest_model(output_path: str, spark: SparkSession, df: DataF
     _save_metrics_as_chart(f"{output_path}/model-eval-metrics.svg", metrics, len(test_files))
 
 
+@auto_tracking
 def _exclude_tests_from(df: DataFrame, excluded_tests: List[str]) -> DataFrame:
     spark = df.sql_ctx.sparkSession
     excluded_test_df = spark.createDataFrame(pd.DataFrame(excluded_tests, columns=['excluded_test'])) \
@@ -268,6 +277,8 @@ def train_main(argv: Any) -> None:
     parser.add_argument('--build-dep', type=str, required=True)
     parser.add_argument('--excluded-tests', type=str, required=False)
     parser.add_argument('--included-tests', type=str, required=False)
+    parser.add_argument('--data-lineage', action='store_true')
+    parser.add_argument('--spark-jars', type=str, required=False, default='')
     args = parser.parse_args(argv)
 
     if not os.path.isdir(args.output):
@@ -318,6 +329,7 @@ def train_main(argv: Any) -> None:
 
     # Initializes a Spark session
     spark = SparkSession.builder \
+        .config("spark.jars", args.spark_jars) \
         .enableHiveSupport() \
         .getOrCreate()
 
@@ -340,6 +352,10 @@ def train_main(argv: Any) -> None:
         ]
         log_data_df = spark.read.format('json').load(args.train_log_data) \
             .selectExpr(expected_input_cols)
+
+        # Creates a temp view for making gen'd data lineage easy-to-see
+        if args.data_lineage:
+            log_data_df.createOrReplaceTempView('train_log_raw_data')
 
         too_many_failed_tests_df = log_data_df.where('size(failed_tests) > 32')
         if too_many_failed_tests_df.count() > 0:
@@ -366,6 +382,10 @@ def train_main(argv: Any) -> None:
                                     included_tests,
                                     updated_file_stats, contributor_stats,
                                     test_ratio=0.10)
+
+        if args.data_lineage:
+            save_data_lineage(f'{args.output}/data_lineage', format='svg',
+                              contracted=True, overwrite=True)
     finally:
         spark.stop()
 
@@ -396,7 +416,7 @@ def predict_main(argv: Any) -> None:
     parser.add_argument('--build-dep', type=str, required=True)
     parser.add_argument('--excluded-tests', type=str, required=False)
     parser.add_argument('--included-tests', type=str, required=False)
-    parser.add_argument('--format', dest='format', action='store_true')
+    parser.add_argument('--format', action='store_true')
     args = parser.parse_args(argv)
 
     if not os.path.isdir(f'{args.target}/.git'):

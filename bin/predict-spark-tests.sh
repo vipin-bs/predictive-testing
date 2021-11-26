@@ -32,19 +32,21 @@ if [ -z "$CONDA_DISABLED" ]; then
   . ${FWDIR}/bin/conda.sh && activate_conda_virtual_env "${FWDIR}"
 fi
 
+MODELPATH=${FWDIR}/models/spark
+
 PYTHONPATH="${FWDIR}/python:${FWDIR}/bin" \
 exec python3 -u ${FWDIR}/bin/ptesting-model.py \
   --username "<unknown>" \
   --target ${SPARK_REPO} \
-  --model ${FWDIR}/models/spark/model.pkl \
-  --test-files ${FWDIR}/models/spark/indexes/latest/test-files.json \
-  --commits ${FWDIR}/models/spark/logs/commits.json \
-  --excluded-tests ${FWDIR}/models/spark/logs/excluded-tests.json \
-  --included-tests ${FWDIR}/models/spark/logs/included-tests.json \
-  --failed-tests ${FWDIR}/models/spark/failed-tests.json \
-  --build-dep ${FWDIR}/models/spark/indexes/latest/dep-graph.json \
-  --correlated-files ${FWDIR}/models/spark/indexes/latest/correlated-files.json \
-  --correlated-files-delta ${FWDIR}/models/spark/correlated-files-delta.json \
-  --updated-file-stats ${FWDIR}/models/spark/logs/updated-file-stats.json \
-  --contributor-stats ${FWDIR}/models/spark/logs/contributor-stats.json \
+  --model ${MODELPATH}/model.pkl \
+  --test-files ${MODELPATH}/indexes/latest/test-files.json \
+  --commits ${MODELPATH}/logs/commits.json \
+  --excluded-tests ${MODELPATH}/logs/excluded-tests.json \
+  --included-tests ${MODELPATH}/logs/included-tests.json \
+  --failed-tests ${MODELPATH}/failed-tests.json \
+  --build-dep ${MODELPATH}/indexes/latest/dep-graph.json \
+  --correlated-files ${MODELPATH}/indexes/latest/correlated-files.json \
+  --correlated-files-delta ${MODELPATH}/correlated-files-delta.json \
+  --updated-file-stats ${MODELPATH}/logs/updated-file-stats.json \
+  --contributor-stats ${MODELPATH}/logs/contributor-stats.json \
   "$@"
