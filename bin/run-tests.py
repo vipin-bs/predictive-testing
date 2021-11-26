@@ -134,9 +134,9 @@ def run_individual_python_test(target_dir, test_name, python_exec, params):
 
 
 def get_default_python_executables():
-    python_execs = [x for x in ["python3.6", "pypy3"] if which(x)]
+    python_execs = [x for x in ["python3.7", "pypy3"] if which(x)]
 
-    if "python3.6" not in python_execs:
+    if "python3.7" not in python_execs:
         p = which("python3")
         if not p:
             LOGGER.error("No python3 executable found.  Exiting!")
@@ -147,10 +147,7 @@ def get_default_python_executables():
 
 
 def parse_opts():
-    parser = ArgumentParser(
-        prog="run-tests"
-    )
-
+    parser = ArgumentParser(prog="run-tests")
     parser.add_argument(
         "--root-path", type=str, required=True,
         help="An absolute path of Python scripts to test"
