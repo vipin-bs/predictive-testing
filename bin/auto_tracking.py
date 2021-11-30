@@ -22,7 +22,6 @@ This file was copied from the `spark-sql-flow-plugin` repo
 """
 
 import functools
-import shutil
 import uuid
 from pyspark.sql import DataFrame, SparkSession
 from typing import Any
@@ -69,11 +68,10 @@ def auto_tracking(f):  # type: ignore
     return wrapper
 
 
-def save_data_lineage(output_path: str, format: str = "svg", contracted: bool = False, overwrite: bool = False) -> None:
-    if overwrite:
-        shutil.rmtree(output_path, ignore_errors=True)
+def save_data_lineage(output_dir_path: str, filename_prefix: str = "sqlflow", format: str = "svg",
+                      contracted: bool = False, overwrite: bool = False) -> None:
     try:
         jvm = SparkSession.builder.getOrCreate().sparkContext._active_spark_context._jvm  # type: ignore
-        jvm.SQLFlowApi.saveAsSQLFlow(output_path, format, contracted)
+        jvm.SQLFlowApi.saveAsSQLFlow(output_dir_path, filename_prefix, format, contracted, overwrite)
     except:
-        _logger.warning(f'Failed to save data lineage in {output_path}')
+        _logger.warning(f'Failed to save data lineage in {output_dir_path}')
