@@ -503,6 +503,7 @@ def extract_correlated_files_from_failed_tests(train_df: DataFrame) -> Dict[str,
     return corr_map
 
 
+@auto_tracking
 def set_highest_failed_probs_for_updated_tests(test_df: DataFrame, predicted_df: DataFrame,
                                                parse_path_regex: str) -> DataFrame:
     replace_test = f'f -> replace(regexp_extract(f, "{parse_path_regex}", 1), "/", ".")'

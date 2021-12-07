@@ -26,7 +26,7 @@ from pyspark.sql import DataFrame, SparkSession, functions as funcs
 from typing import Any, Dict, List, Optional, Tuple
 
 import features
-from auto_tracking import auto_tracking, save_data_lineage
+from auto_tracking import auto_tracking, auto_tracking_with, save_data_lineage
 from ptesting import github_utils, train
 
 
@@ -41,6 +41,22 @@ def _setup_logger() -> Any:
 _logger = _setup_logger()
 
 
+def _to_pandas(name: str) -> Any:
+    @auto_tracking_with(name)
+    def _func(df: DataFrame) -> pd.DataFrame:
+        return df.toPandas()
+
+    return _func
+
+
+def _to_spark(name: str) -> Any:
+    @auto_tracking_with(name)
+    def _func(spark: SparkSession, pdf: pd.DataFrame) -> DataFrame:
+        return spark.createDataFrame(pdf)
+
+    return _func
+
+
 # Our predictive model uses LightGBM, an implementation of gradient-boosted decision trees.
 # This is because the algorithm has desirable properties for this use-case
 # (the reason is the same with the Facebook one):
@@ -49,7 +65,7 @@ _logger = _setup_logger()
 #  - robustness in imbalanced datasets
 @auto_tracking
 def _build_predictive_model(df: DataFrame, to_features: Any) -> Any:
-    pdf = to_features(df).toPandas()
+    pdf = _to_pandas('_to_pandas_for_building_predictive_model')(to_features(df))
     X = pdf[pdf.columns[pdf.columns != 'failed']]  # type: ignore
     y = pdf['failed']
     X, y = train.rebalance_training_data(X, y, coeff=1.0)
@@ -69,15 +85,15 @@ def _train_test_split(df: DataFrame, test_ratio: float) -> Tuple[DataFrame, Data
 @auto_tracking
 def _predict_failed_probs_for_tests(test_df: DataFrame, clf: Any, to_features: Any) -> DataFrame:
     test_feature_df = to_features(test_df)
-    pdf = test_feature_df.selectExpr('sha', 'test').toPandas()
-    X = test_feature_df.drop('sha', 'failed', 'test').toPandas()
+    pdf = _to_pandas('_to_pandas_for_failed_probs')(test_feature_df.selectExpr('sha', 'test'))
+    X = _to_pandas('_to_pandas_for_evaluating_model')(test_feature_df.drop('sha', 'failed', 'test'))
     predicted = clf.predict_proba(X)
     pmf = map(lambda p: {"classes": clf.classes_.tolist(), "probs": p.tolist()}, predicted)
     pmf = map(lambda p: json.dumps(p), pmf)  # type: ignore
     pdf['predicted'] = pd.Series(list(pmf))
     to_map_expr = funcs.expr('from_json(predicted, "classes array<string>, probs array<double>")')
     to_failed_prob = 'map_from_arrays(pmf.classes, pmf.probs)["1"] failed_prob'
-    df_with_failed_probs = test_df.sql_ctx.sparkSession.createDataFrame(pdf) \
+    df_with_failed_probs = _to_spark('predicted_failed_probs')(test_df.sql_ctx.sparkSession, pdf) \
         .withColumn('pmf', to_map_expr) \
         .selectExpr('sha', 'test', to_failed_prob)
 
@@ -102,14 +118,14 @@ def _predict_failed_probs_for_tests(test_df: DataFrame, clf: Any, to_features: A
 
 @auto_tracking
 def _predict_failed_probs(df: DataFrame, clf: Any) -> DataFrame:
-    pdf = df.toPandas()
+    pdf = _to_pandas('to_pandas_for_predicting_failed_probs')(df)
     predicted = clf.predict_proba(pdf.drop('test', axis=1))
     pmf = map(lambda p: {"classes": clf.classes_.tolist(), "probs": p.tolist()}, predicted)
     pmf = map(lambda p: json.dumps(p), pmf)  # type: ignore
     pdf['predicted'] = pd.Series(list(pmf))
     to_map_expr = funcs.expr('from_json(predicted, "classes array<string>, probs array<double>")')
     to_failed_prob = 'map_from_arrays(pmf.classes, pmf.probs)["1"] failed_prob'
-    df_with_failed_probs = df.sql_ctx.sparkSession.createDataFrame(pdf[['test', 'predicted']]) \
+    df_with_failed_probs = _to_spark('predicted_failed_probs')(df.sql_ctx.sparkSession, pdf[['test', 'predicted']]) \
         .withColumn('pmf', to_map_expr) \
         .selectExpr('test', to_failed_prob)
 
@@ -134,6 +150,7 @@ def _compute_eval_stats(df: DataFrame) -> DataFrame:
         .selectExpr('sha', 'failed_test', 'rank', 'tests[failed_test] score', 'max_score')
 
 
+@auto_tracking
 def _compute_eval_metrics(predicted: DataFrame, total_num_tests: int, eval_num_tests: List[int]) -> Any:
     # This method computes metrics to measure the quality of a selected test set; "test recall", which is computed
     # in the method, represents the emprical probability of a particular test selection strategy catching
