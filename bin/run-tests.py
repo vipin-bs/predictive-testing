@@ -51,7 +51,8 @@ def run_individual_python_test(target_dir, test_name, python_exec, params):
     env = dict(os.environ)
     env.update({
         'PYTHONPATH': params["PREDICTIVE_TESTING_PATH"],
-        'PREDICTIVE_TESTING_TESTDATA': params["PREDICTIVE_TESTING_TESTDATA"]
+        'PREDICTIVE_TESTING_TESTDATA': params["PREDICTIVE_TESTING_TESTDATA"],
+        'SQLFLOW_AUTO_TRACKING_DISABLED': '1'
     })
 
     # Create a unique temp directory under 'target/' for each run. The TMPDIR variable is
