@@ -66,7 +66,7 @@ jobs:
           name: spark-github-logs
           path: latest_output
           run-id: ${{ steps.latest-workflow-status.outputs.result }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check if latest output exists
         # Updated from v1 to v3
@@ -113,7 +113,7 @@ jobs:
       - name: Run script to collect GitHub logs
         if: ${{ steps.check-if-resume-file-exists.outputs.files_exists == 'false' }}
         env:
-          GITHUB_TOKEN: ${{ secrets.LOG_CRAWLER_API_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           ./bin/crawl-spark-github-logs.sh --output output --overwrite --since "${{ env.SINCE_DATE }}"
 
