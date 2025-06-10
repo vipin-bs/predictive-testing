@@ -24,7 +24,8 @@ jobs:
         with:
           fetch-depth: 0
           repository: apache/spark
-          ref: master
+          # Change 'master' to a specific, older tag like 'v3.5.0'
+          ref: v3.5.0
           path: spark-master
 
       - name: Generate output name by using Spark HEAD commit sha
