@@ -72,14 +72,26 @@ jobs:
           chmod +x "${JAVA_HOME}/bin/java"
           echo "Wrapper created. All subsequent calls to 'java' will be filtered."
 
+            - name: Build with Maven
       - name: Build with Maven
         run: |
-          # The wrapper script from the previous step will handle the JVM error.
+          # Force the Spark build to use a Maven version compatible with Java 8.
+          export MAVEN_VERSION=3.8.8
+
+          # Download and install Maven 3.8.8 manually.
+          curl --retry 3 --silent --show-error -L https://www.apache.org/dyn/closer.lua/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz -o apache-maven.tar.gz
+          tar -xzf apache-maven.tar.gz
+          export PATH=$PWD/apache-maven-${MAVEN_VERSION}/bin:$PATH
+
+          # Unset _JAVA_OPTIONS as a safeguard to ensure a clean environment.
+          unset _JAVA_OPTIONS
+
           export MAVEN_OPTS="-Xss64m -Xmx2g -XX:ReservedCodeCacheSize=1g -Dorg.slf4j.simpleLogger.defaultLogLevel=WARN"
           export MAVEN_CLI_OPTS="--no-transfer-progress"
           export JAVA_VERSION_FOR_MAVEN=1.8
-          cd spark-master && ./build/mvn $MAVEN_CLI_OPTS -DskipTests -Pyarn -Pmesos -Pkubernetes -Phive -Phive-thriftserver -Phadoop-cloud -Pdocker-integration-tests -Djava.version=$JAVA_VERSION_FOR_MAVEN test-compile
+          cd spark-master && ./build/mvn $MAVEN_CLI_OPTS -DskipTests -Pyarn -Pmesos -Pkubernetes -Phive -Phive-thriftserver -Phadoop-cloud -Pdocker-integration-tests -Djava.version=$JAVA_VERSION_FOR_MAVEN -pl '!examples,!hive-thriftserver' clean package
 
+          
       - name: Analyze Spark class dependencies
         run: ./bin/analyze-spark-repo.sh `pwd`/spark-master "${{ env.OUTPUT_NAME }}"
 
