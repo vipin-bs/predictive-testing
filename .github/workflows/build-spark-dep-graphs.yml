@@ -49,8 +49,11 @@ jobs:
 
       - name: Build with Maven
         run: |
-          # Unset _JAVA_OPTIONS to prevent incompatible flags from the runner
-          # environment from being passed to the Java 8 JVM.
+          # FIX: Force the Spark build to use a Maven version compatible with Java 8.
+          # Newer Maven (3.9.x) adds JVM flags that Java 8 does not understand.
+          export MAVEN_VERSION=3.8.8
+
+          # Unset _JAVA_OPTIONS as a safeguard to ensure a clean environment.
           unset _JAVA_OPTIONS
 
           export MAVEN_OPTS="-Xss64m -Xmx2g -XX:ReservedCodeCacheSize=1g -Dorg.slf4j.simpleLogger.defaultLogLevel=WARN"
