@@ -47,15 +47,34 @@ jobs:
           java-version: ${{ env.java }}
           distribution: 'temurin'
 
+      - name: Create a wrapper to filter invalid Java options
+        # This workaround is needed because the Spark build script passes a modern
+        # JVM flag (--enable-native-access) that Java 8 does not understand.
+        # This script intercepts the call to `java`, removes the bad flag,
+        # and then passes the valid arguments to the real java executable.
+        if: env.java == 8
+        run: |
+          echo "Creating java wrapper script in ${JAVA_HOME}/bin"
+          # Move the real executable
+          mv "${JAVA_HOME}/bin/java" "${JAVA_HOME}/bin/java_real"
+          
+          # Create the new wrapper script
+          echo '#!/usr/bin/env bash' > "${JAVA_HOME}/bin/java"
+          echo 'ARGS=()' >> "${JAVA_HOME}/bin/java"
+          echo 'for arg in "$@"; do' >> "${JAVA_HOME}/bin/java"
+          echo '  if [[ "$arg" != "--enable-native-access=ALL-UNNAMED" ]]; then' >> "${JAVA_HOME}/bin/java"
+          echo '    ARGS+=("$arg")' >> "${JAVA_HOME}/bin/java"
+          echo '  fi' >> "${JAVA_HOME}/bin/java"
+          echo 'done' >> "${JAVA_HOME}/bin/java"
+          echo 'exec "${JAVA_HOME}/bin/java_real" "${ARGS[@]}"' >> "${JAVA_HOME}/bin/java"
+          
+          # Make the new wrapper executable
+          chmod +x "${JAVA_HOME}/bin/java"
+          echo "Wrapper created. All subsequent calls to 'java' will be filtered."
+
       - name: Build with Maven
         run: |
-          # FIX: Force the Spark build to use a Maven version compatible with Java 8.
-          # Newer Maven (3.9.x) adds JVM flags that Java 8 does not understand.
-          export MAVEN_VERSION=3.8.8
-
-          # Unset _JAVA_OPTIONS as a safeguard to ensure a clean environment.
-          unset _JAVA_OPTIONS
-
+          # The wrapper script from the previous step will handle the JVM error.
           export MAVEN_OPTS="-Xss64m -Xmx2g -XX:ReservedCodeCacheSize=1g -Dorg.slf4j.simpleLogger.defaultLogLevel=WARN"
           export MAVEN_CLI_OPTS="--no-transfer-progress"
           export JAVA_VERSION_FOR_MAVEN=1.8
@@ -64,13 +83,13 @@ jobs:
       - name: Analyze Spark class dependencies
         run: ./bin/analyze-spark-repo.sh `pwd`/spark-master "${{ env.OUTPUT_NAME }}"
 
+      # ... rest of the workflow remains the same ...
       - name: Update `models/spark/indexes/latest`
         if: success()
         run: |
           cd models/spark/indexes
           rm latest
           ln -s ${{ env.OUTPUT_NAME }} latest
-
       - name: Create Pull Request
         if: success()
         uses: peter-evans/create-pull-request@v6
@@ -85,7 +104,6 @@ jobs:
           title: Adds latest snapshot in `models/spark/indexes/${{ env.OUTPUT_NAME }}`
           body: |
             Automated changes by the `${{ github.job }}` workflow (run_id=${{ github.run_id }}).
-
       - name: Upload output as artifact
         if: success()
         uses: actions/upload-artifact@v4
