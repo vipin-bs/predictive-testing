@@ -7,11 +7,11 @@ on:
 
 jobs:
   analyze-spark-repo:
-    # Changed from ubuntu-latest to ubuntu-22.04 to ensure Python 3.7 compatibility
     runs-on: ubuntu-22.04
     env:
       python: 3.7
-      java: 1.8
+      # Changed from 1.8 to 8 to match setup-java@v4 syntax
+      java: 8
     strategy:
       fail-fast: true
     steps:
@@ -45,6 +45,7 @@ jobs:
       - name: Install JDK ${{ env.java }}
         uses: actions/setup-java@v4
         with:
+          # This will now correctly resolve to '8'
           java-version: ${{ env.java }}
           distribution: 'temurin'
 
@@ -52,8 +53,9 @@ jobs:
         run: |
           export MAVEN_OPTS="-Xss64m -Xmx2g -XX:ReservedCodeCacheSize=1g -Dorg.slf4j.simpleLogger.defaultLogLevel=WARN"
           export MAVEN_CLI_OPTS="--no-transfer-progress"
-          export JAVA_VERSION=${{ env.java }}
-          cd spark-master && ./build/mvn $MAVEN_CLI_OPTS -DskipTests -Pyarn -Pmesos -Pkubernetes -Phive -Phive-thriftserver -Phadoop-cloud -Pdocker-integration-tests -Djava.version=$JAVA_VERSION test-compile
+          # This env var is passed to the script, which may expect '1.8'. Let's define both.
+          export JAVA_VERSION_FOR_MAVEN=1.8
+          cd spark-master && ./build/mvn $MAVEN_CLI_OPTS -DskipTests -Pyarn -Pmesos -Pkubernetes -Phive -Phive-thriftserver -Phadoop-cloud -Pdocker-integration-tests -Djava.version=$JAVA_VERSION_FOR_MAVEN test-compile
 
       - name: Analyze Spark class dependencies
         run: ./bin/analyze-spark-repo.sh `pwd`/spark-master "${{ env.OUTPUT_NAME }}"
